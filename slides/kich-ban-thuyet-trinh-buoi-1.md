@@ -79,13 +79,14 @@ Phần cuối file có bảng phân bổ thời gian, danh sách câu hỏi có 
 
 > Hệ thống gồm sáu khâu nối tiếp nhau, chạy lặp lại cho từng khung hình.
 >
-> **Khâu 1 — thu khung hình.** OpenCV mở webcam và đọc từng khung hình, khoảng 30 khung mỗi giây. Đây cũng là chỗ em đặt bộ đếm FPS, vì tên đề tài có chữ *thời gian thực* nên em phải đo được con số đó chứ không thể nói suông.
+> **Khâu 1 — thu khung hình.** OpenCV mở webcam và đọc từng khung hình, khoảng 30 khung mỗi giây (đây là con số do webcam cung cấp, đa phần là 30fps). Đây cũng là chỗ em đặt bộ đếm FPS, vì tên đề tài có chữ *thời gian thực* nên em phải đo được con số đó chứ không thể nói suông.
 >
 > **Khâu 2 — ước lượng tư thế.** Em chuyển ảnh sang hệ màu RGB rồi đưa vào MediaPipe Pose. Mô hình trả về 33 điểm khớp trên cơ thể, kèm theo điểm tin cậy cho từng điểm. Đây là khâu bản lề: từ đây trở đi hệ thống không còn làm việc với pixel nữa, chỉ còn làm việc với tọa độ.
 >
 > Chỗ này em xin nói thêm một chút vì nó là ý tưởng cốt lõi của đề tài. Một khung hình màu độ phân giải 1280 nhân 720 có hơn hai triệu bảy trăm nghìn con số. Sau khâu 2, nó chỉ còn khoảng một trăm con số. Nhẹ hơn khoảng hai chục nghìn lần, và đó chính là lý do hệ thống chạy được thời gian thực trên CPU.
 >
-> **Khâu 3 — chuẩn hóa tọa độ.** Tọa độ thô mà MediaPipe trả về là vị trí trên màn hình. Nếu đưa thẳng vào mô hình, mô hình sẽ học vị trí đứng chứ không học hành động. Nên em dời gốc tọa độ về trung điểm hông để bỏ ảnh hưởng của vị trí, rồi chia cho chiều dài thân để bỏ ảnh hưởng của khoảng cách tới camera. Sau bước này, cùng một tư thế đứng gần hay đứng xa đều cho ra bộ số gần như nhau.
+> **Khâu 3 — chuẩn hóa tọa độ.** Tọa độ thô mà MediaPipe trả về là vị trí trên màn hình. Nếu đưa thẳng vào mô hình, mô hình sẽ học vị trí đứng chứ không học hành động. Nên em dời gốc tọa độ về trung điểm hông để bỏ ảnh hưởng của vị trí, rồi chia cho chiều dài thân để bỏ ảnh hưởng của khoảng cách tới camera. Sau bước này, cùng một tư thế đứng gần hay đứng xa đều cho ra bộ số gần như nhau. Trong trường hợp 1 người thì sẽ lấy trung điểm của hai hông làm gốc tọa độ.
+VD: Với người đứng gần camera khoảng cách vai - hông là 100px, với người đừng xa camera khoảng cách vai - hông là 50px => Sketeton đã to gấp 2 lần mặc dù người ko hề thay đổi tư thế => Cần chia cho chiều dài thân để triệt tiêu scale này.
 >
 > **Khâu 4 — hàng đợi 30 khung hình.** Hệ thống giữ lại 30 khung gần nhất, tương đương khoảng một giây. Mỗi khung mới đẩy khung cũ nhất ra, gọi là cửa sổ trượt. Bước này biến bài toán từ *nhìn một tư thế* thành *nhìn một đoạn chuyển động*. Nó cần thiết vì có những hành động không thể phân biệt bằng một khung hình đơn lẻ — ví dụ ngồi xuống và đứng dậy đi qua đúng những tư thế giống nhau, chỉ khác thứ tự thời gian.
 >
