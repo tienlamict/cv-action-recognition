@@ -1,0 +1,105 @@
+# ============================================================
+# Dữ liệu nặng — tải lại hoặc sinh lại theo hướng dẫn README.md
+# ============================================================
+
+# Toàn bộ nội dung data/ (video IPN, video tự quay, .npz điểm mốc, cửa sổ)
+# Giữ lại khung thư mục bằng .gitkeep
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# splits.json là quyết định chia tập theo người — cần tái lập được (Phase 5)
+!data/splits.json
+
+# Mô hình MediaPipe tải về (xem README: cách tải hand_landmarker.task)
+models/*.task
+models/*.tflite
+
+# Checkpoint và mô hình đã huấn luyện
+*.pt
+*.pth
+*.ckpt
+*.joblib
+*.pkl
+*.onnx
+
+# Mảng và bảng dữ liệu lớn sinh ra khi chạy
+*.npz
+*.npy
+
+# ============================================================
+# results/ — giữ bảng .csv/.md, hình .png và manifest.json cho báo cáo,
+# loại các file nặng sinh kèm
+# ============================================================
+results/**/*.mp4
+results/**/*.avi
+results/**/*.mov
+results/**/*.mkv
+
+# ============================================================
+# Video và media rời nằm ngoài data/
+# ============================================================
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Môi trường ảo
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# Kiểm thử và bao phủ
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Notebook
+.ipynb_checkpoints/
+
+# ============================================================
+# IDE và hệ điều hành
+# ============================================================
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
