@@ -3,10 +3,7 @@
 # ============================================================
 
 # Toàn bộ nội dung data/ (video IPN, video tự quay, .npz điểm mốc, cửa sổ)
-# Giữ lại khung thư mục bằng .gitkeep
 data/**
-!data/**/
-!data/**/.gitkeep
 
 # splits.json là quyết định chia tập theo người — cần tái lập được (Phase 5)
 !data/splits.json

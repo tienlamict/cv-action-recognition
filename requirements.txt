@@ -1,0 +1,14 @@
+# Phase 0 — chưa ghim phiên bản. Ghim ở Phase 11 (tái lập).
+# Cài trên CPU, Windows, Python 3.10. Không gói CUDA nào.
+
+numpy
+opencv-python
+mediapipe
+
+scikit-learn
+torch
+
+pandas
+matplotlib
+
+pytest
