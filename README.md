@@ -23,10 +23,15 @@ nằm ở [docs/SPEC.md](docs/SPEC.md). Lý thuyết nền nằm ở [docs/](doc
 ## Cài môi trường
 
 ```bat
-conda create -n handgest python=3.10 -y
-conda activate handgest
+conda create -n action-recognition python=3.10 -y
+conda activate action-recognition
 pip install -r requirements.txt
 ```
+
+Khi làm việc qua Claude Code, env này được kích hoạt tự động lúc mở phiên nhờ
+hook `SessionStart` trong [.claude/settings.json](.claude/settings.json)
+(script: [.claude/hooks/conda-env.sh](.claude/hooks/conda-env.sh)). Miniconda
+cài ở chỗ khác `%USERPROFILE%\miniconda3` thì đặt biến môi trường `CONDA_ROOT`.
 
 Kiểm tra môi trường đã đủ:
 

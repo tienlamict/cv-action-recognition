@@ -15,3 +15,10 @@
 - Chia tập theo NGƯỜI. Không bao giờ train_test_split ngẫu nhiên trên cửa sổ.
 - Không LSTM hai chiều, không làm mượt hai phía (hệ thống thời gian thực).
 - Không đường dẫn tuyệt đối, không phụ thuộc CUDA.
+
+# Môi trường
+
+- Mọi lệnh python/pytest/pip chạy trong conda env `action-recognition`
+  (Python 3.10). Hook SessionStart ở .claude/settings.json tự kích hoạt env
+  cho Bash. Trước khi chạy, kiểm tra `python --version` ra 3.10.x; nếu ra
+  bản khác thì dừng và báo, không chạy bằng Python hệ thống.

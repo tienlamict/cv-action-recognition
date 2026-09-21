@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/conda-env.sh\"",
+            "timeout": 10,
+            "statusMessage": "Kích hoạt conda env action-recognition"
+          }
+        ]
+      }
+    ]
+  }
+}
