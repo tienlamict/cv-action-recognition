@@ -49,6 +49,8 @@ CLASSES = ["none", "swipe_left", "swipe_right", "zoom_in", "zoom_out"]
 WRIST = 0           # gốc toạ độ khi chuẩn hóa cửa sổ
 MIDDLE_MCP = 9      # khoảng cách 0 -> 9 là đơn vị đo
 TIPS = [4, 8, 12, 16, 20]   # đầu 5 ngón: cái, trỏ, giữa, nhẫn, út
+INDEX_TIP = 8       # đầu ngón trỏ — dùng đo độ rung ở Phase 1
+NUM_LANDMARKS = 21
 
 # --------------------------------------------------------------------------
 # Trục thời gian và cửa sổ — tính bằng GIÂY, không bằng frame
@@ -84,6 +86,7 @@ MEASURED_IN_PHASE = {
 CAM_W = 640
 CAM_H = 480
 CAM_FPS = 30
+CAM_INDEX = 0           # webcam mặc định của máy
 
 # --------------------------------------------------------------------------
 # Logic kích hoạt
@@ -99,6 +102,71 @@ COOLDOWN_SEC = 1.2      # thời gian câm lặng sau khi phát một lệnh
 # --------------------------------------------------------------------------
 
 SEED = 42               # đặt cho random, numpy, torch
+
+
+# --------------------------------------------------------------------------
+# MediaPipe Hand Landmarker — ba ngưỡng để mặc định 0,5: ĐO trước khi chỉnh
+# --------------------------------------------------------------------------
+
+NUM_HANDS = 1
+MP_MIN_DETECTION_CONF = 0.5     # bộ phát hiện lòng bàn tay
+MP_MIN_PRESENCE_CONF = 0.5      # cờ hiện diện của mô hình điểm mốc
+MP_MIN_TRACKING_CONF = 0.5      # bám từ frame trước
+
+# --------------------------------------------------------------------------
+# Đo FPS
+# --------------------------------------------------------------------------
+
+FPS_WARMUP_SEC = 3.0        # bỏ mấy giây đầu khỏi thống kê (camera còn tự chỉnh)
+FPS_ROLLING_FRAMES = 30     # FPS trượt hiển thị trên màn hình
+FPS_LOW_PERCENTILE = 1.0    # "1% low": phân vị thấp của FPS tức thời
+
+# --------------------------------------------------------------------------
+# Đo SWIPE_LEFT_SIGN (Phase 1) — scripts/measure_swipe_sign.py
+# --------------------------------------------------------------------------
+
+SWIPE_MEASURE_REPS = 10             # cẩm nang 4.3: 10 lần vuốt
+SWIPE_MEASURE_COUNTDOWN_SEC = 2.0   # nghỉ + chuẩn bị trước mỗi lần
+SWIPE_MEASURE_RECORD_SEC = 1.5      # thời gian ghi một lần vuốt
+SWIPE_MEASURE_MIN_FRAMES = 5        # số frame có tay tối thiểu của một lần hợp lệ
+SWIPE_MEASURE_MIN_DX = 0.10         # |dx| tối thiểu, tính theo tỉ lệ chiều rộng khung
+SWIPE_MEASURE_MIN_VALID_FRAC = 0.7  # tỉ lệ số lần hợp lệ tối thiểu để kết luận
+
+# --------------------------------------------------------------------------
+# Kết quả Phase 1
+# --------------------------------------------------------------------------
+
+PHASE1_RESULTS_DIR = RESULTS_DIR / "phase1"
+LANDMARKS_CSV_NAME = "landmarks.csv"
+MANIFEST_NAME = "manifest.json"
+CSV_FLOAT_DECIMALS = 6
+
+OBS_DEFAULT_SEC = 15.0              # cẩm nang bước 6: mỗi thí nghiệm 10–20 giây
+OBS_JITTER_EXPERIMENT = "e9_jitter" # thí nghiệm 6.9 — nguồn của sigma tăng cường
+OBS_MIN_RUNS = 3                    # cẩm nang bước 6: lặp ít nhất ba lần
+
+# --------------------------------------------------------------------------
+# Hiển thị — chỉ bản cho NGƯỜI XEM được lật; ảnh vào mô hình không bao giờ lật
+# --------------------------------------------------------------------------
+
+DISPLAY_FLIP_CODE = 1       # cv2.flip: 1 = lật ngang như gương
+DISPLAY_WAIT_MS = 1
+QUIT_KEYS = (ord("q"), 27)  # q hoặc Esc
+
+COLOR_POINT = (0, 0, 255)       # BGR
+COLOR_LINE = (0, 255, 0)
+COLOR_TEXT = (255, 255, 255)
+COLOR_TEXT_SHADOW = (0, 0, 0)
+COLOR_ALERT = (0, 200, 255)
+
+POINT_RADIUS = 4
+LINE_THICKNESS = 2
+FONT_SCALE = 0.6
+FONT_SCALE_BIG = 1.2
+TEXT_THICKNESS = 1
+TEXT_SHADOW_THICKNESS = 3
+TEXT_ORIGIN = (10, 25)
+TEXT_LINE_HEIGHT = 24
 
 
 def require_measured(name):

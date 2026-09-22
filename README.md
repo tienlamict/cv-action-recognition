@@ -113,12 +113,17 @@ chỗ dùng chúng sẽ dừng ngay nhờ `config.require_measured()`.
 
 ## Thứ tự chạy script
 
-Chưa có script nào — Phase 0 mới chỉ dựng khung. Mục này điền dần theo từng
-phase, mỗi dòng là một lệnh chạy lại được để tái tạo con số trong báo cáo.
+Mỗi dòng là một lệnh chạy lại được để tái tạo con số trong báo cáo. Mọi
+script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` kèm
+`manifest.json` (dòng lệnh, thời điểm, seed, phiên bản thư viện, hằng số).
 
 | Phase | Lệnh | Sinh ra gì |
 |---|---|---|
-| 1 | | |
+| 1 | `python scripts/live_landmarks.py` | Xem điểm mốc + FPS trên webcam (không ghi gì) |
+| 1 | `python scripts/measure_swipe_sign.py` | `results/phase1/swipe_sign/run_NN/` + dòng `SWIPE_LEFT_SIGN` để dán vào `config.py`. Chạy 3 lần |
+| 1 | `python scripts/observe.py --exp <tên> [--condition <đk>]` | `results/phase1/<tên>[_<đk>]/run_NN/landmarks.csv`. `--list` để xem 9 thí nghiệm; mỗi thí nghiệm ≥ 3 lần |
+| 1 | `python scripts/analyze_observations.py` | `results/phase1/analysis/run_NN/`: bảng `runs` và `summary` (.csv + .md), sigma độ rung |
+| 1 | `python scripts/record_csv.py --name <tên>` | CSV điểm mốc mỗi frame một dòng, dùng tự do |
 | 4 | | |
 | 5 | | |
 | 6 | | |
