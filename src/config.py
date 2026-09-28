@@ -169,6 +169,17 @@ TEXT_ORIGIN = (10, 25)
 TEXT_LINE_HEIGHT = 24
 
 
+# --------------------------------------------------------------------------
+# Biểu diễn (Phase 2) — chuẩn hoá cửa sổ và vector đặc trưng
+# --------------------------------------------------------------------------
+
+NORM_MIN_SCALE = 1e-6       # ||p9 - p0|| nhỏ hơn mức này thì coi như không đo được
+FEATURE_EDGE_STEPS = 3      # "đầu" và "cuối" của cửa sổ = trung bình 3 bước
+FEATURE_EPS = 1e-8          # chặn chia cho 0 trong horiz_ratio và straightness
+
+FIG_DPI = 150               # mọi hình xuất ra .png
+
+
 def require_measured(name):
     """Trả về giá trị của một hằng số quy ước, hoặc dừng nếu nó chưa được đo.
 
