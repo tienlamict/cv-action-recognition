@@ -8,8 +8,10 @@ results/phase1/analysis/run_NN/:
                              lệch chuẩn, số lần chạy
 - manifest.json
 
-Rồi in sigma cho tăng cường nhiễu Gauss (Phase 5), lấy từ thí nghiệm
-OBS_JITTER_EXPERIMENT (cẩm nang 6.9, tay đứng yên hoàn toàn).
+Rồi in dòng AUG_NOISE_SIGMA để dán vào config.py — sigma cho tăng cường
+nhiễu Gauss ở Phase 4, đo trên thí nghiệm OBS_JITTER_EXPERIMENT (tay đứng yên
+hoàn toàn). Sigma báo theo đơn vị ĐÃ CHUẨN HOÁ (cỡ lòng bàn tay), đúng đơn vị
+mà normalize_window dùng; bản tính bằng pixel in kèm để đối chiếu.
 
 Ví dụ:
     python scripts/analyze_observations.py
@@ -33,7 +35,6 @@ _EXPERIMENT_DIR = re.compile(r"^e\d")
 METRICS = [
     "n_frames", "duration_sec", "fps", "detection_rate", "n_losses",
     "longest_gap_frames", "longest_gap_sec", "mean_score",
-    "frac_left", "frac_right",
     "jitter_index_std_px", "jitter_index_diff_px",
     "sigma_std_px", "sigma_diff_px", "palm_px", "sigma_std_palm",
 ]
@@ -92,14 +93,19 @@ def main():
                  "sigma_std_palm": j["sigma_std_palm_mean"],
                  "sigma_diff_px": j["sigma_diff_px_mean"],
                  "n_runs": j["n_runs"]}
-        print(f"\nSigma cho tăng cường nhiễu Gauss (từ {config.OBS_JITTER_EXPERIMENT},"
-              f" {j['n_runs']} lần chạy):")
-        print(f"  {j['sigma_std_px_mean']:.3f} px   = "
+        print(f"\nSigma độ rung điểm mốc (từ {config.OBS_JITTER_EXPERIMENT}, "
+              f"{j['n_runs']} lần chạy):")
+        print(f"  {j['sigma_std_px_mean']:.3f} px, tức "
               f"{j['sigma_std_palm_mean']:.4f} cỡ lòng bàn tay (điểm 0 -> 9)")
         print(f"  đối chiếu theo chênh lệch frame liền nhau: "
               f"{j['sigma_diff_px_mean']:.3f} px")
         if j["n_runs"] < config.OBS_MIN_RUNS:
-            print(f"  CẢNH BÁO: mới {j['n_runs']} lần — cần ít nhất {config.OBS_MIN_RUNS}.")
+            print(f"  CẢNH BÁO: mới {j['n_runs']} lần — cần ít nhất "
+                  f"{config.OBS_MIN_RUNS}.")
+        print("\nDán dòng sau vào src/config.py, thay cho AUG_NOISE_SIGMA = None:\n")
+        print(f"AUG_NOISE_SIGMA = {j['sigma_std_palm_mean']:.4f}"
+              f"    # đo ở Phase 1B, {config.OBS_JITTER_EXPERIMENT}, "
+              f"{j['n_runs']} lần chạy; đơn vị cỡ lòng bàn tay")
     else:
         print(f"\nChưa có {config.OBS_JITTER_EXPERIMENT} — chưa tính được sigma.")
 

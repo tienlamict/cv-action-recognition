@@ -8,7 +8,7 @@ Toạ độ ghi ra là toạ độ chuẩn hoá của MediaPipe (``[0, 1]``) kè
 của frame. Đổi sang pixel là việc của bước đầu tiên trong đường ống
 (``to_pixels``, Phase 2), không làm ở đây.
 
-Cột: ``ts, present, score, handedness, w, h, x0..x20, y0..y20``.
+Cột: ``ts, present, score, w, h, x0..x20, y0..y20``.
 """
 
 import csv
@@ -25,11 +25,11 @@ from src.hands import seconds_to_ms
 
 X_COLUMNS = [f"x{i}" for i in range(config.NUM_LANDMARKS)]
 Y_COLUMNS = [f"y{i}" for i in range(config.NUM_LANDMARKS)]
-CSV_COLUMNS = ["ts", "present", "score", "handedness", "w", "h",
+CSV_COLUMNS = ["ts", "present", "score", "w", "h",
                *X_COLUMNS, *Y_COLUMNS]
 
 TrackedFrame = namedtuple(
-    "TrackedFrame", "frame_bgr ts xy_norm present score handedness"
+    "TrackedFrame", "frame_bgr ts xy_norm present score"
 )
 
 
@@ -45,10 +45,9 @@ def track(frames, tracker):
         ``TrackedFrame`` cho từng frame, kể cả frame không thấy tay.
     """
     for frame_bgr, ts in frames:
-        xy_norm, present, score, handedness = tracker.process(
-            frame_bgr, seconds_to_ms(ts)
-        )
-        yield TrackedFrame(frame_bgr, ts, xy_norm, present, score, handedness)
+        xy_norm, present, score = tracker.process(frame_bgr,
+                                                  seconds_to_ms(ts))
+        yield TrackedFrame(frame_bgr, ts, xy_norm, present, score)
 
 
 class FrameCsvWriter:
@@ -63,7 +62,7 @@ class FrameCsvWriter:
         self._writer = csv.writer(self._file)
         self._writer.writerow(CSV_COLUMNS)
 
-    def write(self, ts, present, score, handedness, w, h, xy_norm):
+    def write(self, ts, present, score, w, h, xy_norm):
         if present:
             coords = [self._fmt.format(v) for v in xy_norm[:, 0]]
             coords += [self._fmt.format(v) for v in xy_norm[:, 1]]
@@ -72,18 +71,17 @@ class FrameCsvWriter:
         else:
             coords = [""] * (2 * config.NUM_LANDMARKS)
             score_text = ""
-            handedness = ""
 
         self._writer.writerow([
-            self._fmt.format(ts), int(bool(present)), score_text, handedness,
+            self._fmt.format(ts), int(bool(present)), score_text,
             int(w), int(h), *coords,
         ])
         self.n_rows += 1
 
     def write_tracked(self, tracked):
         h, w = tracked.frame_bgr.shape[:2]
-        self.write(tracked.ts, tracked.present, tracked.score,
-                   tracked.handedness, w, h, tracked.xy_norm)
+        self.write(tracked.ts, tracked.present, tracked.score, w, h,
+                   tracked.xy_norm)
 
     def close(self):
         self._file.close()
@@ -102,7 +100,7 @@ def read_frames_csv(path):
         dict với các mảng dài ``N`` (số dòng = số frame):
 
         - ``ts`` float64, ``present`` bool, ``score`` float64 (NaN khi mất tay)
-        - ``handedness`` str (rỗng khi mất tay), ``w``, ``h`` int64
+        - ``w``, ``h`` int64 — kích thước khung hình
         - ``xy`` float32 ``(N, 21, 2)``, toạ độ chuẩn hoá, NaN khi mất tay
     """
     with open(path, newline="", encoding="utf-8") as f:
@@ -121,7 +119,6 @@ def read_frames_csv(path):
         "ts": floats("ts"),
         "present": np.array([r["present"] == "1" for r in rows], dtype=bool),
         "score": floats("score"),
-        "handedness": np.array([r["handedness"] for r in rows], dtype=str),
         "w": np.array([int(r["w"]) for r in rows], dtype=np.int64),
         "h": np.array([int(r["h"]) for r in rows], dtype=np.int64),
         "xy": xy.astype(np.float32),
@@ -141,7 +138,7 @@ def status_lines(tracked, fps_meter):
         lines.append("(warm-up: FPS stats start after "
                      f"{config.FPS_WARMUP_SEC:.0f}s)")
     if tracked.present:
-        lines.append(f"Hand: YES  {tracked.handedness} {tracked.score:.2f}")
+        lines.append(f"Hand: YES  score {tracked.score:.2f}")
     else:
         lines.append("Hand: NO")
     return lines

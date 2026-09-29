@@ -104,8 +104,10 @@ chỗ dùng chúng sẽ dừng ngay nhờ `config.require_measured()`.
 
 | Hằng số | Giá trị | Đo ở phase | Đo bằng cách nào |
 |---|---|---|---|
-| `SWIPE_LEFT_SIGN` | *(chưa đo)* | 1 | |
-| `IPN_FLIP_X` | *(chưa đo)* | 4 | |
+| `SWIPE_LEFT_SIGN` | *(chưa đo)* | 3 | `scripts/measure_direction.py` trên dữ liệu IPN |
+| `IPN_FLIP_X` | `1` | — | IPN là chuẩn quy ước hướng; chỉ đổi thành `-1` khi phép thử webcam ở Phase 5 chứng minh ngược |
+| `AUG_NOISE_SIGMA` | *(chưa đo)* | 1B hoặc 4 | `analyze_observations.py`, hoặc ước lượng trên IPN |
+| `RULE_S_HI`, `RULE_DX_HI`, `RULE_O_HI` | *(chưa hiệu chuẩn)* | 5 | `scripts/calibrate_rules.py` trên tập `train` của IPN |
 
 Điền giá trị **và** một câu mô tả cách đo vào bảng này ngay khi đo xong.
 
@@ -120,9 +122,8 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | Phase | Lệnh | Sinh ra gì |
 |---|---|---|
 | 1 | `python scripts/live_landmarks.py` | Xem điểm mốc + FPS trên webcam (không ghi gì) |
-| 1 | `python scripts/measure_swipe_sign.py` | `results/phase1/swipe_sign/run_NN/` + dòng `SWIPE_LEFT_SIGN` để dán vào `config.py`. Chạy 3 lần |
 | 1 | `python scripts/observe.py --exp <tên> [--condition <đk>]` | `results/phase1/<tên>[_<đk>]/run_NN/landmarks.csv`. `--list` để xem 9 thí nghiệm; mỗi thí nghiệm ≥ 3 lần |
-| 1 | `python scripts/analyze_observations.py` | `results/phase1/analysis/run_NN/`: bảng `runs` và `summary` (.csv + .md), sigma độ rung |
+| 1 | `python scripts/analyze_observations.py` | `results/phase1/analysis/run_NN/`: bảng `runs` và `summary` (.csv + .md), và dòng `AUG_NOISE_SIGMA` để dán vào `config.py` |
 | 1 | `python scripts/record_csv.py --name <tên>` | CSV điểm mốc mỗi frame một dòng, dùng tự do |
 | 4 | | |
 | 5 | | |

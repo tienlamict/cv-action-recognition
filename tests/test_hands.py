@@ -12,7 +12,7 @@ def test_hands_tra_ve_nan_tren_anh_den():
     """Ảnh đen → không có tay: present False, xy toàn NaN, không trả về None."""
     black = np.zeros((config.CAM_H, config.CAM_W, 3), dtype=np.uint8)
     with HandTracker() as tracker:
-        xy, present, score, handedness = tracker.process(black, 0)
+        xy, present, score = tracker.process(black, 0)
 
     assert present is False
     assert xy is not None
@@ -20,7 +20,6 @@ def test_hands_tra_ve_nan_tren_anh_den():
     assert xy.dtype == np.float32
     assert np.all(np.isnan(xy))
     assert np.isnan(score)
-    assert handedness == ""
 
 
 def test_hands_khong_lat_anh_dau_vao():

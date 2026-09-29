@@ -1,6 +1,14 @@
 # Tổng kết Phase 0 và Phase 1
 
 **Đề tài:** Nhận dạng cử chỉ bàn tay thời gian thực để điều khiển máy tính
+> **Ghi chú (2026-09-29).** Tài liệu này viết theo SPEC cũ, đánh số 12 phase.
+> SPEC mới đánh số lại thành 13 phase theo hướng "IPN trước": trích điểm mốc IPN
+> chuyển lên Phase 3, mô hình luật và demo v0 lùi xuống Phase 5. Việc đo
+> `SWIPE_LEFT_SIGN` trên webcam đã bị bỏ — hằng số này giờ đo trên chính dữ liệu
+> IPN ở Phase 3 — nên `scripts/measure_swipe_sign.py` và `src/calibration.py`
+> nhắc tới bên dưới đã bị xoá khỏi project. Cột `handedness` cũng đã bị bỏ khỏi
+> CSV và khỏi `HandTracker.process`.
+
 **Phạm vi tài liệu:** chỉ những gì đã triển khai ở Phase 0 (khung dự án) và
 Phase 1 (thu nhận điểm mốc, hiệu chuẩn quy ước).
 **Trạng thái tại thời điểm viết:** 13/13 kiểm thử xanh. Phần code của cả hai

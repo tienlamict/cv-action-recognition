@@ -89,12 +89,6 @@ def run_metrics(data):
                        if present.any() else float("nan")),
     }
 
-    handed = data["handedness"][present]
-    for label in ("Left", "Right"):
-        metrics[f"frac_{label.lower()}"] = (
-            float(np.mean(handed == label)) if handed.size else float("nan")
-        )
-
     size = np.stack([data["w"], data["h"]], axis=1)[:, None, :]
     points_px = (data["xy"].astype(np.float64) * size)[present]
     # Cặp (j, j+1) trong các frame thấy tay có liền nhau trên trục thời gian

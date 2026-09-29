@@ -4,10 +4,9 @@ Mọi file khác trong ``src/`` và ``scripts/`` phải nhập hằng số từ 
 được viết lại một con số nào. Xem CLAUDE.md, mục "config.py là nơi duy nhất
 chứa hằng số".
 
-Hai hằng số quy ước hướng — ``SWIPE_LEFT_SIGN`` và ``IPN_FLIP_X`` — cố ý để
-``None``. Chúng phải được ĐO bằng script chứ không đoán, nên mọi chỗ dùng
-chúng phải đi qua :func:`require_measured` để chương trình dừng ngay thay vì
-chạy sai một cách im lặng.
+Một số hằng số cố ý để ``None``: chúng phải được ĐO hoặc HIỆU CHUẨN bằng
+script chứ không đoán. Mọi chỗ dùng chúng phải đi qua :func:`require_measured`
+để chương trình dừng ngay thay vì chạy sai một cách im lặng.
 """
 
 from pathlib import Path
@@ -70,13 +69,22 @@ LABEL_COVERAGE = 0.6    # ngưỡng phủ nhãn khi gán nhãn cho cửa sổ
 # Quy ước hướng — CHƯA ĐO. Dùng require_measured() trước khi đọc
 # --------------------------------------------------------------------------
 
-SWIPE_LEFT_SIGN = None      # CHƯA ĐO — đo ở Phase 1
-IPN_FLIP_X = None           # CHƯA ĐO — đo ở Phase 4
+SWIPE_LEFT_SIGN = None      # CHƯA ĐO — đo trên dữ liệu IPN ở Phase 3
+IPN_FLIP_X = 1              # IPN là chuẩn quy ước hướng. Chỉ đổi thành -1 khi
+                            # phép thử trên webcam ở Phase 5 chứng minh ngược
+AUG_NOISE_SIGMA = None      # CHƯA ĐO — thí nghiệm quan sát Phase 1B, hoặc
+                            # ước lượng trên IPN ở Phase 4
+RULE_S_HI = None            # CHƯA HIỆU CHUẨN — ba ngưỡng của rules.py, chọn
+RULE_DX_HI = None           # trên tập train của IPN ở Phase 5. Không bao giờ
+RULE_O_HI = None            # chọn trên val hay test
 
-#: Hằng số nào phải đo ở phase nào. require_measured() đọc bảng này.
+#: Hằng số nào phải đo hoặc hiệu chuẩn ở phase nào. require_measured() đọc bảng này.
 MEASURED_IN_PHASE = {
-    "SWIPE_LEFT_SIGN": 1,
-    "IPN_FLIP_X": 4,
+    "SWIPE_LEFT_SIGN": 3,
+    "AUG_NOISE_SIGMA": 4,
+    "RULE_S_HI": 5,
+    "RULE_DX_HI": 5,
+    "RULE_O_HI": 5,
 }
 
 # --------------------------------------------------------------------------
@@ -120,17 +128,6 @@ MP_MIN_TRACKING_CONF = 0.5      # bám từ frame trước
 FPS_WARMUP_SEC = 3.0        # bỏ mấy giây đầu khỏi thống kê (camera còn tự chỉnh)
 FPS_ROLLING_FRAMES = 30     # FPS trượt hiển thị trên màn hình
 FPS_LOW_PERCENTILE = 1.0    # "1% low": phân vị thấp của FPS tức thời
-
-# --------------------------------------------------------------------------
-# Đo SWIPE_LEFT_SIGN (Phase 1) — scripts/measure_swipe_sign.py
-# --------------------------------------------------------------------------
-
-SWIPE_MEASURE_REPS = 10             # cẩm nang 4.3: 10 lần vuốt
-SWIPE_MEASURE_COUNTDOWN_SEC = 2.0   # nghỉ + chuẩn bị trước mỗi lần
-SWIPE_MEASURE_RECORD_SEC = 1.5      # thời gian ghi một lần vuốt
-SWIPE_MEASURE_MIN_FRAMES = 5        # số frame có tay tối thiểu của một lần hợp lệ
-SWIPE_MEASURE_MIN_DX = 0.10         # |dx| tối thiểu, tính theo tỉ lệ chiều rộng khung
-SWIPE_MEASURE_MIN_VALID_FRAC = 0.7  # tỉ lệ số lần hợp lệ tối thiểu để kết luận
 
 # --------------------------------------------------------------------------
 # Kết quả Phase 1

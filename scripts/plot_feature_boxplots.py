@@ -1,7 +1,7 @@
 """Vẽ boxplot từng đặc trưng theo từng lớp, từ bộ cửa sổ đã dựng.
 
-Viết ở Phase 2, **chạy** ở Phase 5 khi đã có data/windows/windows.npz. Ba hình
-cần nhìn là cổng kiểm tra của Phase 5:
+Viết ở Phase 2, **chạy** ở Phase 4 khi đã có data/windows/windows.npz. Ba hình
+cần nhìn là cổng kiểm tra của Phase 4:
 
 - open_delta: hộp zoom_in hẳn bên dương, zoom_out hẳn bên âm
 - dx: hai hộp của hai lớp vuốt nằm hai phía của 0
@@ -36,7 +36,7 @@ def main():
     path = Path(args.windows)
     if not path.is_file():
         print(f"Chưa có {relative_to_root(path)}. Bộ cửa sổ được dựng ở "
-              "Phase 5 bằng scripts/build_dataset.py.")
+              "Phase 4 bằng scripts/build_dataset.py.")
         return
 
     data = np.load(path, allow_pickle=False)
@@ -44,7 +44,7 @@ def main():
     F = np.stack([window_features(win, ratio)
                   for win, ratio in zip(X, presence)])
 
-    out_dir = next_run_dir(config.RESULTS_DIR / "phase5" / "boxplots")
+    out_dir = next_run_dir(config.RESULTS_DIR / "phase4" / "boxplots")
     out_path = plot_boxplots(F, y, FEATURE_NAMES, out_dir / "features.png")
     write_manifest(out_dir, {"script": "plot_feature_boxplots",
                              "windows": relative_to_root(path),

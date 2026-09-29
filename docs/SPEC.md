@@ -8,6 +8,7 @@ Cập nhật 2026-09-29 — hướng IPN trước
 
 Spec này chia phần **code** của project thành 13 phase, mỗi phase có định nghĩa hoàn thành kiểm tra được bằng lệnh. Hệ thống cần xây: nhận dạng bốn cử chỉ bàn tay cộng một lớp nền từ webcam, rồi phát phím tắt điều khiển máy tính. Bốn lớp đích là `swipe_left`, `swipe_right`, `zoom_in`, `zoom_out`; lớp nền là `none`.
 
+**Hướng triển khai: IPN Hand trước, dữ liệu tự quay sau nếu cần.** Toàn bộ huấn luyện, chọn ngưỡng và đánh giá chính dựa trên IPN Hand. Người dùng chủ động làm cử chỉ theo đúng cách người diễn trong IPN làm. Dữ liệu tự quay chỉ được bổ sung ở Phase 11 khi có bằng chứng cần tới nó — mục Chiến lược dữ liệu nói rõ khi nào.
 
 Nguồn chân lý về *vì sao* là bộ tài liệu tầng 1–6 và cẩm nang 22 bước trong project. Spec này chỉ nói *làm gì*, *theo thứ tự nào*, và *làm xong thì chứng minh bằng cách nào*. Khi spec mâu thuẫn với cẩm nang về thứ tự hay nguồn dữ liệu, **spec thắng** vì nó phản ánh hướng IPN trước; với mọi điểm khác, Claude Code hỏi lại thay vì tự chọn.
 

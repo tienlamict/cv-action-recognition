@@ -45,14 +45,20 @@ def test_tips_du_nam_dau_ngon():
 
 def test_require_measured_nem_loi():
     """Hằng số chưa đo phải làm chương trình dừng ngay, kèm tên phase."""
-    assert config.SWIPE_LEFT_SIGN is None, "Phase 1 chưa chạy thì phải còn None"
-    assert config.IPN_FLIP_X is None, "Phase 4 chưa chạy thì phải còn None"
+    assert config.SWIPE_LEFT_SIGN is None, "Phase 3 chưa chạy thì phải còn None"
+    assert config.AUG_NOISE_SIGMA is None, "đo ở Phase 1B hoặc Phase 4"
+    for name in ("RULE_S_HI", "RULE_DX_HI", "RULE_O_HI"):
+        assert getattr(config, name) is None, "hiệu chuẩn ở Phase 5"
 
-    with pytest.raises(RuntimeError, match="Phase 1"):
+    # IPN là chuẩn quy ước hướng, nên hằng số này có sẵn giá trị chứ không đo.
+    assert config.IPN_FLIP_X in (-1, 1)
+    assert "IPN_FLIP_X" not in config.MEASURED_IN_PHASE
+
+    with pytest.raises(RuntimeError, match="Phase 3"):
         config.require_measured("SWIPE_LEFT_SIGN")
 
-    with pytest.raises(RuntimeError, match="Phase 4"):
-        config.require_measured("IPN_FLIP_X")
+    with pytest.raises(RuntimeError, match="Phase 5"):
+        config.require_measured("RULE_DX_HI")
 
     with pytest.raises(KeyError):
         config.require_measured("KHONG_TON_TAI")

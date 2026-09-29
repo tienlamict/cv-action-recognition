@@ -40,7 +40,7 @@ class HandTracker:
     Dùng như một context manager để chắc chắn giải phóng tài nguyên::
 
         with HandTracker() as tracker:
-            xy, present, score, handedness = tracker.process(frame_bgr, ts_ms)
+            xy, present, score = tracker.process(frame_bgr, ts_ms)
     """
 
     def __init__(self, model_path=config.HAND_LANDMARKER_TASK):
@@ -72,17 +72,14 @@ class HandTracker:
                 Mốc thật của frame vẫn do người gọi giữ.
 
         Returns:
-            ``(xy_norm, present, score, handedness)``:
+            ``(xy_norm, present, score)``:
 
             - ``xy_norm``: ``(21, 2)`` float32, toạ độ chuẩn hoá của MediaPipe
               trong ``[0, 1]`` theo chiều rộng và chiều cao ảnh; NaN nếu không
               thấy tay.
             - ``present``: ``True`` nếu thấy tay.
-            - ``score``: điểm tin cậy của phân loại tay trái/phải; NaN nếu không
+            - ``score``: điểm tin cậy MediaPipe kèm theo bàn tay; NaN nếu không
               thấy tay.
-            - ``handedness``: ``"Left"`` hoặc ``"Right"`` theo MediaPipe; chuỗi
-              rỗng nếu không thấy tay. Vì ảnh vào không lật, nhãn này có thể
-              ngược với tay thật — thí nghiệm 6 đo quy ước đó.
         """
         ts_ms = int(ts_ms)
         if self._last_ts_ms is not None and ts_ms <= self._last_ts_ms:
@@ -94,12 +91,11 @@ class HandTracker:
         result = self._landmarker.detect_for_video(image, ts_ms)
 
         if not result.hand_landmarks:
-            return empty_landmarks(), False, float("nan"), ""
+            return empty_landmarks(), False, float("nan")
 
         landmarks = result.hand_landmarks[0]
         xy_norm = np.array([(lm.x, lm.y) for lm in landmarks], dtype=np.float32)
-        category = result.handedness[0][0]
-        return xy_norm, True, float(category.score), category.category_name
+        return xy_norm, True, float(result.handedness[0][0].score)
 
     def close(self):
         self._landmarker.close()

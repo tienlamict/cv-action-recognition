@@ -24,8 +24,8 @@ class FakeTracker:
         if next(self._presence):
             xy = np.linspace(0.1, 0.9, config.NUM_LANDMARKS * 2,
                              dtype=np.float32).reshape(-1, 2)
-            return xy, True, 0.9, "Right"
-        return empty_landmarks(), False, float("nan"), ""
+            return xy, True, 0.9
+        return empty_landmarks(), False, float("nan")
 
 
 def fake_frames(n):
