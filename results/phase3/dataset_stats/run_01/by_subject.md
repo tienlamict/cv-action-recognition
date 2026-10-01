@@ -1,0 +1,4 @@
+| subject | n_segments | none | swipe_left | swipe_right | zoom_in | zoom_out |
+|---|---|---|---|---|---|---|
+| 1CM1_1 | 104 | 88 | 4 | 4 | 4 | 4 |
+| 1CM1_2 | 129 | 117 | 3 | 3 | 3 | 3 |

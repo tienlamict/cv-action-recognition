@@ -36,6 +36,26 @@ WINDOWS_NPZ = WINDOWS_DIR / "windows.npz"
 SPLITS_JSON = DATA_DIR / "splits.json"
 
 # --------------------------------------------------------------------------
+# IPN Hand — bố cục trên đĩa và quy ước đọc (xem docs/ipn_format.md)
+# --------------------------------------------------------------------------
+
+IPN_VIDEO_DIR = IPN_DIR / "videos" / "videos"
+IPN_ANNOT_DIR = IPN_DIR / "annotations"
+IPN_ANNOT_LIST = IPN_ANNOT_DIR / "Annot_List.txt"
+IPN_CLASS_IDX = IPN_ANNOT_DIR / "classIdx.txt"
+IPN_VIDEO_TRAIN_LIST = IPN_ANNOT_DIR / "Video_TrainList.txt"
+IPN_VIDEO_TEST_LIST = IPN_ANNOT_DIR / "Video_TestList.txt"
+IPN_METADATA_CSV = IPN_DIR / "metadata.csv"
+
+IPN_VIDEO_SUFFIX = ".avi"
+IPN_SUBJECT_TOKENS = 2      # mã người = hai token đầu của tên video (1CM1_1)
+IPN_LENGTH_TOLERANCE = 5    # lệch quá bấy nhiêu frame so với metadata thì đánh
+                            # dấu nghi vấn: chưa rõ frame thừa ở đầu hay cuối
+
+PHASE3_RESULTS_DIR = RESULTS_DIR / "phase3"
+EXAMPLES_PER_CLASS = 3      # số đoạn mẫu mỗi lớp khi xuất video minh hoạ
+
+# --------------------------------------------------------------------------
 # Lớp cử chỉ — thứ tự CỐ ĐỊNH, ``none`` luôn là chỉ số 0
 # --------------------------------------------------------------------------
 

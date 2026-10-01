@@ -1,0 +1,9 @@
+| clip_id | subject | official_split | n_frames | detection_rate | n_segments | length_mismatch |
+|---|---|---|---|---|---|---|
+| 1CM1_1_R__217 | 1CM1_1 | test | 3983 | 0.6671 | 26 | True |
+| 1CM1_1_R__218 | 1CM1_1 | test | 3773 | 0.718 | 26 | True |
+| 1CM1_1_R__219 | 1CM1_1 | test | 3921 | 0.7098 | 26 | False |
+| 1CM1_1_R__220 | 1CM1_1 | test | 3889 | 0.712 | 26 | False |
+| 1CM1_2_R__221 | 1CM1_2 | test | 3795 | 0.8337 | 43 | True |
+| 1CM1_2_R__222 | 1CM1_2 | test | 3674 | 0.6432 | 43 | True |
+| 1CM1_2_R__223 | 1CM1_2 | test | 4012 | 0.7099 | 43 | True |

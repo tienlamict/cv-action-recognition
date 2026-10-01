@@ -13,6 +13,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 from src import config
 
 _RUN_PREFIX = "run_"
@@ -73,9 +75,20 @@ def write_manifest(run_dir, extra=None):
     if extra:
         manifest.update(extra)
     path = Path(run_dir) / config.MANIFEST_NAME
-    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2),
-                    encoding="utf-8")
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2,
+                               default=_jsonable), encoding="utf-8")
     return path
+
+
+def _jsonable(value):
+    """Số và mảng của numpy không ghi thẳng ra JSON được."""
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, Path):
+        return relative_to_root(value)
+    raise TypeError(f"Không ghi ra JSON được: {type(value).__name__}")
 
 
 def relative_to_root(path):
