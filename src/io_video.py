@@ -11,6 +11,16 @@ Hai nguồn gắn mốc thời gian khác nhau, và đó là chủ ý:
 - **File video**: chỉ số frame chia FPS của file, đọc TUẦN TỰ. Không bao giờ
   nhảy frame bằng ``CAP_PROP_POS_FRAMES`` — với nhiều codec nó chậm và lệch.
 
+"Chỉ số frame" là **vị trí của frame trong container**, đọc từ
+``CAP_PROP_POS_MSEC`` sau mỗi ``read()``, KHÔNG phải số lần ``read()`` thành
+công. Hai thứ đó khác nhau: bộ giải mã FFmpeg âm thầm bỏ các frame "not coded"
+của XVID (chunk 6 byte, nghĩa là "giữ nguyên ảnh trước"). Trên IPN, 101/200
+video có frame kiểu này, nhiều nhất 56 frame một video. Đếm số lần ``read()``
+thì mỗi frame bị bỏ làm ``ts`` của mọi frame sau sớm đi 1/FPS. Đếm theo vị trí
+thì frame bị bỏ chỉ để lại một khoảng trống trong ``ts`` — đúng với thời gian
+thật, và ``resample`` xử lý khoảng trống đó như mọi lỗ hổng khác. Xem
+``docs/ipn_format.md`` mục 6.
+
 Cả hai đều trả ``ts`` tính bằng giây, bắt đầu từ 0.0 ở frame đầu tiên.
 """
 
@@ -35,7 +45,8 @@ def iter_frames(source):
 
     Raises:
         FileNotFoundError: file video không tồn tại.
-        RuntimeError: không mở được nguồn.
+        RuntimeError: không mở được nguồn, hoặc vị trí frame trong file video
+            không tăng ngặt (container không có mốc thời gian dùng được).
         ValueError: file video không khai báo FPS hợp lệ.
     """
     if isinstance(source, int):
@@ -85,12 +96,19 @@ def _iter_video_file(path):
                 "suy ra mốc thời gian."
             )
 
-        index = 0
+        previous = -1
         while True:
             ok, frame_bgr = cap.read()
             if not ok:
                 break
+            index = round(cap.get(cv2.CAP_PROP_POS_MSEC) * fps / 1000)
+            if index <= previous:
+                raise RuntimeError(
+                    f"{path}: vị trí frame không tăng ngặt ({previous} → "
+                    f"{index}). Container này không cho mốc thời gian dùng "
+                    "được; đừng thay bằng cách đếm read() — xem docstring."
+                )
             yield frame_bgr, index / fps
-            index += 1
+            previous = index
     finally:
         cap.release()

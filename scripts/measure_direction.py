@@ -145,14 +145,25 @@ def check(summary):
     return not problems, problems
 
 
-def render(summary, skipped, n_clips, n_mismatched, ok, problems, sign):
-    """Bảng kết quả dạng markdown, dùng cho cả màn hình lẫn direction.md."""
+def render(summary, skipped, n_clips, n_mismatched, ok, problems, sign,
+           include_mismatched=False):
+    """Bảng kết quả dạng markdown, dùng cho cả màn hình lẫn direction.md.
+
+    ``ok`` mà ``sign`` là ``None`` nghĩa là phép đo có dùng clip lệch mốc
+    nhãn: chỉ để chẩn đoán, không đề xuất giá trị nào.
+    """
+    if include_mismatched:
+        mismatch_line = (f"- Số clip có `length_mismatch` **ĐÃ DÙNG**: "
+                         f"{n_mismatched} — mốc nhãn của chúng lệch, kết quả "
+                         "chỉ để chẩn đoán (xem docs/ipn_format.md mục 6)")
+    else:
+        mismatch_line = (f"- Số clip bị bỏ vì `length_mismatch`: "
+                         f"{n_mismatched} (xem docs/ipn_format.md mục 6)")
     lines = [
         "# Đo quy ước hướng trên IPN",
         "",
         f"- Số clip đã dùng: {n_clips}",
-        f"- Số clip bị bỏ vì `length_mismatch`: {n_mismatched} "
-        "(xem docs/ipn_format.md mục 6)",
+        mismatch_line,
         "",
         "| Lớp | Số đoạn | Bỏ qua | Trung vị dx | Cùng dấu | "
         "Trung vị open_delta | Cùng dấu |",
@@ -167,7 +178,11 @@ def render(summary, skipped, n_clips, n_mismatched, ok, problems, sign):
         )
 
     lines += ["", "## Kết luận", ""]
-    if ok:
+    if ok and sign is None:
+        lines += ["Hai điều kiện đạt, nhưng phép đo có dùng clip lệch mốc "
+                  "nhãn — **không đề xuất giá trị nào**. Chạy lại không có "
+                  "`--include-mismatched`."]
+    elif ok:
         lines += [
             "Hai điều kiện bắt buộc đều đạt.",
             "",
@@ -206,9 +221,13 @@ def main():
                                                      args.include_mismatched)
     summary = summarize(values)
     ok, problems = check(summary)
-    sign = (1 if summary["swipe_left"]["median_dx"] > 0 else -1) if ok else None
+    used_mismatched = args.include_mismatched and n_mismatched > 0
+    sign = None
+    if ok and not used_mismatched:
+        sign = 1 if summary["swipe_left"]["median_dx"] > 0 else -1
 
-    report = render(summary, skipped, n_clips, n_mismatched, ok, problems, sign)
+    report = render(summary, skipped, n_clips, n_mismatched, ok, problems, sign,
+                    include_mismatched=args.include_mismatched)
     print(report)
 
     run_dir = next_run_dir(config.PHASE3_RESULTS_DIR / "direction")
@@ -219,10 +238,12 @@ def main():
                              "sign": sign, "n_clips": n_clips,
                              "summary": summary})
 
-    if ok:
+    if sign is not None:
         print("Dán dòng sau vào src/config.py, thay cho SWIPE_LEFT_SIGN = None:\n")
         print(f"SWIPE_LEFT_SIGN = {sign}    # đo trên IPN bằng "
               f"measure_direction.py, {n_clips} clip")
+    elif ok:
+        print("Có dùng clip lệch mốc nhãn: không đề xuất giá trị nào.")
     else:
         print("DỪNG: kiểm tra lại CLASS_MAP trong src/ipn.py và xem lại đoạn "
               "mẫu — xem docs/SPEC.md mục Cổng chất lượng.")

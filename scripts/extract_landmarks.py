@@ -102,9 +102,16 @@ def extract_one(task):
         fps = cap.get(cv2.CAP_PROP_FPS)
         cap.release()
 
+        # Nhãn IPN đếm frame theo cách khác nhau tuỳ video: đo, rồi đổi chỉ
+        # số frame của nhãn sang chỉ số hàng. Xem docs/ipn_format.md mục 6.
+        frame_index, frame_match = None, None
+        if task["segments"]:
+            frame_index, frame_match = ipn.match_label_frames(
+                ts_list, fps, ipn.label_frames(task["segments"]))
         segments, src_labels = ipn.segments_array(task["segments"],
-                                                  n_frames=len(ts_list))
+                                                  frame_index)
         meta = ipn.clip_meta(task["clip_id"], *size, fps, len(ts_list),
+                             frame_match=frame_match,
                              expected_frames=task["expected_frames"],
                              split=task["split"])
         save_clip(task["out"], ts_list, xy_list, present_list, segments,

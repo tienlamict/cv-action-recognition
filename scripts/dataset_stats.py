@@ -27,7 +27,12 @@ from src.tables import write_table  # noqa: E402
 
 
 def gather(clip_paths):
-    """Duyệt mọi clip, gom số liệu theo lớp, theo người và theo nhãn gốc."""
+    """Duyệt mọi clip, gom số liệu theo lớp, theo người và theo nhãn gốc.
+
+    Clip có ``length_mismatch`` vẫn có một dòng trong bảng theo clip, nhưng
+    KHÔNG góp vào số liệu theo đoạn: mốc nhãn của chúng lệch không rõ ở đâu,
+    nên tỉ lệ mất tay theo lớp tính trên chúng là vô nghĩa.
+    """
     per_class = collections.defaultdict(
         lambda: {"n_segments": 0, "frames": 0, "missing": 0, "durations": []})
     per_subject = collections.defaultdict(
@@ -41,6 +46,7 @@ def gather(clip_paths):
                          axis=1)
         fps = meta.get("fps") or config.CAM_FPS
         subject = meta.get("subject", "?")
+        mismatch = bool(meta.get("length_mismatch", False))
 
         clips.append({
             "clip_id": meta.get("clip_id", path.stem),
@@ -49,8 +55,12 @@ def gather(clip_paths):
             "n_frames": int(ts.size),
             "detection_rate": float(present.mean()) if ts.size else float("nan"),
             "n_segments": int(segments.shape[0]),
-            "length_mismatch": bool(meta.get("length_mismatch", False)),
+            "label_frame_space": meta.get("label_frame_space", ""),
+            "n_dropped_frames": int(meta.get("n_dropped_frames", 0)),
+            "length_mismatch": mismatch,
         })
+        if mismatch:
+            continue
 
         for (start, end, class_id), src_label in zip(segments, src_labels):
             name = config.CLASSES[class_id]
@@ -58,7 +68,9 @@ def gather(clip_paths):
             row["n_segments"] += 1
             row["frames"] += int(end - start)
             row["missing"] += int(np.sum(~present[start:end]))
-            row["durations"].append((end - start) / fps)
+            # Theo ts chứ không theo số hàng: frame bị bộ giải mã bỏ vẫn là
+            # thời gian thật của cử chỉ.
+            row["durations"].append(ts[end - 1] - ts[start] + 1 / fps)
             per_subject[subject][name] += 1
             per_src_label[str(src_label)] += 1
 
@@ -118,7 +130,8 @@ def main():
                 run_dir / "by_subject")
 
     write_table(clips, ["clip_id", "subject", "official_split", "n_frames",
-                        "detection_rate", "n_segments", "length_mismatch"],
+                        "detection_rate", "n_segments", "label_frame_space",
+                        "n_dropped_frames", "length_mismatch"],
                 run_dir / "by_clip")
 
     src_rows = [{"src_label": k, "n_segments": v}
@@ -127,8 +140,11 @@ def main():
 
     total_frames = sum(c["n_frames"] for c in clips)
     missing = sum(c["n_frames"] * (1 - c["detection_rate"]) for c in clips)
+    n_mismatch = sum(c["length_mismatch"] for c in clips)
     print(f"{len(clips)} clip, {total_frames:,} frame, "
-          f"{len(per_subject)} người diễn.")
+          f"{len(per_subject)} người diễn có đoạn dùng được.")
+    print(f"{n_mismatch} clip có length_mismatch: có trong by_clip, KHÔNG góp "
+          "vào số liệu theo lớp và theo người (docs/ipn_format.md mục 6).")
     print(f"Tỉ lệ frame mất tay toàn bộ: {missing / max(total_frames, 1):.1%}\n")
 
     print(f"{'lớp':<14}{'đoạn':>7}{'mất tay':>10}{'trung vị':>10}"

@@ -164,51 +164,93 @@ khớp với hai file danh sách).
 
 ---
 
-## 6. ⚠ Vấn đề chưa giải quyết: độ dài video lệch với nhãn
+## 6. Số frame của video và của nhãn — đã giải quyết 2026-10-01
 
-Số frame giải mã được từ `.avi` **không phải lúc nào cũng khớp** với số frame mà
-file nhãn giả định.
+Bản cũ của mục này (2026-09-29) có danh sách "15 video lệch" và câu hỏi "frame
+thừa ở đầu hay ở cuối". **Cả hai đều sai**, và có một lỗi thứ ba mà bản cũ không
+thấy. Mọi con số dưới đây đo trên cả 200 video.
 
-| Mức lệch | Số video |
-|---|---|
-| Khớp hoặc lệch ≤ 5 frame | 185 |
-| Lệch 6–56 frame | 13 |
-| Lệch 128–132 frame | 2 |
+### 6.1. Ba cách đếm frame cho cùng một file
 
-Kiểm chứng bằng cách giải mã tuần tự thật (không tin `CAP_PROP_FRAME_COUNT`):
+| Cách đếm | Lấy từ đâu | Tin được? |
+|---|---|---|
+| Header AVI | `CAP_PROP_FRAME_COUNT` | = số chunk video trong `idx1`. Danh sách 15 video cũ lập bằng cách này |
+| Số chunk trong container | đọc `idx1` của AVI | đúng, nhưng gồm cả chunk "not coded" |
+| Số lần `cap.read()` thành công | giải mã tuần tự | **thiếu** đúng các chunk "not coded" |
 
-| Video | Giải mã được | `metadata.csv` | `t_end` lớn nhất |
-|---|---|---|---|
-| `1CM1_1_R__217` | 3 983 | 3 855 | 3 854 |
-| `1CM1_1_R__218` | 3 773 | 3 656 | 3 655 |
-| `1CM1_1_R__219` | 3 921 | 3 922 | 3 921 |
-| `1CM1_2_R__221` | 3 795 | 3 769 | 3 768 |
+**Bộ giải mã FFmpeg âm thầm bỏ các chunk 6 byte** — frame "not coded" của XVID,
+nghĩa là "giữ nguyên ảnh trước". Đẳng thức `số lần read() + số chunk 6 byte =
+số chunk` đúng ở **200/200** video. **101/200** video có loại chunk này, tổng
+677 chunk, nhiều nhất 56 chunk một video (`1CM1_4_R__229`).
 
-Toàn bộ 15 video lệch:
+Hệ quả cho code cũ: `iter_frames` tính `ts = số lần read() / fps`, nên sau mỗi
+frame bị bỏ, `ts` của mọi frame sau sớm đi 1/FPS, và chỉ số hàng lệch với chỉ
+số frame thật. `CAP_PROP_POS_MSEC` đọc sau mỗi `read()` cho đúng vị trí của
+frame trong container (tăng ngặt, có khoảng trống đúng tại chunk 6 byte);
+`CAP_PROP_POS_FRAMES` thì chỉ đếm số lần `read()`, cũng sai.
 
-```
-1CM1_1_R__217 +132   1CM1_1_R__218 +128   1CM1_4_R__229 +56
-1CM1_4_R__230  +55   1CM1_4_R__231  +55   1CM1_4_R__232 +55
-1CM42_3_R__195 +46   1CM1_2_R__221  +27   1CM1_2_R__222 +25
-1CM1_2_R__223  +23   1CM1_2_R__224  +20   1CM1_3_R__227 +17
-1CM1_3_R__228  +14   1CM42_13_R__141 +9   1CM42_11_R__207 +6
-```
+### 6.2. Nhãn IPN đếm frame KHÔNG thống nhất giữa các video
 
-**Chưa xác định được frame thừa nằm ở đầu hay ở cuối video.** Không thể suy ra
-từ dữ liệu hiện có, vì bộ này không kèm ảnh từng frame để đối chiếu. Nếu frame
-thừa nằm ở **đầu**, mọi nhãn của 15 video đó lệch đi tới 132 frame — hơn 4 giây
-— và các đoạn cử chỉ sẽ trỏ vào chỗ không có cử chỉ. Đây đúng là loại lỗi im
-lặng mà luật 3 nói tới.
+So `t_end` lớn nhất của nhãn với hai cách đếm, cho từng video:
 
-Ba cách xử lý, cần bạn chọn ở Phần B:
+| Nhãn khớp (±1 frame) với | Số video | Ví dụ |
+|---|---|---|
+| Cả hai — video có ≤ 1 chunk "not coded" | 128 | `1CM1_1_R__219` |
+| **Số chunk** (tính cả frame "not coded") | 57 | `1CV12_22_R__115`: 4 445 chunk, 48 bị bỏ, nhãn tới 4 445 |
+| **Số lần `read()`** (không tính) | 4 | `1CM1_4_R__229–232`: 3 807 chunk, 56 bị bỏ, nhãn tới 3 751 |
+| Không khớp cách nào | 11 | xem 6.3 |
 
-| Cách | Đánh đổi |
-|---|---|
-| **Giả định frame thừa ở cuối** và kiểm chứng bằng mắt trên 2 video lệch nhiều nhất | Nhanh; nếu đúng thì giữ được cả 200 video |
-| **Loại 15 video lệch** khỏi bộ dữ liệu | An toàn tuyệt đối, mất 7,5% dữ liệu; cần kiểm tra 15 video này thuộc những người nào để không làm hỏng split |
-| Tải lại bản ảnh từng frame chính thức của IPN | Chuẩn nhất, tốn thời gian tải lại |
+Khớp số đếm chưa phải khớp vị trí, nên đã kiểm vị trí bằng điểm mốc: quanh mỗi
+ranh giới `D0X` ↔ cử chỉ, tìm độ dịch `k` làm tín hiệu "có tay" khớp nhãn nhất.
+Trên video đã biết khớp (`__219`, `__220`) phép đo cho `k` trong −2…+6 frame —
+đó là độ nhiễu của chính phép đo.
 
-185 video còn lại không bị ảnh hưởng.
+| Video | Ánh xạ theo chỉ số hàng | Ánh xạ theo chỉ số container |
+|---|---|---|
+| `1CV12_22_R__115` | trôi dần 0 → **−42** | **−1…+6** ✅ |
+| `1CM1_4_R__229` | **0…+5** ✅ | trôi tới **+61** |
+
+**Quyết định:** `iter_frames` trả `ts` theo vị trí trong container;
+`ipn.match_label_frames` chọn cách đếm cho từng video bằng số đo (cách nào cho
+tổng số frame gần `t_end` lớn nhất hơn), rồi `ipn.segments_array` đổi chỉ số
+frame của nhãn sang chỉ số hàng. Cách đã chọn ghi vào `meta` của `.npz`:
+`label_frame_space`, `n_dropped_frames`, `label_frame_diff`.
+
+### 6.3. Mười một video không khớp cách đếm nào — LOẠI
+
+| Video | Split | Số chunk − `t_end` |
+|---|---|---|
+| `1CM1_1_R__217` | test | +132 |
+| `1CM1_1_R__218` | test | +128 |
+| `1CM42_3_R__195` | train | +46 |
+| `1CM1_2_R__221` | test | +27 |
+| `1CM1_2_R__222` | test | +25 |
+| `1CM1_2_R__223` | test | +23 |
+| `1CM1_2_R__224` | test | +20 |
+| `1CM1_3_R__227` | test | +17 |
+| `1CM1_3_R__228` | test | +14 |
+| `1CM42_13_R__141` | train | +9 |
+| `1CM42_11_R__207` | train | +6 |
+
+Ở hai video kiểm được bằng điểm mốc (`__217`, `__218`), **frame thừa không nằm
+ở đầu cũng không ở cuối**: độ lệch gần 0 ở đầu video rồi tăng dần tới ~130 frame
+ở cuối. Phần lớn frame thừa là frame lặp lại ảnh trước (giống máy quay tụt
+FPS). Bỏ K frame giống frame trước nhất thì `__217` còn lệch −6…+10 frame — chưa
+đủ tốt, và không kiểm được cho nhóm `1CM1_2` vì ở đó tay hiện gần như suốt
+video. Video khớp nhãn cũng có frame lặp, nên đây không thành quy tắc chung.
+
+Phép kiểm "xem frame 1–28 của `__217`" từng được đề xuất sẽ cho **kết luận
+sai**: đầu video khớp nhãn thật, nên dễ suy ra "frame thừa ở cuối", trong khi
+nửa sau lệch hơn 4 giây.
+
+**Quyết định (người dùng chốt 2026-10-01): loại 11 video này khỏi train/test.**
+Chúng vẫn được trích điểm mốc, nhưng `length_mismatch=True` trong `meta`, và
+mọi bước dùng nhãn phải bỏ qua chúng. Mất 8 video test (`1CM1_1` ×2, `1CM1_2`
+×4, `1CM1_3` ×2) và 3 video train. Test còn 44 video, 12 người; split theo người
+vẫn sạch vì loại cả video chứ không tách người.
+
+Ngưỡng `IPN_LENGTH_TOLERANCE = 5` vẫn giữ: 189 video còn lại khớp tới ±1 frame,
+11 video bị loại lệch ít nhất 6.
 
 ---
 
@@ -279,4 +321,6 @@ tới mốc thời gian trong bảng.
    cho "frame không thuộc đoạn nào".
 4. Mã người diễn = hai token đầu của tên video; split chính thức sạch theo người.
 5. FPS đọc theo từng file, không viết cứng.
-6. **Còn một câu hỏi chặn:** xử lý 15 video có độ dài lệch (mục 6).
+6. `ts` theo vị trí frame trong container, không theo số lần `read()`; cách
+   đếm frame của nhãn chọn theo từng video; 11 video không khớp bị loại
+   (mục 6).

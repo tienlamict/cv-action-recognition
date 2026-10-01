@@ -8,6 +8,10 @@ Mọi quy ước ở đây đến từ khảo sát thật trên đĩa, ghi trong
   đúng 50 mã và không mã nào nằm ở cả train lẫn test của split chính thức.
 - Các đoạn phủ liên tục cả video: lớp ``D0X`` chính là phần không cử chỉ xen
   giữa, nên không có frame nào "không thuộc đoạn nào".
+- Chỉ số frame của nhãn **không thống nhất giữa các video**: có video đếm cả
+  frame "not coded" mà bộ giải mã bỏ đi, có video không. :func:`match_label_frames`
+  chọn cách đếm cho từng video bằng số đo, rồi :func:`segments_array` đổi chỉ số
+  frame của nhãn sang chỉ số hàng của mình. Xem ``docs/ipn_format.md`` mục 6.
 
 Mười lớp cử chỉ không dùng **không bị bỏ đi** — chúng thành ``none`` và là mẫu
 âm khó. Nhãn gốc được giữ trong ``src_labels`` để Phase 8 trả lời được câu hỏi
@@ -102,20 +106,75 @@ def read_annotations(path=None):
     return clips
 
 
-def segments_array(segments, n_frames=None):
+def label_frames(segments):
+    """Số frame mà file nhãn phủ: ``t_end`` lớn nhất (đã là nửa mở)."""
+    return max(s["end"] for s in segments)
+
+
+def match_label_frames(ts, fps, n_label_frames):
+    """Nhãn của video này đếm frame theo cách nào — đo, không đoán.
+
+    Hai cách đếm ứng viên cho hàng thứ ``r`` của chuỗi ``iter_frames``:
+
+    - ``container``: vị trí của frame trong file, ``round(ts[r] * fps)`` — đếm
+      cả frame "not coded" mà bộ giải mã bỏ đi;
+    - ``decoded``: chính ``r`` — chỉ đếm frame giải mã được.
+
+    Chọn cách cho tổng số frame gần ``n_label_frames`` nhất. Trên IPN, 189/200
+    video khớp một trong hai cách tới ±1 frame và ánh xạ đã được kiểm bằng
+    điểm mốc; 11 video không khớp cách nào — nhãn của chúng lệch không rõ ở
+    đâu, nên bị đánh dấu ``length_mismatch``.
+
+    Args:
+        ts: ``(N,)`` giây, từ ``iter_frames``.
+        fps: FPS của file.
+        n_label_frames: số frame file nhãn phủ, xem :func:`label_frames`.
+
+    Returns:
+        ``(frame_index, info)``: ``frame_index`` ``(N,)`` int64 là chỉ số frame
+        NHÃN của từng hàng, tăng ngặt; ``info`` là dict để gộp vào ``meta``.
+    """
+    ts = np.asarray(ts, dtype=np.float64)
+    candidates = {
+        "container": np.rint(ts * fps).astype(np.int64),
+        "decoded": np.arange(ts.size, dtype=np.int64),
+    }
+    diffs = {name: abs(int(n_label_frames) - int(index[-1]) - 1)
+             for name, index in candidates.items()}
+    space = min(diffs, key=diffs.get)   # hoà (không frame nào bị bỏ) → container
+
+    info = {
+        "label_frame_space": space,
+        "label_frames": int(n_label_frames),
+        "n_dropped_frames": int(candidates["container"][-1]) + 1 - ts.size,
+        "label_frame_diff": diffs[space],
+        "length_mismatch": diffs[space] > config.IPN_LENGTH_TOLERANCE,
+    }
+    return candidates[space], info
+
+
+def segments_array(segments, frame_index=None):
     """Danh sách đoạn → ``(segments (M, 3) int64, src_labels (M,) <U32)``.
 
-    Đoạn bị cắt cho vừa ``n_frames`` nếu nhãn vượt quá số frame giải mã được;
-    đoạn nằm hoàn toàn ngoài phạm vi bị bỏ.
+    Args:
+        segments: các đoạn của :func:`read_annotations`, chỉ số frame NHÃN.
+        frame_index: ``(N,)`` chỉ số frame nhãn của từng hàng, tăng ngặt — từ
+            :func:`match_label_frames`. ``None`` nghĩa là hàng ``r`` chính là
+            frame nhãn ``r``.
+
+    Returns:
+        Đoạn tính bằng chỉ số HÀNG, nửa mở: hàng ``r`` thuộc đoạn ``[s, e)``
+        khi ``s <= frame_index[r] < e``. Đoạn không còn hàng nào (nằm ngoài
+        phạm vi, hoặc chỉ gồm frame bị bỏ khi giải mã) bị bỏ.
     """
     rows, labels = [], []
     for s in segments:
         start, end = s["start"], s["end"]
-        if n_frames is not None:
-            start, end = min(start, n_frames), min(end, n_frames)
+        if frame_index is not None:
+            start, end = np.searchsorted(frame_index, [start, end])
         if end <= start:
             continue
-        rows.append((start, end, class_id(s["label"])))
+        rows.append((int(start), int(end), class_id(s["label"])))
         labels.append(s["label"])
 
     return (np.array(rows, dtype=np.int64).reshape(-1, 3),
@@ -145,14 +204,17 @@ def read_metadata(path=None):
                 if r.get("Video Name")}
 
 
-def clip_meta(video, w, h, fps, n_frames, expected_frames=None, split=None):
+def clip_meta(video, w, h, fps, n_frames, frame_match=None,
+              expected_frames=None, split=None):
     """Dict ``meta`` để lưu vào ``.npz``.
 
-    ``length_mismatch`` bật khi số frame giải mã được lệch quá
-    ``IPN_LENGTH_TOLERANCE`` so với số frame nhà cung cấp khai báo. Xem
-    ``docs/ipn_format.md`` mục 6: với 15 video như vậy, chưa xác định được
-    frame thừa nằm ở đầu hay cuối, nên nhãn của chúng có thể lệch. Cờ này để
-    các bước sau lọc ra, thay vì âm thầm dùng.
+    ``frame_match`` là ``info`` của :func:`match_label_frames`, gộp nguyên vào
+    ``meta``. Trong đó ``length_mismatch`` bật khi nhãn không khớp cách đếm
+    frame nào quá ``IPN_LENGTH_TOLERANCE``: không biết mốc nhãn lệch ở đâu,
+    nên các bước sau phải lọc clip đó ra thay vì âm thầm dùng. Xem
+    ``docs/ipn_format.md`` mục 6.
+
+    ``expected_frames`` (cột ``Frames`` của ``metadata.csv``) chỉ để tra cứu.
     """
     meta = {
         "w": int(w), "h": int(h), "fps": float(fps),
@@ -163,8 +225,6 @@ def clip_meta(video, w, h, fps, n_frames, expected_frames=None, split=None):
         meta["official_split"] = split
     if expected_frames is not None:
         meta["expected_frames"] = int(expected_frames)
-        meta["length_mismatch"] = (
-            abs(int(n_frames) - int(expected_frames))
-            > config.IPN_LENGTH_TOLERANCE
-        )
+    if frame_match is not None:
+        meta.update(frame_match)
     return meta

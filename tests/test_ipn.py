@@ -70,8 +70,52 @@ def test_doc_nhan_doi_ve_chi_so_0_based_nua_mo(tmp_path):
     assert src_labels.tolist() == ["D0X", "G11"]
 
     # Nhãn vượt quá số frame giải mã được thì cắt cho vừa.
-    cut, _ = ipn.segments_array(clips["v1"], n_frames=20)
+    cut, _ = ipn.segments_array(clips["v1"], frame_index=np.arange(20))
     assert cut[1].tolist() == [17, 20, config.CLASSES.index("zoom_out")]
+
+
+FPS = 30.0
+
+
+def test_segments_array_doi_frame_nhan_sang_hang_qua_khoang_trong():
+    """Hàng r thuộc đoạn [s, e) khi s <= frame_index[r] < e; frame bị bỏ khi
+    giải mã không có hàng, nên đoạn sau nó dồn lên đúng số hàng."""
+    frame_index = np.array([0, 1, 2, 4, 5, 8, 9])     # frame 3, 6, 7 bị bỏ
+    segments = [{"label": "D0X", "start": 0, "end": 4},
+                {"label": "G05", "start": 4, "end": 8},
+                {"label": "D0X", "start": 8, "end": 10}]
+
+    rows, labels = ipn.segments_array(segments, frame_index)
+
+    assert rows[:, :2].tolist() == [[0, 3], [3, 5], [5, 7]]
+    assert labels.tolist() == ["D0X", "G05", "D0X"]
+
+    # Đoạn chỉ gồm frame bị bỏ không còn hàng nào → bị bỏ.
+    gap_only = [{"label": "G01", "start": 6, "end": 8}]
+    assert ipn.segments_array(gap_only, frame_index)[0].shape == (0, 3)
+
+
+def test_match_label_frames_chon_cach_dem_bang_so_do():
+    """Nhãn đếm cả frame bị bỏ → container; không đếm → decoded; không khớp
+    cách nào quá IPN_LENGTH_TOLERANCE → length_mismatch."""
+    positions = np.array([0, 1, 2, 4, 5, 8, 9])
+    ts = positions / FPS
+
+    index, info = ipn.match_label_frames(ts, FPS, n_label_frames=10)
+    assert info["label_frame_space"] == "container"
+    assert index.tolist() == positions.tolist()
+    assert info["n_dropped_frames"] == 3
+    assert info["length_mismatch"] is False
+
+    index, info = ipn.match_label_frames(ts, FPS, n_label_frames=7)
+    assert info["label_frame_space"] == "decoded"
+    assert index.tolist() == list(range(7))
+    assert info["length_mismatch"] is False
+
+    far = 10 + config.IPN_LENGTH_TOLERANCE + 1
+    _, info = ipn.match_label_frames(ts, FPS, n_label_frames=far)
+    assert info["length_mismatch"] is True
+    assert info["label_frame_diff"] == config.IPN_LENGTH_TOLERANCE + 1
 
 
 def test_ma_nguoi_dien_va_split(tmp_path):
@@ -92,11 +136,16 @@ def test_ma_nguoi_dien_va_split(tmp_path):
 
 def test_clip_meta_danh_dau_lech_do_dai():
     """Clip lệch quá IPN_LENGTH_TOLERANCE bị đánh dấu, không bị âm thầm dùng."""
-    ok = ipn.clip_meta("1CM1_1_R__217", 640, 480, 30.0, 3855,
-                       expected_frames=3855, split="test")
+    ts = np.arange(3855) / FPS
+    _, match = ipn.match_label_frames(ts, FPS, n_label_frames=3855)
+    ok = ipn.clip_meta("1CM1_1_R__217", 640, 480, FPS, ts.size,
+                       frame_match=match, expected_frames=3855, split="test")
     assert ok["length_mismatch"] is False
     assert ok["subject"] == "1CM1_1" and ok["source"] == "ipn"
+    assert ok["label_frame_space"] in ("container", "decoded")
 
-    bad = ipn.clip_meta("1CM1_1_R__217", 640, 480, 30.0, 3983,
-                        expected_frames=3855)
+    ts = np.arange(3983) / FPS
+    _, match = ipn.match_label_frames(ts, FPS, n_label_frames=3854)
+    bad = ipn.clip_meta("1CM1_1_R__217", 640, 480, FPS, ts.size,
+                        frame_match=match, expected_frames=3855)
     assert bad["length_mismatch"] is True
