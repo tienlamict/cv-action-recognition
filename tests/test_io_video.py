@@ -87,6 +87,20 @@ def test_iter_frames_ts_theo_vi_tri_khi_bo_giai_ma_bo_frame(tmp_path,
     np.testing.assert_allclose(ts, np.array(positions) / FPS)
 
 
+def test_iter_frames_ts_bat_dau_tu_0_khi_frame_dau_bi_bo(tmp_path,
+                                                         monkeypatch):
+    """File mở đầu bằng frame bị bỏ (4 video IPN như vậy): ts[0] vẫn là 0."""
+    path = tmp_path / "mo_dau_bi_bo.avi"
+    path.touch()
+    positions = [10, 11, 13]
+    monkeypatch.setattr(cv2, "VideoCapture",
+                        lambda _: FakeCapture(positions))
+
+    ts = np.array([t for _, t in iter_frames(path)])
+
+    np.testing.assert_allclose(ts, np.array([0, 1, 3]) / FPS)
+
+
 def test_iter_frames_bao_loi_khi_vi_tri_khong_tang(tmp_path, monkeypatch):
     """Container không cho vị trí dùng được thì dừng, không đoán."""
     path = tmp_path / "khong_co_moc.avi"

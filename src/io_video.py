@@ -18,7 +18,9 @@ của XVID (chunk 6 byte, nghĩa là "giữ nguyên ảnh trước"). Trên IPN,
 video có frame kiểu này, nhiều nhất 56 frame một video. Đếm số lần ``read()``
 thì mỗi frame bị bỏ làm ``ts`` của mọi frame sau sớm đi 1/FPS. Đếm theo vị trí
 thì frame bị bỏ chỉ để lại một khoảng trống trong ``ts`` — đúng với thời gian
-thật, và ``resample`` xử lý khoảng trống đó như mọi lỗ hổng khác. Xem
+thật, và ``resample`` xử lý khoảng trống đó như mọi lỗ hổng khác. Vị trí tính
+từ frame ĐẦU TIÊN giải mã được, để ``ts[0] = 0`` cả khi file mở đầu bằng frame
+"not coded" (4 video IPN mở đầu bằng 10 frame như vậy). Xem
 ``docs/ipn_format.md`` mục 6.
 
 Cả hai đều trả ``ts`` tính bằng giây, bắt đầu từ 0.0 ở frame đầu tiên.
@@ -96,19 +98,21 @@ def _iter_video_file(path):
                 "suy ra mốc thời gian."
             )
 
-        previous = -1
+        first = previous = None
         while True:
             ok, frame_bgr = cap.read()
             if not ok:
                 break
             index = round(cap.get(cv2.CAP_PROP_POS_MSEC) * fps / 1000)
-            if index <= previous:
+            if previous is not None and index <= previous:
                 raise RuntimeError(
                     f"{path}: vị trí frame không tăng ngặt ({previous} → "
                     f"{index}). Container này không cho mốc thời gian dùng "
                     "được; đừng thay bằng cách đếm read() — xem docstring."
                 )
-            yield frame_bgr, index / fps
+            if first is None:
+                first = index
+            yield frame_bgr, (index - first) / fps
             previous = index
     finally:
         cap.release()
