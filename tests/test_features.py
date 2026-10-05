@@ -1,4 +1,4 @@
-"""Kiểm thử vector đặc trưng 13 chiều trên các cửa sổ tổng hợp."""
+"""Kiểm thử vector đặc trưng 15 chiều trên các cửa sổ tổng hợp."""
 
 import numpy as np
 
@@ -51,6 +51,18 @@ def test_zoom_in_open_delta_duong_zoom_out_am():
     assert zoom_in["open_trend"] > 0 > zoom_out["open_trend"]
 
 
+def test_zoom_in_pinch_delta_duong_zoom_out_am_va_lat_giu_nguyen():
+    """Độ mở cái–trỏ: mở ra là dương, chụm lại là âm; lật ảnh không đổi."""
+    zoom_in = features_of(make_zoom("in"))
+    zoom_out = features_of(make_zoom("out"))
+
+    assert zoom_in["pinch_delta"] > 0 > zoom_out["pinch_delta"]
+    assert zoom_in["pinch_range"] > 0 and zoom_out["pinch_range"] > 0
+    mirrored = features_of(flip_x(make_zoom("in")))
+    assert np.isclose(mirrored["pinch_delta"], zoom_in["pinch_delta"], atol=1e-5)
+    assert abs(features_of(make_swipe(+1))["pinch_delta"]) < 1e-5,         "dời cả bàn tay không làm đổi độ mở cái–trỏ"
+
+
 def test_swipe_straightness_tren_0_8_wave_duoi_0_5():
     """Vuốt đi thẳng; vẫy tay đi rất xa mà dời được rất ít."""
     swipe = features_of(make_swipe(-1))
@@ -60,13 +72,13 @@ def test_swipe_straightness_tren_0_8_wave_duoi_0_5():
     assert wave["straightness"] < 0.5
 
 
-def test_features_dung_13_chieu_va_khop_FEATURE_NAMES():
+def test_features_dung_15_chieu_va_khop_FEATURE_NAMES():
     values = window_features(normalize_window(make_static()), 0.75)
 
-    assert len(FEATURE_NAMES) == 13
-    assert values.shape == (13,)
+    assert len(FEATURE_NAMES) == 15
+    assert values.shape == (15,)
     assert values.dtype == np.float32
-    assert len(set(FEATURE_NAMES)) == 13, "tên đặc trưng không được trùng"
+    assert len(set(FEATURE_NAMES)) == 15, "tên đặc trưng không được trùng"
     assert dict(zip(FEATURE_NAMES, values))["presence"] == np.float32(0.75)
 
 

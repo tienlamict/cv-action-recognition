@@ -137,3 +137,18 @@ def test_normalize_dat_goc_va_don_vi_theo_frame_dau():
     assert np.isclose(np.linalg.norm(win_norm[0, config.MIDDLE_MCP]), 1.0)
     # Các frame sau KHÔNG bị kéo về gốc — đó mới là chỗ giữ quỹ đạo.
     assert np.linalg.norm(win_norm[-1, config.WRIST]) > 1.0
+
+
+def test_normalize_tu_choi_long_ban_tay_frame_dau_bat_thuong():
+    """Lòng bàn tay frame đầu ngắn hơn NORM_MIN_PALM_RATIO lần trung vị của
+    cửa sổ thì đơn vị không tin được — không được phóng to cả cửa sổ."""
+    win = make_swipe(+1)
+    squashed = win.copy()
+    wrist = squashed[0, config.WRIST]
+    squashed[0] = wrist + (squashed[0] - wrist) * 0.3   # tay nghiêng cạnh
+    with pytest.raises(ValueError, match="bất thường"):
+        normalize_window(squashed)
+
+    mild = win.copy()
+    mild[0] = wrist + (mild[0] - wrist) * 0.8
+    normalize_window(mild)                               # vẫn chấp nhận

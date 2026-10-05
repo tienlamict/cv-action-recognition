@@ -1,11 +1,12 @@
 """Kiểm thử hợp đồng của src/config.py.
 
-Năm kiểm thử này canh những giả định mà mọi phase sau đều dựa vào. Chúng chạy
+Các kiểm thử này canh những giả định mà mọi phase sau đều dựa vào. Chúng chạy
 được ngay khi chưa có dòng code xử lý ảnh nào.
 """
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from src import config
@@ -43,25 +44,34 @@ def test_tips_du_nam_dau_ngon():
     assert config.MIDDLE_MCP == 9
 
 
-def test_require_measured_nem_loi():
-    """Hằng số chưa đo phải làm chương trình dừng ngay, kèm tên phase."""
-    assert config.SWIPE_LEFT_SIGN is None, "Phase 3 chưa chạy thì phải còn None"
-    assert config.AUG_NOISE_SIGMA is None, "đo ở Phase 1B hoặc Phase 4"
-    for name in ("RULE_S_HI", "RULE_DX_HI", "RULE_O_HI"):
-        assert getattr(config, name) is None, "hiệu chuẩn ở Phase 5"
+def test_require_measured_nem_loi(monkeypatch):
+    """Hằng số chưa đo phải làm chương trình dừng ngay, kèm tên phase; đã đo
+    thì trả đúng giá trị. Không phụ thuộc hằng số nào hiện đã được dán."""
+    for name, phase in config.MEASURED_IN_PHASE.items():
+        monkeypatch.setattr(config, name, None)
+        with pytest.raises(RuntimeError, match=f"Phase {phase}"):
+            config.require_measured(name)
+
+    monkeypatch.setattr(config, "SWIPE_LEFT_SIGN", -1)
+    assert config.require_measured("SWIPE_LEFT_SIGN") == -1
 
     # IPN là chuẩn quy ước hướng, nên hằng số này có sẵn giá trị chứ không đo.
     assert config.IPN_FLIP_X in (-1, 1)
     assert "IPN_FLIP_X" not in config.MEASURED_IN_PHASE
 
-    with pytest.raises(RuntimeError, match="Phase 3"):
-        config.require_measured("SWIPE_LEFT_SIGN")
-
-    with pytest.raises(RuntimeError, match="Phase 5"):
-        config.require_measured("RULE_DX_HI")
-
     with pytest.raises(KeyError):
         config.require_measured("KHONG_TON_TAI")
+
+
+def test_hang_so_da_do_co_gia_tri_hop_le():
+    """Hằng số nào đã được dán vào config.py thì phải có giá trị dùng được."""
+    if config.SWIPE_LEFT_SIGN is not None:
+        assert config.SWIPE_LEFT_SIGN in (-1, 1)
+    if config.AUG_NOISE_SIGMA is not None:
+        assert 0 < config.AUG_NOISE_SIGMA < 1, "đơn vị là lòng bàn tay"
+    for name in ("RULE_VX_HI", "RULE_DX_HI", "RULE_P_HI"):
+        value = getattr(config, name)
+        assert value is None or np.isfinite(value)
 
 
 def test_moi_duong_dan_deu_tuong_doi_tu_ROOT():

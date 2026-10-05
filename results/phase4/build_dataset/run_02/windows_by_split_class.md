@@ -1,0 +1,20 @@
+| split | class | before | after | none_share_after |
+|---|---|---|---|---|
+| train | none | 49652 | 1663 |  |
+| train | swipe_left | 419 | 419 |  |
+| train | swipe_right | 417 | 417 |  |
+| train | zoom_in | 409 | 409 |  |
+| train | zoom_out | 418 | 418 |  |
+| train | TỔNG | 51315 | 3326 | 0.5 |
+| val | none | 10650 | 10650 |  |
+| val | swipe_left | 104 | 104 |  |
+| val | swipe_right | 96 | 96 |  |
+| val | zoom_in | 94 | 94 |  |
+| val | zoom_out | 94 | 94 |  |
+| val | TỔNG | 11038 | 11038 | 0.9648 |
+| test | none | 22496 | 22496 |  |
+| test | swipe_left | 171 | 171 |  |
+| test | swipe_right | 147 | 147 |  |
+| test | zoom_in | 166 | 166 |  |
+| test | zoom_out | 160 | 160 |  |
+| test | TỔNG | 23140 | 23140 | 0.9722 |

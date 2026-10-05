@@ -1,0 +1,4 @@
+threshold,value,below_pct,above_pct,overlap,reason
+RULE_VX_HI,4.025562250614166,5.22896270751953,2.8221617937088013,True,trung điểm của p90 max_vx lớp none (5.229) và p10 max_vx hai lớp vuốt (2.822)
+RULE_DX_HI,0.10246618464589119,nan,0.10246618464589119,False,p10 của |dx| trên hai lớp vuốt
+RULE_P_HI,0.7209352403879166,1.0809470415115356,0.3609234392642975,True,trung điểm của p90 |pinch_delta| lớp none cộng hai lớp vuốt (1.081) và p10 |pinch_delta| hai lớp zoom (0.361)

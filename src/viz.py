@@ -12,6 +12,47 @@ import numpy as np  # noqa: E402
 from src import config  # noqa: E402
 
 
+def plot_window_traces(windows, titles, traces, out_path):
+    """Mỗi cửa sổ một cột: quỹ đạo cổ tay (trên) và các đường theo thời gian
+    (dưới), ví dụ độ xòe và độ mở cái–trỏ.
+
+    Args:
+        windows: list các cửa sổ ``(T, 21, 2)`` ĐÃ chuẩn hoá.
+        titles: tiêu đề mỗi cột.
+        traces: dict ``{tên: hàm (T, 21, 2) → (T,)}`` — ví dụ
+            ``{"độ xòe": features.openness, "cái–trỏ": features.pinch}``.
+        out_path: file ``.png``.
+
+    Trục ``y`` hướng XUỐNG như ảnh gốc, và ảnh KHÔNG lật: ``x`` dương là sang
+    phải ảnh gốc, tức sang trái của người làm.
+    """
+    n = len(windows)
+    fig, axes = plt.subplots(2, n, figsize=(3.2 * n, 6.0), squeeze=False)
+    for col, (win, title) in enumerate(zip(windows, titles)):
+        wrist = np.asarray(win)[:, config.WRIST]
+        ax = axes[0, col]
+        ax.plot(wrist[:, 0], wrist[:, 1], marker=".")
+        ax.plot(wrist[0, 0], wrist[0, 1], "go", label="đầu")
+        ax.plot(wrist[-1, 0], wrist[-1, 1], "rs", label="cuối")
+        ax.set_title(title, fontsize=9)
+        ax.set_xlabel("x (lòng bàn tay)")
+        ax.set_ylabel("y (xuống)")
+        ax.invert_yaxis()
+        ax.set_aspect("equal", adjustable="datalim")
+        ax.legend(fontsize=7)
+        ax = axes[1, col]
+        seconds = np.arange(len(win)) / config.HZ
+        for name, trace in traces.items():
+            ax.plot(seconds, trace(win), marker=".", label=name)
+        ax.set_xlabel("giây")
+        ax.set_ylabel("lòng bàn tay")
+        ax.legend(fontsize=7)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=config.FIG_DPI)
+    plt.close(fig)
+    return out_path
+
+
 def plot_boxplots(F, y, names, out_path, classes=None):
     """Boxplot từng đặc trưng theo từng lớp — mỗi đặc trưng một ô.
 

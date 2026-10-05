@@ -1,0 +1,171 @@
+{
+  "command": "python scripts/estimate_sigma.py",
+  "started_at": "2026-10-05T14:06:18",
+  "seed": 42,
+  "versions": {
+    "python": "3.10.21",
+    "numpy": "2.2.6",
+    "cv2": "5.0.0",
+    "mediapipe": "1.0.1"
+  },
+  "config": {
+    "ROOT": ".",
+    "SRC_DIR": "src",
+    "SCRIPTS_DIR": "scripts",
+    "TESTS_DIR": "tests",
+    "NOTEBOOKS_DIR": "notebooks",
+    "RESULTS_DIR": "results",
+    "MODELS_DIR": "models",
+    "HAND_LANDMARKER_TASK": "models/hand_landmarker.task",
+    "DATA_DIR": "data",
+    "IPN_DIR": "data/ipn",
+    "RAW_DIR": "data/raw",
+    "LANDMARKS_DIR": "data/landmarks",
+    "WINDOWS_DIR": "data/windows",
+    "WINDOWS_NPZ": "data/windows/windows.npz",
+    "SPLITS_JSON": "data/splits.json",
+    "IPN_VIDEO_DIR": "data/ipn/videos/videos",
+    "IPN_ANNOT_DIR": "data/ipn/annotations",
+    "IPN_ANNOT_LIST": "data/ipn/annotations/Annot_List.txt",
+    "IPN_CLASS_IDX": "data/ipn/annotations/classIdx.txt",
+    "IPN_VIDEO_TRAIN_LIST": "data/ipn/annotations/Video_TrainList.txt",
+    "IPN_VIDEO_TEST_LIST": "data/ipn/annotations/Video_TestList.txt",
+    "IPN_METADATA_CSV": "data/ipn/metadata.csv",
+    "IPN_VIDEO_SUFFIX": ".avi",
+    "IPN_SUBJECT_TOKENS": 2,
+    "IPN_LENGTH_TOLERANCE": 5,
+    "PHASE3_RESULTS_DIR": "results/phase3",
+    "EXAMPLES_PER_CLASS": 3,
+    "CLASSES": [
+      "none",
+      "swipe_left",
+      "swipe_right",
+      "zoom_in",
+      "zoom_out"
+    ],
+    "WRIST": 0,
+    "MIDDLE_MCP": 9,
+    "TIPS": [
+      4,
+      8,
+      12,
+      16,
+      20
+    ],
+    "INDEX_TIP": 8,
+    "NUM_LANDMARKS": 21,
+    "HZ": 15.0,
+    "WIN_SEC": 1.2,
+    "STRIDE_SEC": 0.2,
+    "T": 18,
+    "STRIDE": 3,
+    "MAX_GAP": 3,
+    "MIN_PRESENCE": 0.7,
+    "LABEL_COVERAGE": 0.6,
+    "VAL_FRACTION": 0.2,
+    "NONE_TRAIN_SHARE": 0.5,
+    "PHASE4_RESULTS_DIR": "results/phase4",
+    "IPN_FEATURE_RANGES_JSON": "results/phase4/ipn_feature_ranges.json",
+    "AUG_FLIP_P": 0.5,
+    "AUG_ROTATE_DEG": 10.0,
+    "AUG_SCALE_RAMP": 0.1,
+    "AUG_TIME_WARP": [
+      0.8,
+      1.2
+    ],
+    "AUG_DROP_P": 0.5,
+    "AUG_DROP_STEPS": [
+      1,
+      3
+    ],
+    "SIGMA_STILL_QUANTILE": 0.05,
+    "SWIPE_LEFT_SIGN": null,
+    "IPN_FLIP_X": 1,
+    "AUG_NOISE_SIGMA": null,
+    "RULE_S_HI": null,
+    "RULE_DX_HI": null,
+    "RULE_O_HI": null,
+    "MEASURED_IN_PHASE": {
+      "SWIPE_LEFT_SIGN": 3,
+      "AUG_NOISE_SIGMA": 4,
+      "RULE_S_HI": 5,
+      "RULE_DX_HI": 5,
+      "RULE_O_HI": 5
+    },
+    "CAM_W": 640,
+    "CAM_H": 480,
+    "CAM_FPS": 30,
+    "CAM_INDEX": 0,
+    "CONF_FIRE": 0.75,
+    "CONF_HOLD": 0.55,
+    "K_OF_N": [
+      3,
+      5
+    ],
+    "COOLDOWN_SEC": 1.2,
+    "SEED": 42,
+    "NUM_HANDS": 1,
+    "MP_MIN_DETECTION_CONF": 0.5,
+    "MP_MIN_PRESENCE_CONF": 0.5,
+    "MP_MIN_TRACKING_CONF": 0.5,
+    "FPS_WARMUP_SEC": 3.0,
+    "FPS_ROLLING_FRAMES": 30,
+    "FPS_LOW_PERCENTILE": 1.0,
+    "PHASE1_RESULTS_DIR": "results/phase1",
+    "LANDMARKS_CSV_NAME": "landmarks.csv",
+    "MANIFEST_NAME": "manifest.json",
+    "CSV_FLOAT_DECIMALS": 6,
+    "OBS_DEFAULT_SEC": 15.0,
+    "OBS_JITTER_EXPERIMENT": "e9_jitter",
+    "OBS_MIN_RUNS": 3,
+    "DISPLAY_FLIP_CODE": 1,
+    "DISPLAY_WAIT_MS": 1,
+    "QUIT_KEYS": [
+      113,
+      27
+    ],
+    "COLOR_POINT": [
+      0,
+      0,
+      255
+    ],
+    "COLOR_LINE": [
+      0,
+      255,
+      0
+    ],
+    "COLOR_TEXT": [
+      255,
+      255,
+      255
+    ],
+    "COLOR_TEXT_SHADOW": [
+      0,
+      0,
+      0
+    ],
+    "COLOR_ALERT": [
+      0,
+      200,
+      255
+    ],
+    "POINT_RADIUS": 4,
+    "LINE_THICKNESS": 2,
+    "FONT_SCALE": 0.6,
+    "FONT_SCALE_BIG": 1.2,
+    "TEXT_THICKNESS": 1,
+    "TEXT_SHADOW_THICKNESS": 3,
+    "TEXT_ORIGIN": [
+      10,
+      25
+    ],
+    "TEXT_LINE_HEIGHT": 24,
+    "NORM_MIN_SCALE": 1e-06,
+    "FEATURE_EDGE_STEPS": 3,
+    "FEATURE_EPS": 1e-08,
+    "FIG_DPI": 150
+  },
+  "script": "estimate_sigma",
+  "sigma": 0.053729213237259085,
+  "n_still": 193
+}

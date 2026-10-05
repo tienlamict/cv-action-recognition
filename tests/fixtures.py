@@ -90,3 +90,29 @@ def make_wave(steps=None):
     offsets = WAVE_PALMS * PALM_PX * np.sin(phase)
     return np.stack([hand(center=(CENTER[0] + dx, CENTER[1]))
                      for dx in offsets])
+
+
+def save_parts_clip(path, parts, subject, fps=config.HZ):
+    """Ghép các đoạn tổng hợp thành MỘT clip ``.npz`` đúng schema.
+
+    Args:
+        path: file ``.npz`` để ghi; tên file là ``clip_id``.
+        parts: list ``(chuỗi pixel (n, 21, 2), nhãn gốc, lớp)`` — mỗi phần là
+            một đoạn, ví dụ ``(make_static(30), "D0X", "none")``.
+        subject: mã người diễn.
+        fps: mặc định ``config.HZ`` để frame ``i`` trùng bước ``i`` của lưới.
+    """
+    from src.io_data import save_clip
+
+    xy = np.concatenate([p[0] for p in parts]) / np.array(
+        [config.CAM_W, config.CAM_H])
+    ts = np.arange(xy.shape[0], dtype=np.float64) / fps
+    bounds = np.cumsum([0] + [p[0].shape[0] for p in parts])
+    segments = [(a, b, config.CLASSES.index(p[2]))
+                for a, b, p in zip(bounds[:-1], bounds[1:], parts)]
+    meta = {"w": config.CAM_W, "h": config.CAM_H, "fps": fps, "source": "ipn",
+            "subject": subject, "clip_id": path.stem}
+    present = np.all(np.isfinite(xy.reshape(xy.shape[0], -1)), axis=1)
+    save_clip(path, ts, xy.astype(np.float32), present, segments,
+              [p[1] for p in parts], meta)
+    return path

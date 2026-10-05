@@ -2,7 +2,7 @@
 
 ## Nhận dạng cử chỉ bàn tay thời gian thực để điều khiển máy tính
 
-Cập nhật 2026-09-29 — hướng IPN trước
+Cập nhật 2026-09-29 — hướng IPN trước. Sửa 2026-10-05 sau khi cổng boxplot Phase 4 không đạt trên IPN: vector đặc trưng 15 chiều, luật nhãn cửa sổ neo vào khoảnh khắc chính, cổng Phase 4 đổi sang `pinch_delta`, `dx`, `max_vx` (người dùng duyệt). Mỗi chỗ sửa có ghi lý do tại chỗ.
 
 ## Bối cảnh và cách dùng spec này
 
@@ -101,11 +101,15 @@ Mọi phase đọc và ghi đúng các shape dưới đây. Một phase đổi s
 | `WIN_SEC`, `STRIDE_SEC` | `1.2`, `0.2` | Tính bằng giây. `T = round(WIN_SEC * HZ)` = 18 bước |
 | `MAX_GAP` | `3` | Lỗ hổng dài hơn thì giữ `NaN` |
 | `MIN_PRESENCE` | `0.7` | Tỉ lệ bước có tay tối thiểu của một cửa sổ |
-| `LABEL_COVERAGE` | `0.6` | Ngưỡng phủ nhãn khi gán nhãn cửa sổ |
-| `SWIPE_LEFT_SIGN` | `None` | **CHƯA ĐO** — đo trên IPN ở Phase 3 |
+| `CORE_MARGIN_STEPS` | `3` | Cửa sổ mang lớp đích khi khoảnh khắc chính của cử chỉ nằm trong `[3, T-3)` của nó. Thay `LABEL_COVERAGE = 0.6` từ 2026-10-05 — xem Phase 4 |
+| `CORE_SMOOTH_STEPS` | `3` | Làm mượt tín hiệu trước khi tìm khoảnh khắc chính |
+| `NORM_MIN_PALM_RATIO` | `0.5` | Lòng bàn tay frame đầu ngắn hơn bấy nhiêu lần trung vị của cửa sổ thì `normalize_window` từ chối (thêm 2026-10-05) |
+| `VAL_FRACTION` | `0.2` | Phần người của split train chính thức tách làm `val` |
+| `NONE_TRAIN_SHARE` | `0.5` | `none` chiếm bấy nhiêu phần tập train sau lấy mẫu con |
+| `SWIPE_LEFT_SIGN` | `1` | **ĐÃ ĐO** trên IPN ở Phase 3 (2026-10-05, 189 clip) |
 | `IPN_FLIP_X` | `1` | IPN là chuẩn quy ước. Chỉ đổi thành `-1` khi phép thử ở Phase 5 chứng minh ngược |
-| `AUG_NOISE_SIGMA` | `None` | **CHƯA ĐO** — từ thí nghiệm quan sát Phase 1, hoặc ước lượng trên IPN ở Phase 4 |
-| `RULE_S_HI`, `RULE_DX_HI`, `RULE_O_HI` | `None` | **CHƯA HIỆU CHUẨN** — chọn trên tập `train` của IPN ở Phase 5 |
+| `AUG_NOISE_SIGMA` | `0.0159` | **ĐÃ ƯỚC LƯỢNG** trên IPN ở Phase 4, chỉ từ cửa sổ tay nghỉ `D0X` (đơn vị lòng bàn tay) |
+| `RULE_VX_HI`, `RULE_DX_HI`, `RULE_P_HI` | `4.026`, `0.1025`, `0.7209` | **ĐÃ HIỆU CHUẨN** trên tập `train` của IPN ở Phase 5 (2026-10-05). Trước là `RULE_S_HI`, `RULE_O_HI` trên `straightness`, `open_delta` |
 | `CAM_W`, `CAM_H`, `CAM_FPS` | `640`, `480`, `30` | Giữ nguyên suốt dự án |
 | `CONF_FIRE`, `CONF_HOLD` | `0.75`, `0.55` | Logic kích hoạt |
 | `K_OF_N` | `(3, 5)` | Đồng thuận k trên n |
@@ -149,15 +153,18 @@ Hai khóa `real_*` để trống tới Phase 11, nhưng mọi script đánh giá
 
 ### Vector đặc trưng
 
-Mười ba chiều, thứ tự cố định trong `FEATURE_NAMES`:
+Mười lăm chiều, thứ tự cố định trong `FEATURE_NAMES`:
 
 ```
 open_start, open_end, open_delta, open_range, open_trend,
+pinch_delta, pinch_range,
 dx, dy, max_vx, mean_vx, max_vy,
 straightness, horiz_ratio, presence
 ```
 
-Bốn đặc trưng **có dấu** — `open_delta`, `open_trend`, `dx`, `mean_vx` — gánh phần lớn việc phân biệt hai cặp lớp. Không đặc trưng nào được phép là `NaN`.
+Năm đặc trưng **có dấu** — `open_delta`, `open_trend`, `pinch_delta`, `dx`, `mean_vx` — gánh phần lớn việc phân biệt hai cặp lớp. Không đặc trưng nào được phép là `NaN`.
+
+*Sửa 2026-10-05:* thêm `pinch_delta`, `pinch_range` (khoảng cách đầu ngón cái – đầu ngón trỏ). Zoom của IPN là chụm/mở ba đầu ngón cái, trỏ, giữa với nhẫn và út gập suốt, nên độ xòe trung bình của năm ngón đổi rất ít; trên train, `pinch_delta` tách hẳn hai hộp zoom còn `open_delta` thì không (`docs/gestures.md`, `results/phase4/boxplots/`).
 
 ### Quy ước đặt tên và đầu ra
 
@@ -266,9 +273,9 @@ test_record_csv_giu_dong_khi_mat_tay
     - `to_pixels(xy_norm, w, h)` — nhân `x` với `w`, `y` với `h`. Không dùng chung một hệ số cho hai trục.
     - `resample(ts, xy, hz=HZ)` — lưới đều từ `ts[0]`, bước đúng `1/hz`. Nội suy tuyến tính **chỉ từ frame có tay**; một điểm lưới là `NaN` nếu hai frame kẹp nó không cùng có tay. `np.interp` tự nó nội suy xuyên qua khoảng mất tay mà không báo gì — lỗi im lặng phải chặn.
     - `fill_short_gaps(xy, max_gap=MAX_GAP)` — nội suy các đoạn `NaN` ngắn **và** có đủ hai đầu mút. Đoạn dài hơn, hoặc chạm đầu hay cuối chuỗi, giữ `NaN`. Không sửa mảng đầu vào tại chỗ.
-    - `load_sequence(ts, xy_norm, w, h)` — gọi ba hàm trên theo đúng thứ tự. Là cửa duy nhất vào đường ống; ngoài `tests/`, không nơi nào khác gọi `resample` hay `fill_short_gaps` trực tiếp.
-    - `normalize_window(win)` — dời gốc về **cổ tay của frame đầu cửa sổ**, chia cho khoảng cách điểm 0 đến điểm 9 **của frame đầu**, dùng chung cho mọi frame. Ném `ValueError` nếu frame đầu có `NaN` hoặc thang đo quá nhỏ.
-3. `src/features.py` — `openness(win)` là trung bình khoảng cách từ năm đầu ngón tới cổ tay **của cùng frame**; `window_features(win_norm, presence_ratio)` trả về vector 13 chiều `float32`; `FEATURE_NAMES` đúng thứ tự. Định nghĩa từng đặc trưng:
+    - `load_sequence(ts, xy_norm, w, h)` — gọi ba hàm trên theo đúng thứ tự. Là cửa duy nhất vào đường ống; ngoài `tests/`, không nơi nào khác gọi `resample` hay `fill_short_gaps` trực tiếp — trừ phép "xoá bước rồi vá" của `src/augment.py`, mà Phase 4 yêu cầu đích danh.
+    - `normalize_window(win)` — dời gốc về **cổ tay của frame đầu cửa sổ**, chia cho khoảng cách điểm 0 đến điểm 9 **của frame đầu**, dùng chung cho mọi frame. Ném `ValueError` nếu frame đầu có `NaN`, thang đo quá nhỏ, hoặc (*thêm 2026-10-05*) lòng bàn tay frame đầu ngắn hơn `NORM_MIN_PALM_RATIO` lần trung vị lòng bàn tay của cả cửa sổ — tay nghiêng cạnh hay điểm mốc sai ở frame đầu từng phóng đặc trưng lên tới 30 lòng bàn tay. Cửa sổ chỉ chứa quá khứ của thời điểm quyết định, nên phép so này vẫn nhân quả.
+3. `src/features.py` — `openness(win)` là trung bình khoảng cách từ năm đầu ngón tới cổ tay **của cùng frame**; `pinch(win)` là khoảng cách đầu ngón cái (điểm 4) – đầu ngón trỏ (điểm 8) của cùng frame; `window_features(win_norm, presence_ratio)` trả về vector 15 chiều `float32`; `FEATURE_NAMES` đúng thứ tự. Định nghĩa từng đặc trưng:
 
 | Đặc trưng | Định nghĩa ("đầu", "cuối" = trung bình 3 bước đầu, cuối) |
 | --- | --- |
@@ -276,6 +283,8 @@ test_record_csv_giu_dong_khi_mat_tay
 | `open_delta` | `open_end - open_start` — có dấu |
 | `open_range` | max − min của độ xòe |
 | `open_trend` | hệ số góc hồi quy tuyến tính của độ xòe theo giây — có dấu |
+| `pinch_delta` | độ mở cái–trỏ cuối − đầu — có dấu |
+| `pinch_range` | max − min của độ mở cái–trỏ |
 | `dx`, `dy` | cổ tay cuối − cổ tay đầu, từng trục — `dx` có dấu |
 | `max_vx`, `mean_vx`, `max_vy` | từ vận tốc cổ tay `np.diff(w) * HZ`; `mean_vx` có dấu |
 | `straightness` | độ dời thẳng / tổng độ dài đường đi của cổ tay, trong `[0, 1]` |
@@ -300,19 +309,21 @@ test_normalize_bat_bien_voi_tinh_tien           # dời 137 px → sai khác < 1
 test_normalize_bat_bien_voi_ti_le               # phóng 1,6 lần → sai khác < 1e-5
 test_normalize_giu_quy_dao                      # make_swipe → |dx| > 2
 test_normalize_nem_loi_khi_frame_dau_mat_tay
+test_normalize_tu_choi_long_ban_tay_frame_dau_bat_thuong      # thêm 2026-10-05
 test_flip_doi_dau_dx_va_mean_vx                 # lật x = 640 - x trước khi chuẩn hoá
 test_flip_giu_nguyen_open_delta
 test_zoom_in_open_delta_duong_zoom_out_am
+test_zoom_in_pinch_delta_duong_zoom_out_am_va_lat_giu_nguyen  # thêm 2026-10-05
 test_swipe_straightness_tren_0_8_wave_duoi_0_5
-test_features_dung_13_chieu_va_khop_FEATURE_NAMES
+test_features_dung_15_chieu_va_khop_FEATURE_NAMES
 test_features_khong_bao_gio_tra_ve_nan          # kể cả cửa sổ còn 30% bước NaN
 ```
 
 **Định nghĩa hoàn thành**
 
-- [ ] `pytest -q` xanh: đủ 15 kiểm thử trên, cộng các kiểm thử cũ
+- [ ] `pytest -q` xanh: đủ 17 kiểm thử trên, cộng các kiểm thử cũ
 - [ ] `check_pipeline.py` trên một CSV từ Phase 1: độ lệch lưới nhỏ hơn `1e-9`
-- [ ] Trong `src/` và `scripts/`: `resample` và `fill_short_gaps` chỉ được gọi bên trong `load_sequence`; `normalize_window` chỉ được định nghĩa đúng một lần
+- [ ] Trong `src/` và `scripts/`: `resample` và `fill_short_gaps` chỉ được gọi bên trong `load_sequence` (ngoại lệ duy nhất: `fill_short_gaps` trong `augment.drop_steps`); `normalize_window` chỉ được định nghĩa đúng một lần
 
 ## Phase 3 — Trích điểm mốc IPN và đo quy ước hướng
 
@@ -361,21 +372,29 @@ test_measure_direction_tren_du_lieu_tong_hop  # dùng fixtures Phase 2
 
 **Việc phải làm**
 
-1. `src/windows.py` — `cut_windows(...)` nạp clip qua `load_clip` và `load_sequence`, cắt cửa sổ theo `WIN_SEC` và `STRIDE_SEC` **trong phạm vi từng clip**. Nhãn cửa sổ là lớp phủ ít nhất `LABEL_COVERAGE` số bước; không lớp nào đạt thì nhãn là `none`. Loại cửa sổ có `presence_ratio < MIN_PRESENCE` hoặc bước đầu không có tay. Ghi `src_label` của đoạn phủ cửa sổ.
-2. `src/augment.py` — mỗi phép trả lời câu hỏi "biến đổi này có làm đổi lớp không":
+1. `src/windows.py` — `cut_windows(...)` nạp clip qua `load_clip` và `load_sequence`, cắt cửa sổ theo `WIN_SEC` và `STRIDE_SEC` **trong phạm vi từng clip**. Loại cửa sổ có `presence_ratio < MIN_PRESENCE` hoặc bước đầu không có tay. Ghi `src_label` của đoạn phủ cửa sổ. **Gán nhãn neo vào khoảnh khắc chính** (sửa 2026-10-05):
+    - Khoảnh khắc chính của một đoạn cử chỉ đích là bước có tín hiệu đổi nhanh nhất trong đoạn, sau khi làm mượt `CORE_SMOOTH_STEPS` bước: vị trí ngang của cổ tay với hai lớp vuốt, độ mở cái–trỏ với hai lớp zoom, chia cho trung vị lòng bàn tay của đoạn. Chỉ dùng **độ lớn** của thay đổi, không dùng dấu.
+    - Cửa sổ mang lớp của đoạn khi khoảnh khắc chính nằm trong `[CORE_MARGIN_STEPS, T - CORE_MARGIN_STEPS)` của nó.
+    - Cửa sổ **giao** với một đoạn cử chỉ đích mà không thoả điều trên thì **bị bỏ**, không gán `none`.
+    - Cửa sổ không giao đoạn cử chỉ đích nào là `none`.
+
+    *Vì sao đổi:* luật cũ "lớp đích chiếm ≥ `LABEL_COVERAGE` = 60% số bước" cho 49% cửa sổ dương không chứa động tác chính — đoạn cử chỉ IPN dài ~2 s gồm chuẩn bị, động tác chính ~0,3 s và thu tay — và cổng boxplot không đạt điều kiện nào. Luật trong cẩm nang ("cửa sổ phủ ≥ 60% độ dài cử chỉ") còn tệ hơn: nửa số cử chỉ dài hơn 2 s không có mẫu dương nào. Khoảnh khắc chính dùng cả đoạn, nhưng không phạm luật 10: nhãn là chân lý ngoại tuyến, mô hình không bao giờ thấy nó. Báo cáo phải nói rõ nhãn dương phụ thuộc độ lớn chuyển động.
+2. `src/augment.py` — mỗi phép trả lời câu hỏi "biến đổi này có làm đổi lớp không". Nhận cửa sổ **đã** chuẩn hoá và trả kết quả đã `normalize_window` lại — tương đương thứ tự của luật 5 vì chuẩn hoá một cửa sổ đã chuẩn hoá là phép đồng nhất. `augment_windows` từ chối mọi tập khác `train`.
 
 | Phép | Tham số | Đổi nhãn? |
 | --- | --- | --- |
 | Lật ngang | — | **Có** với cặp vuốt, **không** với cặp zoom |
-| Co giãn | ±10% | Không |
+| Co giãn đổi dần | hệ số từ 1 ở bước đầu tới 1 ± 10% ở bước cuối | Không |
 | Xoay nhẹ | ±10° | Không |
 | Co giãn thời gian | 0,8–1,2× rồi nội suy về đúng `T` | Không |
 | Nhiễu Gauss | `AUG_NOISE_SIGMA` | Không |
 | Xóa bước ngẫu nhiên | 1–3 bước rồi `fill_short_gaps` | Không |
 
-3. Nếu `AUG_NOISE_SIGMA` còn `None`: `scripts/estimate_sigma.py` ước lượng từ các cửa sổ `none` của tập `train` mà cổ tay gần như đứng yên — độ lệch chuẩn của đầu ngón quanh vị trí trung bình, sau chuẩn hóa — rồi in dòng để dán vào `config.py`.
-4. `scripts/make_splits.py` — dựng `splits.json` theo **split chính thức của IPN**; tách một nhóm người trong phần huấn luyện làm `val`. Hai khóa `real_tune`, `real_test` để trống.
-5. `scripts/build_dataset.py` — cắt cửa sổ, `normalize_window`, lấy mẫu con lớp `none` xuống còn 40–50% tập huấn luyện. Dùng `src_label` để **giữ lại toàn bộ mẫu âm khó**, chỉ bỏ bớt phần tay đứng yên trùng lặp. Xuất `windows.npz` và bảng thống kê trước/sau.
+*Sửa 2026-10-05:* co giãn **đều** ±10% bị `normalize_window` triệt tiêu hoàn toàn (chuẩn hoá chia cho lòng bàn tay của frame đầu), nên thay bằng co giãn đổi dần — mô phỏng tay tiến hoặc lùi so với camera trong cửa sổ, thứ chuẩn hoá theo frame đầu không khử được.
+
+3. Nếu `AUG_NOISE_SIGMA` còn `None`: `scripts/estimate_sigma.py` ước lượng từ các cửa sổ `none` của tập `train` mà cổ tay gần như đứng yên — độ lệch chuẩn của đầu ngón quanh vị trí trung bình, sau chuẩn hóa — rồi in dòng để dán vào `config.py`. *Đo 2026-10-05:* lấy mọi cửa sổ `none` cho σ = 0,054, nhưng phần lớn cửa sổ "cổ tay đứng yên" là bấm ngón và xòe tay (`G01`, `G02`, `G07`–`G09`), tức cử động có chủ ý chứ không phải độ rung. Giá trị dùng là 0,0159, đo bằng `--src-label D0X` (chỉ tay nghỉ), khớp ước lượng nhiễu tần số cao 0,0162.
+4. `scripts/make_splits.py` — dựng `splits.json` theo **split chính thức của IPN**; tách `VAL_FRACTION` số người trong phần huấn luyện làm `val`, chọn với `SEED`. Hai khóa `real_tune`, `real_test` để trống.
+5. `scripts/build_dataset.py` — cắt cửa sổ, `normalize_window`, lấy mẫu con lớp `none` của tập huấn luyện xuống `NONE_TRAIN_SHARE` = 50%; `val` và `test` giữ phân bố tự nhiên. Xuất `windows.npz` và bảng thống kê trước/sau. *Sửa 2026-10-05:* quota `none` **chia đều theo `src_label`**, nhóm nhỏ hơn phần chia thì giữ hết. "Giữ lại toàn bộ mẫu âm khó" không làm được cùng lúc với 40–50%: riêng `G03`, `G04`, `G07` đã nhiều hơn cả ngân sách `none`, và tay chỉ trỏ (`B0A`, `B0B`) đo được di chuyển nhanh và xa hơn cả cú vuốt nên cũng là mẫu âm khó.
 6. Chạy `plot_feature_boxplots.py` trên tập `train`, và lưu phân vị 25/75 của từng đặc trưng theo từng lớp vào `results/phase4/ipn_feature_ranges.json` — Phase 5 dùng file này để kiểm tra bạn làm cử chỉ có giống IPN không.
 
 **Kiểm thử bắt buộc**
@@ -383,17 +402,19 @@ test_measure_direction_tren_du_lieu_tong_hop  # dùng fixtures Phase 2
 ```
 test_khong_ma_nguoi_nao_xuat_hien_o_hai_tap   # phép giao in ra tập rỗng
 test_cua_so_khong_bac_cau_qua_hai_clip
-test_gan_nhan_theo_nguong_phu_60_phan_tram
+test_gan_nhan_neo_vao_khoanh_khac_chinh       # thay test_gan_nhan_theo_nguong_phu_60_phan_tram
 test_flip_doi_nhan_cap_vuot_va_giu_nhan_cap_zoom
 test_tang_cuong_khong_cham_vao_val_va_test
 test_shape_X_dung_N_18_21_2
 ```
 
-**Cổng kiểm tra — ba hình boxplot.** Chỗ dừng bắt buộc của phase này:
+**Cổng kiểm tra — ba hình boxplot.** Chỗ dừng bắt buộc của phase này (đổi ngày 2026-10-05, người dùng duyệt):
 
-- `open_delta`: hộp `zoom_in` nằm hẳn bên dương, hộp `zoom_out` nằm hẳn bên âm, hai hộp gần như không chồng nhau.
+- `pinch_delta`: hộp `zoom_in` nằm hẳn bên dương, hộp `zoom_out` nằm hẳn bên âm, hai hộp không chồng nhau.
 - `dx`: hai hộp của hai lớp vuốt nằm ở hai phía của số 0.
-- `straightness`: hộp của hai lớp vuốt cao hơn hẳn hộp của lớp `none`.
+- `max_vx`: hộp của hai lớp vuốt cao hơn hẳn hộp của lớp `none`.
+
+Cổng cũ dùng `open_delta` và `straightness`. Trên IPN, `open_delta` tách zoom yếu (hộp `zoom_out` vẫn chạm số 0) và `straightness` không tách cú hất khỏi `none` ở bất kỳ luật nhãn nào — cú hất có chuẩn bị và thu tay, còn tay chỉ trỏ lại đi khá thẳng. `plot_feature_boxplots.py` vẫn in hai điều kiện cũ dưới nhóm "tham khảo". `max_vx` qua cổng sát nút (p25 vuốt 3,59 so với p75 `none` 3,30): đây là chỗ yếu nhất của bộ đặc trưng.
 
 Nếu ba hình không như mô tả, **dừng lại và quay về Phase 2**. Không mô hình nào cứu được đặc trưng không tách lớp.
 
@@ -405,37 +426,41 @@ Nếu ba hình không như mô tả, **dừng lại và quay về Phase 2**. Kh�
 - [ ] Lớp `none` chiếm 40–50% tập huấn luyện, không phải 1:1
 - [ ] Ba hình boxplot đạt mô tả ở cổng kiểm tra
 - [ ] `AUG_NOISE_SIGMA` đã có giá trị, và `ipn_feature_ranges.json` tồn tại
-- [ ] Vẽ quỹ đạo cổ tay và đường độ xòe cho một cửa sổ ngẫu nhiên mỗi lớp, xem bằng mắt là đúng cử chỉ mang nhãn đó
+- [ ] Vẽ quỹ đạo cổ tay, đường độ xòe và độ mở cái–trỏ cho một cửa sổ ngẫu nhiên mỗi lớp (`scripts/plot_window_examples.py`), xem bằng mắt là đúng cử chỉ mang nhãn đó
 
 ## Phase 5 — Mô hình luật và demo v0
 
-**Mục tiêu.** Hệ thống hoàn chỉnh đầu tiên chạy trên webcam — camera → 21 điểm → cửa sổ 1,2 giây → 13 đặc trưng → luật ngưỡng → nhãn trên màn hình — với ngưỡng chọn từ IPN. Đây cũng là lần đầu kiểm tra quy ước hướng và cách bạn làm cử chỉ trên webcam thật.
+**Mục tiêu.** Hệ thống hoàn chỉnh đầu tiên chạy trên webcam — camera → 21 điểm → cửa sổ 1,2 giây → 15 đặc trưng → luật ngưỡng → nhãn trên màn hình — với ngưỡng chọn từ IPN. Đây cũng là lần đầu kiểm tra quy ước hướng và cách bạn làm cử chỉ trên webcam thật.
 
 **Việc phải làm**
 
+> **Quyết định 2026-10-05 (người dùng chốt).** Luật dựng trên đúng ba đặc trưng của cổng Phase 4: `max_vx` thay `straightness`, `pinch_delta` thay `open_delta`. Hai hằng số đổi tên theo: `RULE_S_HI` → `RULE_VX_HI`, `RULE_O_HI` → `RULE_P_HI`.
+
 1. `src/calibration.py` (logic, kiểm thử được) và `scripts/calibrate_rules.py` (dòng lệnh). **Chỉ dùng cửa sổ của tập `train`.** Đề xuất:
-    - `RULE_S_HI` = trung điểm của phân vị 90 `straightness` lớp `none` và phân vị 10 `straightness` hai lớp vuốt;
+    - `RULE_VX_HI` = trung điểm của phân vị 90 `max_vx` lớp `none` và phân vị 10 `max_vx` hai lớp vuốt;
     - `RULE_DX_HI` = phân vị 10 của `|dx|` trên hai lớp vuốt;
-    - `RULE_O_HI` = trung điểm của phân vị 90 `|open_delta|` (lớp `none` cộng hai lớp vuốt) và phân vị 10 `|open_delta|` hai lớp zoom.
+    - `RULE_P_HI` = trung điểm của phân vị 90 `|pinch_delta|` (lớp `none` cộng hai lớp vuốt) và phân vị 10 `|pinch_delta|` hai lớp zoom.
 
     Nếu hai phân vị chồng nhau, in cảnh báo kèm hai con số nhưng vẫn đề xuất trung điểm. In ra đúng ba dòng để dán vào `config.py`, không tự sửa file. Ghi bảng phân vị và lý do vào `results/phase5/thresholds.md`.
 2. `src/rules.py` — `classify(feat) -> (label, confidence)`, thứ tự kiểm tra cố định:
 
 ```
 presence < MIN_PRESENCE                         → none
-straightness > RULE_S_HI và |dx| > RULE_DX_HI   → swipe_left nếu sign(dx) == SWIPE_LEFT_SIGN,
+max_vx > RULE_VX_HI và |dx| > RULE_DX_HI        → swipe_left nếu sign(dx) == SWIPE_LEFT_SIGN,
                                                    ngược lại swipe_right
-open_delta > RULE_O_HI                          → zoom_in
-open_delta < -RULE_O_HI                         → zoom_out
+pinch_delta > RULE_P_HI                         → zoom_in
+pinch_delta < -RULE_P_HI                        → zoom_out
 còn lại                                         → none
 ```
 
-Vuốt được xét **trước** zoom vì cú vuốt cũng làm tay biến dạng chút ít, còn cú xoè thì gần như không dời chỗ. `confidence` = `0.5 + 0.5 × min_i clip(v_i/θ_i − 1, 0, 1)` trên các điều kiện của luật vừa khớp; `none` trả về `1.0` — một con số heuristic, ghi rõ trong docstring. Đọc hằng số qua `config.X` lúc gọi hàm để kiểm thử `monkeypatch` được.
+Vuốt được xét **trước** zoom vì cú hất của IPN mở bàn tay ra — `pinch_delta` của cửa sổ vuốt có khi lớn (trung vị `|pinch_delta|` 0,58 ở `swipe_right` trên train) — còn zoom thì gần như không dời cổ tay. `confidence` = `0.5 + 0.5 × min_i clip(v_i/θ_i − 1, 0, 1)` trên các điều kiện của luật vừa khớp; `none` trả về `1.0` — một con số heuristic, ghi rõ trong docstring. Đọc hằng số qua `config.X` lúc gọi hàm để kiểm thử `monkeypatch` được.
 
 3. `src/buffer.py` — `TimeBuffer.push(ts, xy_norm, w, h)` giữ frame trong `WIN_SEC + 0,5` giây gần nhất, theo thời gian. `window()` gọi `load_sequence` trên dữ liệu đang giữ, lấy `T` bước cuối, trả về `(win_pixel, presence_ratio)` hoặc `None` khi chưa đủ, `presence` thấp, hay bước đầu mất tay. Không gọi `resample` hay `fill_short_gaps` trực tiếp.
 4. `scripts/demo.py --model rules [--log FILE] [--show-features]` — vòng lặp `iter_frames(0)` → `HandTracker` → `TimeBuffer` → mỗi `STRIDE_SEC`: `normalize_window` → `window_features` → `classify`. Hiển thị trên bản đã lật: 21 điểm, nhãn chữ to kèm `confidence`, `presence_ratio`, FPS; `—` khi `window()` trả về `None`. `--model` thiết kế để thêm lựa chọn khác mà không sửa vòng lặp. `demo.py` chỉ import từ `src/`, không tự định nghĩa hàm xử lý nào.
-5. `--show-features` — chế độ **luyện làm cử chỉ theo IPN**. Phím 1–4 chọn cử chỉ đang luyện; màn hình hiện `open_delta`, `dx`, `straightness` của cửa sổ gần nhất, tô xanh nếu nằm trong khoảng phân vị 25–75 của lớp đó theo `ipn_feature_ranges.json`, đỏ nếu nằm ngoài.
-6. `scripts/eval_rules.py` — chạy luật trên tập `val`: ma trận nhầm lẫn, macro-F1, hai đường cơ sở (ngẫu nhiên 20% và luôn đoán `none`). Hợp lệ vì ngưỡng chọn trên `train`.
+5. `--show-features` — chế độ **luyện làm cử chỉ theo IPN**. Phím 1–4 chọn cử chỉ đang luyện; màn hình hiện `pinch_delta`, `dx`, `max_vx` (`SHOW_FEATURES`) của cửa sổ gần nhất, tô xanh nếu nằm trong khoảng phân vị 25–75 của lớp đó theo `ipn_feature_ranges.json`, đỏ nếu nằm ngoài.
+6. `scripts/eval_rules.py` — chạy luật trên tập `val`: ma trận nhầm lẫn, macro-F1, hai đường cơ sở (ngẫu nhiên 20% và luôn đoán `none`). Hợp lệ vì ngưỡng chọn trên `train`. Ghi một hàng vào `results/model_comparison.{csv,md}`. `--split test` hoặc `real_test` bắt buộc thêm `--final` (luật 13).
+
+`demo.py` có thêm `--source` (webcam hoặc file video), `--no-display` và `--max-sec` để chạy thử trên video IPN không cần cửa sổ; mọi xử lý nằm trong `src/live.py`.
 
 **Kiểm thử bắt buộc**
 
@@ -470,7 +495,7 @@ Nhãn nhấp nháy liên tục hơn một giây mỗi khi làm cử chỉ là **
 
 **Việc phải làm**
 
-1. `scripts/train_rf.py` — nén mỗi cửa sổ thành vector 13 chiều, huấn luyện `RandomForestClassifier(n_estimators=300, class_weight="balanced_subsample", random_state=SEED)`. Không dùng `StandardScaler`.
+1. `scripts/train_rf.py` — nén mỗi cửa sổ thành vector 15 chiều, huấn luyện `RandomForestClassifier(n_estimators=300, class_weight="balanced_subsample", random_state=SEED)`. Không dùng `StandardScaler`.
 2. Đánh giá **trên tập `val`**: macro-F1, `classification_report` đầy đủ, ma trận nhầm lẫn cả dạng thô lẫn chuẩn hóa theo hàng. In cùng bảng với hai đường cơ sở và hàng của `rules.py`.
 3. Vẽ `feature_importances_`, chạy `permutation_importance` trên `val`, và **so sánh hai bảng xếp hạng**.
 4. `scripts/evaluate.py --split {test,real_test}` phải **từ chối chạy** trừ khi có cờ `--final`, và khi chạy thì ghi một dòng vào `results/TEST_USED.log` kèm tên tập, thời điểm và cấu hình đã dùng. Đây là cơ chế kỹ thuật cho luật 13.
@@ -484,7 +509,7 @@ Nhãn nhấp nháy liên tục hơn một giây mỗi khi làm cử chỉ là **
 | --- | --- | --- |
 | Macro-F1 không cao hơn hẳn `rules.py` | Lỗi nằm trong đường ống, không nằm ở mô hình | Dừng, quay về Phase 2 và 4 |
 | Macro-F1 trên 0,97 | Gần như chắc chắn có rò rỉ | Dừng, kiểm tra lại `splits.json` |
-| Ba đặc trưng đầu bảng không phải `open_delta`, `dx`, `straightness` | Chưa hẳn sai, nhưng phải giải thích được | Viết giải thích trước khi đi tiếp |
+| Ba đặc trưng đầu bảng không phải `pinch_delta`, `dx`, `max_vx` (ba đặc trưng của cổng Phase 4) | Chưa hẳn sai, nhưng phải giải thích được | Viết giải thích trước khi đi tiếp |
 
 **Lần thử trực tiếp — quyết định Phase 11.** Chạy `demo.py --model rf --log`, rồi:
 
@@ -560,13 +585,13 @@ Kiểm thử cuối là phép thử vòng huấn luyện: nếu mô hình **khô
 | 2 | Thí nghiệm chuẩn hóa: gốc từng frame so với gốc frame đầu | Dự đoán: gốc từng frame làm F1 hai lớp vuốt sập; báo cáo **F1 riêng từng lớp** |
 | 3 | Độ dài cửa sổ 0,8 / 1,2 / 1,6 giây | Độ dài tối ưu có thể khác nhau giữa cặp vuốt và cặp zoom |
 | 4 | Cách chia tập: ngẫu nhiên theo cửa sổ / theo người | Khoảng cách do rò rỉ. Hàng thứ ba — tập tự quay — chỉ thêm nếu bật Phase 11 |
-| 5 | Loại bỏ đặc trưng: đủ 13 / bỏ nhóm có dấu / bỏ `straightness` / bỏ `presence` / thêm góc khớp | Dự đoán: bỏ nhóm có dấu làm hai cặp lớp sập hoàn toàn |
+| 5 | Loại bỏ đặc trưng: đủ 15 / bỏ nhóm có dấu / bỏ `straightness` / bỏ `presence` / thêm góc khớp | Dự đoán: bỏ nhóm có dấu làm hai cặp lớp sập hoàn toàn |
 | 6 | Năm seed, trung bình ± độ lệch chuẩn | Chênh lệch nhỏ hơn độ lệch chuẩn thì không kết luận được gì |
 | 7 | k-fold theo nhóm người, 5 fold | Hệ thống hoạt động khác nhau tới đâu tuỳ người |
 
 Bảng 2 là bảng quan trọng nhất về mặt học thuật. Bảng 4 cho thấy con số 98–99% của phép chia ngẫu nhiên giả tới mức nào.
 
-6. Các hàng rẻ trong bảng phụ: 21 điểm so với 11 điểm rút gọn, GRU thay LSTM, `hidden` 64 so với 128, cách gộp cuối/trung bình/cực đại, có so với không tăng cường, ngưỡng phủ nhãn 40/60/80%. Hàng "chỉ IPN so với IPN cộng `none` tự quay" chỉ có nếu bật Phase 11.
+6. Các hàng rẻ trong bảng phụ: 21 điểm so với 11 điểm rút gọn, GRU thay LSTM, `hidden` 64 so với 128, cách gộp cuối/trung bình/cực đại, có so với không tăng cường, biên khoảnh khắc chính `CORE_MARGIN_STEPS` 0/3/6 bước (thay khảo sát ngưỡng phủ nhãn 40/60/80% từ 2026-10-05, khi luật nhãn đổi). Hàng "chỉ IPN so với IPN cộng `none` tự quay" chỉ có nếu bật Phase 11.
 7. `run_experiments.py` tự in cụm từ **"không đủ bằng chứng để kết luận"** bên cạnh mọi so sánh có chênh lệch nhỏ hơn độ lệch chuẩn.
 8. Lần chạy cuối trên `test`, bằng `evaluate.py --split test --final`, làm **đúng một lần** sau khi mọi cấu hình đã chốt.
 

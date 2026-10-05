@@ -68,6 +68,7 @@ CLASSES = ["none", "swipe_left", "swipe_right", "zoom_in", "zoom_out"]
 WRIST = 0           # gốc toạ độ khi chuẩn hóa cửa sổ
 MIDDLE_MCP = 9      # khoảng cách 0 -> 9 là đơn vị đo
 TIPS = [4, 8, 12, 16, 20]   # đầu 5 ngón: cái, trỏ, giữa, nhẫn, út
+THUMB_TIP = 4       # đầu ngón cái — cùng INDEX_TIP đo độ mở cái–trỏ (zoom IPN)
 INDEX_TIP = 8       # đầu ngón trỏ — dùng đo độ rung ở Phase 1
 NUM_LANDMARKS = 21
 
@@ -80,31 +81,80 @@ WIN_SEC = 1.2       # độ dài một cửa sổ
 STRIDE_SEC = 0.2    # bước trượt giữa hai cửa sổ
 
 T = round(WIN_SEC * HZ)     # số bước trong một cửa sổ = 18
+STRIDE = round(STRIDE_SEC * HZ)     # số bước giữa hai cửa sổ liền nhau = 3
 
 MAX_GAP = 3             # lỗ hổng NaN dài hơn số bước này thì GIỮ NaN
 MIN_PRESENCE = 0.7      # tỉ lệ bước có tay tối thiểu của một cửa sổ hợp lệ
-LABEL_COVERAGE = 0.6    # ngưỡng phủ nhãn khi gán nhãn cho cửa sổ
+CORE_MARGIN_STEPS = 3   # nhãn neo vào khoảnh khắc chính (thay LABEL_COVERAGE
+                        # của SPEC, quyết định 2026-10-05): cửa sổ mang lớp
+                        # đích khi khoảnh khắc chính của cử chỉ nằm trong
+                        # [bước 3, bước T-3) của nó. Xem src/windows.py
+CORE_SMOOTH_STEPS = 3   # làm mượt tín hiệu trước khi tìm khoảnh khắc chính
 
 # --------------------------------------------------------------------------
-# Quy ước hướng — CHƯA ĐO. Dùng require_measured() trước khi đọc
+# Bộ cửa sổ (Phase 4) — chia tập theo người, lấy mẫu con lớp none
 # --------------------------------------------------------------------------
 
-SWIPE_LEFT_SIGN = None      # CHƯA ĐO — đo trên dữ liệu IPN ở Phase 3
+VAL_FRACTION = 0.2      # phần người của split train chính thức tách làm val
+NONE_TRAIN_SHARE = 0.5  # none chiếm bấy nhiêu phần tập train sau lấy mẫu con;
+                        # SPEC: 40–50%, KHÔNG BAO GIỜ cân bằng 1:1. Quota chia
+                        # đều theo nhãn gốc (quyết định 2026-10-05)
+
+PHASE4_RESULTS_DIR = RESULTS_DIR / "phase4"
+IPN_FEATURE_RANGES_JSON = PHASE4_RESULTS_DIR / "ipn_feature_ranges.json"
+
+# --------------------------------------------------------------------------
+# Mô hình luật và demo (Phase 5)
+# --------------------------------------------------------------------------
+
+PHASE5_RESULTS_DIR = RESULTS_DIR / "phase5"
+MODEL_COMPARISON = RESULTS_DIR / "model_comparison"   # .csv + .md, mỗi mô hình một hàng
+CALIB_NONE_PCT = 90         # ngưỡng luật = trung điểm của phân vị 90 lớp nền...
+CALIB_TARGET_PCT = 10       # ...và phân vị 10 lớp đích (SPEC Phase 5)
+BUFFER_EXTRA_SEC = 0.5      # TimeBuffer giữ WIN_SEC + bấy nhiêu giây gần nhất
+SHOW_FEATURES = ("pinch_delta", "dx", "max_vx")   # --show-features: ba đặc
+                            # trưng của cổng Phase 4, cũng là ba đặc trưng luật dùng
+
+# --------------------------------------------------------------------------
+# Tăng cường (Phase 4) — chỉ trên tập train, sau khi chia (luật 9)
+# --------------------------------------------------------------------------
+
+AUG_FLIP_P = 0.5            # xác suất lật ngang; lật thì đổi nhãn cặp vuốt
+AUG_ROTATE_DEG = 10.0       # xoay đều trong [-10°, +10°]
+AUG_SCALE_RAMP = 0.10       # co giãn ĐỔI DẦN từ 1 tới 1 ± 10% dọc cửa sổ —
+                            # co giãn đều bị normalize_window triệt tiêu
+AUG_TIME_WARP = (0.8, 1.2)  # co giãn thời gian
+AUG_DROP_P = 0.5            # xác suất xoá một đoạn bước rồi vá
+AUG_DROP_STEPS = (1, 3)     # độ dài đoạn bị xoá; <= MAX_GAP để vá được
+SIGMA_STILL_QUANTILE = 0.05 # ước lượng AUG_NOISE_SIGMA trên 5% cửa sổ none
+                            # của train có cổ tay dời ít nhất
+
+# --------------------------------------------------------------------------
+# Hằng số phải ĐO hoặc HIỆU CHUẨN. Luôn đọc qua require_measured()
+# --------------------------------------------------------------------------
+
+SWIPE_LEFT_SIGN = 1         # đo trên IPN bằng measure_direction.py, 189 clip
+                            # (Phase 3, 2026-10-05): trung vị dx swipe_left
+                            # +0,46, swipe_right −0,54. results/phase3/direction.md
 IPN_FLIP_X = 1              # IPN là chuẩn quy ước hướng. Chỉ đổi thành -1 khi
                             # phép thử trên webcam ở Phase 5 chứng minh ngược
-AUG_NOISE_SIGMA = None      # CHƯA ĐO — thí nghiệm quan sát Phase 1B, hoặc
-                            # ước lượng trên IPN ở Phase 4
-RULE_S_HI = None            # CHƯA HIỆU CHUẨN — ba ngưỡng của rules.py, chọn
-RULE_DX_HI = None           # trên tập train của IPN ở Phase 5. Không bao giờ
-RULE_O_HI = None            # chọn trên val hay test
+AUG_NOISE_SIGMA = 0.0159    # lòng bàn tay; estimate_sigma.py --src-label D0X,
+                            # 18 cửa sổ tay nghỉ đứng yên của train (Phase 4,
+                            # 2026-10-05). Khớp ước lượng nhiễu tần số cao 0,0162
+RULE_VX_HI = 4.026          # ba ngưỡng của rules.py, hiệu chuẩn trên tập TRAIN
+RULE_DX_HI = 0.1025         # của IPN bằng calibrate_rules.py (Phase 5,
+RULE_P_HI = 0.7209          # 2026-10-05; lý do: results/phase5/thresholds.md).
+                            # Không bao giờ chọn trên val hay test. VX: max_vx
+                            # của vuốt; DX: |dx| của vuốt; P: |pinch_delta| của
+                            # zoom (thay straightness và open_delta, người dùng chốt)
 
 #: Hằng số nào phải đo hoặc hiệu chuẩn ở phase nào. require_measured() đọc bảng này.
 MEASURED_IN_PHASE = {
     "SWIPE_LEFT_SIGN": 3,
     "AUG_NOISE_SIGMA": 4,
-    "RULE_S_HI": 5,
+    "RULE_VX_HI": 5,
     "RULE_DX_HI": 5,
-    "RULE_O_HI": 5,
+    "RULE_P_HI": 5,
 }
 
 # --------------------------------------------------------------------------
@@ -175,6 +225,8 @@ COLOR_LINE = (0, 255, 0)
 COLOR_TEXT = (255, 255, 255)
 COLOR_TEXT_SHADOW = (0, 0, 0)
 COLOR_ALERT = (0, 200, 255)
+COLOR_IN_RANGE = (0, 220, 0)     # --show-features: nằm trong hộp 25–75 của IPN
+COLOR_OUT_RANGE = (0, 0, 255)    # ... nằm ngoài
 
 POINT_RADIUS = 4
 LINE_THICKNESS = 2
@@ -191,6 +243,11 @@ TEXT_LINE_HEIGHT = 24
 # --------------------------------------------------------------------------
 
 NORM_MIN_SCALE = 1e-6       # ||p9 - p0|| nhỏ hơn mức này thì coi như không đo được
+NORM_MIN_PALM_RATIO = 0.5   # lòng bàn tay frame đầu ngắn hơn bấy nhiêu lần
+                            # trung vị của cả cửa sổ thì đơn vị không tin được
+                            # (tay nghiêng cạnh, điểm mốc sai). Đo trên train
+                            # IPN 2026-10-05: loại 2% cửa sổ, xoá các đặc
+                            # trưng ngoại lai tới 30 lòng bàn tay
 FEATURE_EDGE_STEPS = 3      # "đầu" và "cuối" của cửa sổ = trung bình 3 bước
 FEATURE_EPS = 1e-8          # chặn chia cho 0 trong horiz_ratio và straightness
 

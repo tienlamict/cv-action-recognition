@@ -19,7 +19,8 @@ _CONNECTIONS = [
 ]
 
 
-def make_display(frame_bgr, xy_norm=None, lines=(), mirror=True, big_text=None):
+def make_display(frame_bgr, xy_norm=None, lines=(), mirror=True, big_text=None,
+                 line_colors=None):
     """Tạo ảnh để hiển thị; KHÔNG sửa ``frame_bgr``.
 
     Args:
@@ -30,6 +31,8 @@ def make_display(frame_bgr, xy_norm=None, lines=(), mirror=True, big_text=None):
         mirror: ``True`` để lật gương cho người xem. Đặt ``False`` khi
             ``frame_bgr`` vốn đã được lật trước đó.
         big_text: một dòng chữ lớn ở giữa khung, ví dụ lệnh đếm ngược.
+        line_colors: màu BGR cho từng dòng của ``lines``; ``None`` ở vị trí
+            nào thì dòng đó dùng màu chữ mặc định.
 
     Returns:
         Ảnh BGR mới.
@@ -53,14 +56,16 @@ def make_display(frame_bgr, xy_norm=None, lines=(), mirror=True, big_text=None):
                        cv2.FILLED)
 
     x0, y0 = config.TEXT_ORIGIN
+    colors = list(line_colors or [])
     for i, text in enumerate(lines):
+        color = colors[i] if i < len(colors) and colors[i] else config.COLOR_TEXT
         _put_text(image, text, (x0, y0 + i * config.TEXT_LINE_HEIGHT),
-                  config.FONT_SCALE, config.COLOR_TEXT)
+                  config.FONT_SCALE, color)
 
     if big_text:
         (tw, th), _ = cv2.getTextSize(big_text, cv2.FONT_HERSHEY_SIMPLEX,
                                       config.FONT_SCALE_BIG,
-                                      config.TEXT_SHADOW_THICKNESS)
+                                      config.TEXT_THICKNESS)
         _put_text(image, big_text, ((w - tw) // 2, (h + th) // 2),
                   config.FONT_SCALE_BIG, config.COLOR_ALERT)
 
@@ -68,10 +73,17 @@ def make_display(frame_bgr, xy_norm=None, lines=(), mirror=True, big_text=None):
 
 
 def _put_text(image, text, origin, scale, color):
-    """Chữ có viền tối để đọc được trên mọi nền."""
-    cv2.putText(image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, scale,
-                config.COLOR_TEXT_SHADOW, config.TEXT_SHADOW_THICKNESS,
-                cv2.LINE_AA)
+    """Chữ trên một nền tối để đọc được trên mọi ảnh.
+
+    Không vẽ viền bằng chữ dày hơn: với font Hershey, độ dày làm mỗi ký tự rộng
+    ra, nên viền trôi dần khỏi chữ và trông như chữ bị nhân đôi.
+    """
+    (tw, th), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale,
+                                         config.TEXT_THICKNESS)
+    x, y = origin
+    pad = config.TEXT_SHADOW_THICKNESS
+    cv2.rectangle(image, (x - pad, y - th - pad), (x + tw + pad, y + baseline),
+                  config.COLOR_TEXT_SHADOW, cv2.FILLED)
     cv2.putText(image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, scale, color,
                 config.TEXT_THICKNESS, cv2.LINE_AA)
 
@@ -81,5 +93,10 @@ def quit_pressed():
 
     ``waitKey`` chính là lúc OpenCV vẽ giao diện — thiếu nó cửa sổ sẽ treo.
     """
+    return read_key() in config.QUIT_KEYS
+
+
+def read_key():
+    """Vẽ cửa sổ và trả về mã phím vừa bấm (``-1`` nếu không bấm gì)."""
     key = cv2.waitKey(config.DISPLAY_WAIT_MS)
-    return key in config.QUIT_KEYS
+    return key & 0xFF if key != -1 else -1

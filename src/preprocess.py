@@ -8,7 +8,8 @@ gì báo lỗi::
 
 Ba bước đầu gói trong :func:`load_sequence` — cửa duy nhất để dữ liệu vào
 đường ống. Ngoài ``tests/``, không nơi nào được gọi :func:`resample` hay
-:func:`fill_short_gaps` trực tiếp.
+:func:`fill_short_gaps` trực tiếp — trừ phép "xoá bước rồi vá" của
+``src/augment.py``, mà SPEC Phase 4 yêu cầu đích danh.
 
 Hai quyết định của file này quyết định chất lượng mọi phase sau:
 
@@ -162,9 +163,16 @@ def normalize_window(win):
 
     NaN ở các frame khác được giữ nguyên.
 
+    Đơn vị lấy từ một frame duy nhất nên dễ hỏng: khi tay nghiêng cạnh về phía
+    camera, hoặc điểm mốc frame đầu sai, lòng bàn tay frame đầu ngắn bất thường
+    và mọi toạ độ bị phóng to theo — trên IPN có cửa sổ ra độ xòe 30 lòng bàn
+    tay. Vì vậy so với trung vị lòng bàn tay của CẢ cửa sổ. Cửa sổ chỉ chứa quá
+    khứ của thời điểm quyết định, nên phép so này vẫn nhân quả.
+
     Raises:
-        ValueError: frame đầu có NaN, hoặc cỡ lòng bàn tay nhỏ hơn
-            ``NORM_MIN_SCALE`` (không đo được đơn vị).
+        ValueError: frame đầu có NaN; cỡ lòng bàn tay nhỏ hơn
+            ``NORM_MIN_SCALE``; hoặc nhỏ hơn ``NORM_MIN_PALM_RATIO`` lần trung
+            vị lòng bàn tay của cửa sổ (đơn vị không tin được).
     """
     win = np.asarray(win, dtype=np.float64)
     first = win[0]
@@ -180,6 +188,15 @@ def normalize_window(win):
         raise ValueError(
             f"Cỡ lòng bàn tay ở frame đầu quá nhỏ ({scale:.3g} px) — không "
             "dùng làm đơn vị được."
+        )
+
+    palms = np.linalg.norm(win[:, config.MIDDLE_MCP] - win[:, config.WRIST],
+                           axis=-1)
+    typical = float(np.nanmedian(palms))
+    if scale < config.NORM_MIN_PALM_RATIO * typical:
+        raise ValueError(
+            f"Lòng bàn tay frame đầu ({scale:.3g}) ngắn bất thường so với trung "
+            f"vị của cửa sổ ({typical:.3g}) — đơn vị không tin được."
         )
 
     return (win - origin) / scale

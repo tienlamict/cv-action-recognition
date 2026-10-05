@@ -1,8 +1,15 @@
-"""Vector đặc trưng 13 chiều của một cửa sổ đã chuẩn hoá.
+"""Vector đặc trưng 15 chiều của một cửa sổ đã chuẩn hoá.
 
-Bốn đặc trưng **có dấu** — ``open_delta``, ``open_trend``, ``dx``, ``mean_vx``
-— gánh phần lớn việc phân biệt hai cặp lớp (vuốt trái/phải, zoom in/out). Bỏ
-chúng đi thì hai cặp này sập hoàn toàn; Phase 8 sẽ đo chính xác điều đó.
+Năm đặc trưng **có dấu** — ``open_delta``, ``open_trend``, ``pinch_delta``,
+``dx``, ``mean_vx`` — gánh phần lớn việc phân biệt hai cặp lớp (vuốt trái/phải,
+zoom in/out). Bỏ chúng đi thì hai cặp này sập hoàn toàn; Phase 8 sẽ đo chính
+xác điều đó.
+
+``pinch_delta`` và ``pinch_range`` (khoảng cách đầu ngón cái – đầu ngón trỏ)
+thêm ngày 2026-10-05, sau khi cổng boxplot Phase 4 không đạt: zoom của IPN là
+chụm/mở ba đầu ngón cái, trỏ, giữa với nhẫn và út gập suốt, nên độ xòe trung
+bình của cả năm ngón đổi rất ít. Đo trên train, ``pinch_delta`` tách hẳn hai
+hộp zoom, ``open_delta`` thì không (``docs/gestures.md``).
 
 File này KHÔNG suy ra hướng trái hay phải. Nó chỉ tính dấu của chuyển động
 trong hệ toạ độ ảnh; việc dịch dấu đó thành nhãn là của ``rules.py`` ở Phase 3,
@@ -22,6 +29,7 @@ from src import config
 
 FEATURE_NAMES = [
     "open_start", "open_end", "open_delta", "open_range", "open_trend",
+    "pinch_delta", "pinch_range",
     "dx", "dy", "max_vx", "mean_vx", "max_vy",
     "straightness", "horiz_ratio", "presence",
 ]
@@ -40,8 +48,16 @@ def openness(win):
     return _nanmean(np.linalg.norm(tips - wrist, axis=2), axis=1)
 
 
+def pinch(win):
+    """Độ mở cái–trỏ của từng bước: ``(T,)`` — khoảng cách đầu ngón cái tới
+    đầu ngón trỏ. Không đổi khi cả bàn tay dời đi, như :func:`openness`."""
+    win = np.asarray(win, dtype=np.float64)
+    return np.linalg.norm(win[:, config.THUMB_TIP] - win[:, config.INDEX_TIP],
+                          axis=1)
+
+
 def window_features(win_norm, presence_ratio):
-    """Vector 13 chiều theo đúng thứ tự ``FEATURE_NAMES``.
+    """Vector 15 chiều theo đúng thứ tự ``FEATURE_NAMES``.
 
     Args:
         win_norm: ``(T, 21, 2)`` cửa sổ **đã chuẩn hoá** bằng
@@ -49,10 +65,11 @@ def window_features(win_norm, presence_ratio):
         presence_ratio: tỉ lệ bước có tay của cửa sổ, trong ``[0, 1]``.
 
     Returns:
-        ``np.float32`` shape ``(13,)``, không có NaN và không có inf.
+        ``np.float32`` shape ``(15,)``, không có NaN và không có inf.
     """
     win_norm = np.asarray(win_norm, dtype=np.float64)
     o = openness(win_norm)
+    p = pinch(win_norm)
     wrist = win_norm[:, config.WRIST]
 
     open_start, open_end = _edge_mean(o), _edge_mean(o, tail=True)
@@ -67,6 +84,8 @@ def window_features(win_norm, presence_ratio):
         open_end - open_start,
         _nanmax(o) - _nanmin(o),
         _slope(o),
+        _edge_mean(p, tail=True) - _edge_mean(p),
+        _nanmax(p) - _nanmin(p),
         displacement[0],
         displacement[1],
         _nanmax(np.abs(velocity[:, 0])),
