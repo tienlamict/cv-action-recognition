@@ -1,6 +1,6 @@
 {
   "command": "python scripts/export_examples.py",
-  "started_at": "2026-09-30T21:24:40",
+  "started_at": "2026-10-05T13:35:25",
   "seed": 42,
   "versions": {
     "python": "3.10.21",
@@ -157,8 +157,30 @@
       "end": 2131,
       "fps": 30.0,
       "src_label": "G05",
-      "duration": 1.5,
+      "duration": 1.500000000000002,
       "file": "results/phase3/examples/swipe_left_1CM1_1.mp4"
+    },
+    {
+      "class": "swipe_left",
+      "clip_id": "1CM1_3_R__225",
+      "subject": "1CM1_3",
+      "start": 344,
+      "end": 395,
+      "fps": 29.970029,
+      "src_label": "G05",
+      "duration": 1.701700055078359,
+      "file": "results/phase3/examples/swipe_left_1CM1_3.mp4"
+    },
+    {
+      "class": "swipe_left",
+      "clip_id": "1CM1_4_R__229",
+      "subject": "1CM1_4",
+      "start": 502,
+      "end": 544,
+      "fps": 30.0,
+      "src_label": "G05",
+      "duration": 1.4000000000000006,
+      "file": "results/phase3/examples/swipe_left_1CM1_4.mp4"
     },
     {
       "class": "swipe_right",
@@ -168,8 +190,30 @@
       "end": 1566,
       "fps": 30.0,
       "src_label": "G06",
-      "duration": 2.2,
+      "duration": 2.1999999999999975,
       "file": "results/phase3/examples/swipe_right_1CM1_1.mp4"
+    },
+    {
+      "class": "swipe_right",
+      "clip_id": "1CM1_3_R__225",
+      "subject": "1CM1_3",
+      "start": 3270,
+      "end": 3313,
+      "fps": 29.970029,
+      "src_label": "G06",
+      "duration": 1.4347667131052764,
+      "file": "results/phase3/examples/swipe_right_1CM1_3.mp4"
+    },
+    {
+      "class": "swipe_right",
+      "clip_id": "1CM1_4_R__229",
+      "subject": "1CM1_4",
+      "start": 2350,
+      "end": 2391,
+      "fps": 30.0,
+      "src_label": "G06",
+      "duration": 1.3666666666666762,
+      "file": "results/phase3/examples/swipe_right_1CM1_4.mp4"
     },
     {
       "class": "zoom_in",
@@ -179,8 +223,30 @@
       "end": 3864,
       "fps": 30.0,
       "src_label": "G10",
-      "duration": 1.5666666666666667,
+      "duration": 1.566666666666679,
       "file": "results/phase3/examples/zoom_in_1CM1_1.mp4"
+    },
+    {
+      "class": "zoom_in",
+      "clip_id": "1CM1_3_R__225",
+      "subject": "1CM1_3",
+      "start": 3857,
+      "end": 3923,
+      "fps": 29.970029,
+      "src_label": "G10",
+      "duration": 2.2022000712778724,
+      "file": "results/phase3/examples/zoom_in_1CM1_3.mp4"
+    },
+    {
+      "class": "zoom_in",
+      "clip_id": "1CM1_4_R__229",
+      "subject": "1CM1_4",
+      "start": 2603,
+      "end": 2646,
+      "fps": 30.0,
+      "src_label": "G10",
+      "duration": 1.4333333333333391,
+      "file": "results/phase3/examples/zoom_in_1CM1_4.mp4"
     },
     {
       "class": "zoom_out",
@@ -190,8 +256,30 @@
       "end": 889,
       "fps": 30.0,
       "src_label": "G11",
-      "duration": 1.5666666666666667,
+      "duration": 1.5666666666666684,
       "file": "results/phase3/examples/zoom_out_1CM1_1.mp4"
+    },
+    {
+      "class": "zoom_out",
+      "clip_id": "1CM1_3_R__225",
+      "subject": "1CM1_3",
+      "start": 660,
+      "end": 706,
+      "fps": 29.970029,
+      "src_label": "G11",
+      "duration": 1.5348667163451855,
+      "file": "results/phase3/examples/zoom_out_1CM1_3.mp4"
+    },
+    {
+      "class": "zoom_out",
+      "clip_id": "1CM1_4_R__229",
+      "subject": "1CM1_4",
+      "start": 17,
+      "end": 55,
+      "fps": 30.0,
+      "src_label": "G11",
+      "duration": 1.2666666666666668,
+      "file": "results/phase3/examples/zoom_out_1CM1_4.mp4"
     }
   ]
 }

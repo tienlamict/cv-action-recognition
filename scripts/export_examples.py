@@ -52,7 +52,9 @@ def choose(clip_paths, classes, per_class):
                 "clip_id": meta.get("clip_id", path.stem),
                 "subject": subject, "start": int(start), "end": int(end),
                 "fps": float(fps), "src_label": str(src_label),
-                "duration": (end - start) / fps,
+                # theo ts, không theo số hàng: frame bộ giải mã bỏ đi vẫn là
+                # thời gian thật của cử chỉ (docs/ipn_format.md mục 6)
+                "duration": float(ts[end - 1] - ts[start] + 1 / fps),
             })
     return chosen
 
@@ -68,7 +70,8 @@ def export(sample, label, out_dir):
     text = (f"{label}  ({sample['src_label']})  "
             f"{sample['duration']:.1f}s  {sample['subject']}")
 
-    for index, (frame_bgr, _) in enumerate(iter_frames(video)):
+    previous_ts = None
+    for index, (frame_bgr, ts) in enumerate(iter_frames(video)):
         if index < sample["start"]:
             continue
         if index >= sample["end"]:
@@ -82,7 +85,15 @@ def export(sample, label, out_dir):
                                      sample["fps"], (w, h))
             if not writer.isOpened():
                 raise SystemExit(f"Không mở được VideoWriter cho {out_path}")
+        # Frame bộ giải mã bỏ đi ("not coded" = giữ nguyên ảnh trước) để lại
+        # khoảng trống trong ts: lặp frame TRƯỚC cho kín chỗ trống, như trình
+        # phát video vẫn làm, để đoạn mẫu phát đúng tốc độ thật của cử chỉ.
+        if previous_ts is not None:
+            gap = round((ts - previous_ts) * sample["fps"]) - 1
+            for _ in range(gap):
+                writer.write(previous_shown)
         writer.write(shown)
+        previous_ts, previous_shown = ts, shown
 
     if writer is not None:
         writer.release()

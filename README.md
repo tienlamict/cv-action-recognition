@@ -139,3 +139,10 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 - Seed cố định: `config.SEED = 42`, đặt cho `random`, `numpy` và `torch`.
 - Camera dùng suốt dự án: 640×480 @ 30 FPS (`CAM_W`, `CAM_H`, `CAM_FPS`).
 - Cấu hình máy đã dùng để đo tốc độ: *(điền ở Phase 10)*.
+-----------------------------------------------------------------
+
+conda activate action-recognition
+
+cd /d D:\Project\Python\cv-action-recognition
+
+python scripts/live_landmarks.py
