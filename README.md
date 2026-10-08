@@ -146,3 +146,5 @@ conda activate action-recognition
 cd /d D:\Project\Python\cv-action-recognition
 
 python scripts/live_landmarks.py
+
+python scripts/demo.py --model rules
