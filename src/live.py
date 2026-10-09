@@ -37,6 +37,11 @@ class LivePredictor:
         self.stride_sec = stride_sec
         self.buffer = TimeBuffer()
         self._due = None
+        # Mô hình nạp lười (rừng ngẫu nhiên) thì nạp NGAY bây giờ, trước khi
+        # camera chạy — nạp giữa vòng lặp làm demo đứng hình ~2,7 s ở lần đầu thấy tay.
+        load = getattr(model, "load", None)
+        if callable(load):
+            load()
 
     def update(self, ts, xy_norm, w, h):
         """Đẩy một frame.

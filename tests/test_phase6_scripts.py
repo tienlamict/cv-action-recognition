@@ -103,6 +103,20 @@ def test_ho_so_dac_trung_tung_o_cua_ma_tran_nham_lan():
     assert cells[("none", "B0B", "swipe_left")]["max_vx"] == np.median(np.arange(12, 22))
 
 
+def test_su_kien_xap_xi_gom_cua_so_lien_nhau():
+    """Hai cú vuốt trái (3 + 2 cửa sổ liền nhau) trong một clip: cú đầu được
+    nhận đúng 2 lần, cú sau có một cửa sổ bị đoán ngược chiều."""
+    y = np.array([1, 1, 1, 1, 1, 2, 3, 4])
+    pred = np.array([1, 0, 1, 2, 0, 2, 3, 4])
+    clip = np.array(["c"] * 8)
+    t0 = np.array([0.0, 0.2, 0.4, 5.0, 5.2, 9.0, 12.0, 15.0])
+    rows = {r["class"]: r for r in train_rf.event_rows(y, pred, clip, t0)}
+    left = rows["swipe_left"]
+    assert left["n_events"] == 2
+    assert left["hit_1"] == 0.5 and left["hit_2"] == 0.5
+    assert left["any_opposite"] == 0.5
+
+
 def test_ty_le_bao_nham_theo_nhan_goc():
     y_true = np.array([0, 0, 0, 0, 1])
     y_pred = np.array([1, 0, 2, 0, 1])

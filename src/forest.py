@@ -90,11 +90,17 @@ class ForestClassifier:
         self._trees = None
         self._classes = None
 
-    def __call__(self, features):
+    def load(self):
+        """Nạp mô hình ngay (~2,7 s). ``LivePredictor`` gọi hàm này lúc khởi
+        tạo, để demo không đứng hình ở lần đầu thấy tay."""
         if self._trees is None:
             model = load_bundle(self.path)["model"]
             self._trees = [estimator.tree_ for estimator in model.estimators_]
             self._classes = model.classes_
+        return self
+
+    def __call__(self, features):
+        self.load()
         x = np.ascontiguousarray(np.asarray(features, dtype=np.float32).reshape(1, -1))
         proba = np.zeros(len(self._classes))
         for tree in self._trees:

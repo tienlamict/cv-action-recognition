@@ -71,6 +71,20 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
   hất chéo lên hoặc xuống quá nhiều thì giống `G03`/`G04` (hất lên/xuống, thuộc
   lớp `none`).
 
+> **Điều kiện để hệ thống nhận ra cú vuốt** (đo ngày 2026-10-09 bằng
+> `scripts/probe_swipes.py` trên cú vuốt thật của IPN, chi tiết ở
+> `results/phase6/notes.md` mục 7). Áp dụng cho cả hai chiều.
+>
+> 1. **Bàn tay phải đổi dáng từ chụm sang mở trong lúc hất.** Cùng quỹ đạo cổ tay nhưng
+>    giữ nguyên dáng tay thì **0%** được nhận; giữ một nửa sự đổi dáng thì chỉ 15–18%. Mô
+>    hình dùng sự đổi dáng này để phân biệt cú hất với tay đang chỉ trỏ: tay chỉ trỏ cũng
+>    di chuyển nhanh, nhưng giữ nguyên dáng. Vuốt bằng bàn tay mở sẵn lướt ngang sẽ bị coi
+>    là `none`.
+> 2. **Đi một chiều rồi giữ tay ở đó.** Hất ra rồi kéo về ngay trong khoảng một giây thì quãng
+>    dời bị triệt tiêu: chỉ 37–45% còn được nhận, 14–17% bị đoán ngược chiều.
+> 3. **Đủ nhanh và đủ xa.** Cổ tay đi khoảng một lòng bàn tay, tốc độ đỉnh từ khoảng 4 lòng
+>    bàn tay/giây. Chỉ đi một nửa quãng đó thì chưa tới một nửa số lần được nhận.
+
 ## `swipe_right` — G06 *Throw right*
 
 Đối xứng với `swipe_left`: **hất một vật nhỏ sang bên phải của bạn**.

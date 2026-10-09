@@ -148,3 +148,5 @@ cd /d D:\Project\Python\cv-action-recognition
 python scripts/live_landmarks.py
 
 python scripts/demo.py --model rules
+
+python scripts/demo.py --model rf --log results/phase6/live_rf_work.csv

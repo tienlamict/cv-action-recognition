@@ -153,6 +153,36 @@ def false_alarm_rows(y_true, y_pred, src_label):
     return sorted(rows, key=lambda r: -r["false_alarms"])
 
 
+def event_rows(y_true, y_pred, clip, t0):
+    """Xấp xỉ mức SỰ KIỆN: các cửa sổ dương liền nhau (cùng clip, cùng lớp,
+    cách nhau không quá một bước trượt) là một cử chỉ. Đếm cử chỉ có ít nhất
+    một / hai cửa sổ được nhận đúng, và cử chỉ có cửa sổ bị đoán NGƯỢC chiều.
+
+    Đánh giá mức sự kiện đầy đủ (theo máy trạng thái) là việc của Phase 8.
+    """
+    opposite = {"swipe_left": "swipe_right", "swipe_right": "swipe_left",
+                "zoom_in": "zoom_out", "zoom_out": "zoom_in"}
+    rows = []
+    for name, other in opposite.items():
+        c, o = config.CLASSES.index(name), config.CLASSES.index(other)
+        idx = np.flatnonzero(y_true == c)
+        idx = idx[np.lexsort((t0[idx], clip[idx]))]
+        events, current = [], [idx[0]]
+        for a, b in zip(idx[:-1], idx[1:]):
+            if clip[a] == clip[b] and t0[b] - t0[a] <= config.STRIDE_SEC * 1.25:
+                current.append(b)
+            else:
+                events.append(current)
+                current = [b]
+        events.append(current)
+        rows.append({"class": name, "n_events": len(events),
+                     "hit_1": float(np.mean([np.sum(y_pred[e] == c) >= 1 for e in events])),
+                     "hit_2": float(np.mean([np.sum(y_pred[e] == c) >= 2 for e in events])),
+                     "any_opposite": float(np.mean([np.sum(y_pred[e] == o) >= 1
+                                                    for e in events]))})
+    return rows
+
+
 def gate(rf_f1, rules_f1, rows):
     """Ba điều kiện của cổng Phase 6."""
     top_perm = [r["feature"] for r in rows[:3]]
@@ -228,6 +258,8 @@ def main():
     write_table(grouped, ["group", "spearman_train", "drop_mean", "drop_std",
                           "left_right_swaps"], run_dir / "importances_grouped")
     write_table(profiles, list(profiles[0]), run_dir / "cell_profiles")
+    events = event_rows(y_va, pred_rf, data["clip"][pick_va], data["t0"][pick_va])
+    write_table(events, list(events[0]), run_dir / "events_approx")
     write_table(alarms, list(alarms[0]), run_dir / "none_false_alarms_by_src")
 
     f1_of = {name: {r["class"]: r["f1"] for r in s["per_class"]}
@@ -280,6 +312,10 @@ def main():
     for r in grouped:
         print(f"  {r['group']:<26} macro-F1 giảm {r['drop_mean']:+.4f} "
               f"±{r['drop_std']:.4f}   nhầm trái<->phải {r['left_right_swaps']:5.1f}")
+    print("\nMức sự kiện xấp xỉ (val):")
+    for r in events:
+        print(f"  {r['class']:<12} {r['n_events']} cử chỉ: >=1 cửa sổ đúng {r['hit_1']:.0%}, "
+              f">=2 {r['hit_2']:.0%}; có cửa sổ ngược chiều {r['any_opposite']:.0%}")
     print("\nCửa sổ none bị báo nhầm, theo nhãn gốc IPN (val):")
     for r in alarms[:6]:
         print(f"  {r['src_label']:<5} {r['false_alarms']:>4}/{r['n_windows']:<6} "

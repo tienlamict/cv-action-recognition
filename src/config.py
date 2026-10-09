@@ -135,6 +135,9 @@ PROFILE_FEATURES = ("max_vx", "dx", "pinch_delta", "pinch_range", "open_range")
                                     # đặc trưng lấy trung vị cho từng ô của ma trận
                                     # nhầm lẫn — bằng chứng cho giả thuyết ở notes.md
 PROFILE_MIN_N = 10                  # ô có ít cửa sổ hơn thì không lập hồ sơ
+PROBE_SHAPE_LEVELS = (0.0, 0.25, 0.5, 0.75, 1.0)    # probe_swipes.py: giữ bấy nhiêu
+                                    # phần sự đổi dáng tay của cú vuốt thật
+PROBE_MOTION_LEVELS = (0.25, 0.5, 0.75, 1.0, 1.5)   # ... nhân quãng dời cổ tay
 LEAKAGE_F1 = 0.97                   # macro-F1 trên val cao hơn mức này: gần như
                                     # chắc chắn rò rỉ — dừng, kiểm tra splits.json
 TEST_USED_LOG = RESULTS_DIR / "TEST_USED.log"   # mỗi lần chạm test/real_test một dòng (luật 13)

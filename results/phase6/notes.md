@@ -1,9 +1,10 @@
 # Phase 6 — Ghi chú phân tích rừng ngẫu nhiên
 
-> Claude viết ngày 2026-10-08 từ lần chạy `results/phase6/train_rf/run_04`. Mọi con số ở đây
-> lấy từ các bảng trong thư mục lần chạy đó, nên tái lập được bằng
-> `python scripts/train_rf.py`: mô hình có seed cố định và cho ra cùng kết quả mỗi lần
-> chạy. Tên bảng nguồn ghi trong ngoặc ở mỗi mục.
+> Claude viết ngày 2026-10-08, bổ sung mục 7 ngày 2026-10-09. Số liệu lấy từ
+> `results/phase6/train_rf/run_05` (mục 1–5, 7) và `results/phase6/probe_swipes/run_01`
+> (mục 7), nên tái lập được bằng `python scripts/train_rf.py` và
+> `python scripts/probe_swipes.py`: mô hình có seed cố định và cho ra cùng kết quả mỗi
+> lần chạy. Tên bảng nguồn ghi trong ngoặc ở mỗi mục.
 
 ## 1. Kết quả trên tập val
 
@@ -215,3 +216,122 @@ lúc kiểm tra demo, chỉ để định hướng, không đưa vào báo cáo.
   suất của scikit-learn; cách gọi qua `predict_proba` thì mất 62,6 ms và sẽ làm tụt FPS.
 - **Chỉ để tham khảo**, không thay được lần thử trực tiếp: trên 45 giây đầu video
   `1CM42_12_R__157` (tập val), rừng cho 7 cụm nhãn khác `none`, luật cho 29 đợt.
+
+## 7. Vì sao vuốt kém hơn zoom khi thử trực tiếp
+
+Triệu chứng người dùng báo (2026-10-09): khi thử trên webcam, zoom in/out nhận khá tốt, vuốt
+trái/phải khá tệ. Ba nguồn bằng chứng:
+
+- log trực tiếp `results/phase6/live_rf_work.csv` (1,05 phút, `demo.py --model rf`);
+- bảng `events_approx` của `train_rf.py`;
+- thí nghiệm `probe_swipes.py`.
+
+### 7.1. Trên IPN, vuốt không kém zoom
+
+Mức sự kiện xấp xỉ trên val (`events_approx`): một cử chỉ là một chuỗi cửa sổ dương liền
+nhau.
+
+| Lớp | Số cử chỉ | Có ≥1 cửa sổ nhận đúng | Có ≥2 cửa sổ nhận đúng | Có cửa sổ bị đoán ngược chiều |
+|---|---|---|---|---|
+| `swipe_left` | 27 | **70%** | 56% | 11% |
+| `swipe_right` | 27 | **70%** | 63% | 4% |
+| `zoom_in` | 27 | 59% | 44% | 22% |
+| `zoom_out` | 25 | 56% | 52% | 12% |
+
+**Kết luận:** vuốt kém khi thử trực tiếp **không phải** điểm yếu chung của mô hình. Đó là
+**lệch miền**: cú vuốt của người dùng khác cú vuốt mà mô hình đã học từ IPN.
+
+### 7.2. Với mô hình, "vuốt" nghĩa là gì
+
+Thí nghiệm: lấy các cửa sổ vuốt thật của val mà mô hình đang nhận đúng (56 cú trái, 60 cú
+phải), sửa đúng một khía cạnh, cộng rung điểm mốc thật, rồi dự đoán lại (`probe`). Số ghi
+dạng trái / phải.
+
+| Sửa đổi | Còn nhận đúng | Chuyển thành `none` | Ghi chú |
+|---|---|---|---|
+| Không sửa (chỉ cộng rung) | 100% / 92% | 0% / 8% | mốc so sánh |
+| **Bàn tay cứng**: quỹ đạo, tốc độ, quãng dời cổ tay giữ y nguyên | **0% / 0%** | 100% / 100% | |
+| Giữ 50% sự đổi dáng tay | 18% / 15% | 82% / 80% | |
+| Giữ 75% sự đổi dáng tay | 75% / 62% | 25% / 28% | |
+| **Đi ra rồi quay về** trong cùng cửa sổ | 45% / 37% | 45% / 38% | dời ròng chỉ còn 0,07–0,10 |
+| Quãng dời cổ tay ×0,5 | 48% / 47% | | tốc độ đỉnh khoảng 2,6 |
+| Quãng dời cổ tay ×0,75 | 91% / 77% | | tốc độ đỉnh khoảng 3,8–4,0 |
+| Quãng dời cổ tay ×1,5 | 71% / 95% | | |
+| Cổ tay đứng yên, chỉ đổi dáng tay | 0% / 0% | 100% / 85% | |
+
+**Cú vuốt mà mô hình học từ IPN là cú hất `Throw`:**
+
+- Cổ tay dời ngang khoảng 0,6–1,2 lòng bàn tay, tốc độ đỉnh khoảng 4–8 lòng bàn tay/giây.
+- **Đồng thời bàn tay đổi dáng mạnh, từ chụm sang mở.** Độ xòe biến thiên khoảng 0,9–1,1
+  lòng bàn tay, khoảng cách cái–trỏ biến thiên khoảng 0,9–1,4.
+
+**Vì sao mô hình đòi sự đổi dáng tay:**
+
+- Trong IPN, mọi cú hất đều có sự đổi dáng đó.
+- Thứ dễ nhầm nhất với cú hất là tay chỉ trỏ (mục 4.1), và nó di chuyển mà **giữ nguyên
+  dáng tay**.
+- Vì vậy đổi dáng tay là dấu hiệu quyết định để phân biệt hai loại. Điều này khớp với việc
+  `pinch_range` và `open_range` đứng hạng 1 và 4 về độ quan trọng hoán vị.
+
+Hệ quả: một cú vuốt "kiểu thông thường" (bàn tay mở sẵn, lướt ngang, giữ nguyên dáng) bị mô
+hình hiểu là chuyển động của lớp `none`.
+
+### 7.3. Đối chiếu với log trực tiếp
+
+Log ghi mỗi lần dự đoán, kèm `max_vx`, `dx`, `pinch_delta`.
+
+- **Giây 3–11, zoom:** mô hình nhận đều đặn, `pinch_delta` ±1,6–1,7, đúng vùng zoom của IPN.
+- **Giây 12,8–13,6; 17,6–18,4; 19,6–20,4, vuốt chậm và đi xa:**
+  - tốc độ đỉnh 2,5–3,7, dời ròng ±0,4–1,0;
+  - được nhận là vuốt, mỗi lần 5 cửa sổ liên tiếp, độ tin tới 0,86;
+  - `pinch_delta` trong các cửa sổ này đổi rõ (+0,3…+0,7 khi vuốt phải), tức bàn tay có
+    đổi dáng.
+- **Giây 34,4–35,2; 36,2–37,0; 45,0–45,8, vuốt nhanh:**
+  - tốc độ đỉnh 3,2–9,3, nhưng dời ròng chỉ 0,0–0,6;
+  - mô hình đoán `none`. Đúng hình mẫu "đi ra rồi quay về" ở mục 7.2.
+- **Giây 14,0–14,8:** dời +0,55…+0,77 nhưng tốc độ chỉ khoảng 1,9, quá chậm, nên `none`. Ở
+  mục 7.2, các cú có tốc độ đỉnh dưới khoảng 1,5 gần như không bao giờ được nhận.
+
+Log không ghi độ xòe (`open_range`), nên **không kiểm được trực tiếp** việc bàn tay có đổi
+dáng hay không. Mục 7.2 cho thấy đây là điều kiện bắt buộc.
+
+### 7.4. Vì sao zoom không gặp vấn đề này
+
+Dấu hiệu quyết định của zoom là **khoảng cách ngón cái – ngón trỏ thay đổi**. Đó chính là bản
+chất của mọi động tác zoom bằng hai ngón, nên zoom "kiểu thông thường" của người dùng trùng
+với zoom của IPN. Đặc trưng này cũng **không phụ thuộc** cổ tay đi đâu, nhanh hay chậm, và
+cửa sổ cắt vào đoạn nào.
+
+Cú vuốt thì ngược lại. Nó phụ thuộc đồng thời vào:
+
+- tốc độ;
+- quãng dời ròng **trong đúng 1,2 giây** của cửa sổ;
+- một kiểu đổi dáng tay riêng của IPN mà người dùng không tự nhiên làm.
+
+### 7.5. Nguyên nhân phụ đã sửa, và một điều chưa kiểm
+
+- **Đã sửa:** demo đứng hình khoảng 2,7 giây ở lần đầu thấy tay, vì mô hình chỉ được nạp lúc
+  đó (chỗ hở 2,1 giây giữa hai dự đoán ở giây 3,0 → 5,1 trong log). Giờ mô hình được nạp sẵn
+  trước khi camera chạy.
+- **Chưa kiểm:** camera có lật ảnh hay không. Nếu webcam trả ảnh đã lật như gương, hai nhãn
+  vuốt sẽ đổi chỗ cho nhau, còn zoom thì không bị ảnh hưởng (lật không đổi khoảng cách). Log
+  không cho biết bạn định vuốt hướng nào, nên phải làm phép thử của Phase 5: vuốt sang
+  **trái của bạn** mà màn hình hiện `swipe_right` thì đặt `IPN_FLIP_X = -1`.
+
+### 7.6. Hướng xử lý (cần người dùng chọn)
+
+1. **Làm cử chỉ theo IPN.** Đây là nguyên tắc của SPEC.
+   - Bắt đầu với **các đầu ngón chụm lại**, hất ngang và **mở bàn tay trong lúc hất**.
+   - Cổ tay đi khoảng một lòng bàn tay trở lên, nhanh và dứt khoát.
+   - **Giữ tay ở cuối, không kéo về ngay** trong khoảng một giây.
+
+   Nếu làm đúng như vậy mà một lớp vẫn đúng dưới 7/10 lần, đó là điều kiện bật Phase 11
+   (dữ liệu tự quay) theo SPEC.
+2. **Chế độ luyện tập nên hiện thêm độ xòe (`open_range`).** Hiện nó chỉ hiện `pinch_delta`,
+   `dx`, `max_vx`, mà với vuốt thì đổi dáng tay mới là điều kiện quyết định.
+3. **Sửa phía mô hình,** mỗi cách có đánh đổi:
+   - **Thêm bản tăng cường "bàn tay cứng" cho cú vuốt khi huấn luyện:** mô hình sẽ chấp nhận
+     vuốt kiểu thông thường, nhưng gần như chắc chắn báo nhầm nhiều hơn với tay chỉ trỏ, vì
+     tay chỉ trỏ chính là "bàn tay cứng đang di chuyển". Đo được trên val trước khi quyết.
+   - **Cửa sổ ngắn hơn cho vuốt:** Phase 8 đã có kế hoạch khảo sát 0,8 / 1,2 / 1,6 giây. Cửa
+     sổ ngắn giảm việc dời ra rồi quay về bị triệt tiêu trong cùng một cửa sổ.

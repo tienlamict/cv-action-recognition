@@ -89,6 +89,24 @@ def test_live_du_doan_dung_nhip_STRIDE_SEC():
     assert len(calls) == sum(p.label is not None for p in preds)
 
 
+def test_live_nap_san_mo_hinh_truoc_vong_lap():
+    """Mô hình có ``load()`` được nạp ngay khi tạo LivePredictor, không phải ở
+    lần dự đoán đầu (lúc đó demo sẽ đứng hình)."""
+    class Lazy:
+        loaded = False
+
+        def load(self):
+            self.loaded = True
+
+        def __call__(self, features):
+            return 0, 1.0
+
+    model = Lazy()
+    LivePredictor(model)
+    assert model.loaded
+    LivePredictor(lambda features: (0, 1.0))      # hàm thường: không có load, không lỗi
+
+
 def test_dem_dot_bao_lien_nhau_cung_lop():
     labels = [0, 1, 1, 1, 0, None, 1, 3, 3, 0, 4]
     assert count_episodes(labels) == {"swipe_left": 2, "swipe_right": 0,
