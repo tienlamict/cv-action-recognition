@@ -121,7 +121,8 @@ def test_man_hinh_luyen_tap_to_mau_va_chi_dung_ascii():
 
     status = practice_status(features, ranges, "zoom_in")
     assert [s[0] for s in status] == list(config.SHOW_FEATURES)
-    assert [s[4] for s in status] == [True, False, False]
+    assert "open_range" in config.SHOW_FEATURES, "vuốt cần thấy bàn tay có mở ra không"
+    assert [s[4] for s in status] == [n == "pinch_delta" for n in config.SHOW_FEATURES]
 
     from src.live import Prediction
     pred = Prediction(1.0, 3, 0.8, 0.9, features)

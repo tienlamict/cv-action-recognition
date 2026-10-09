@@ -1,0 +1,7 @@
+| true \ pred | none | swipe_left | swipe_right | zoom_in | zoom_out |
+|---|---|---|---|---|---|
+| none | 9459 | 548 | 469 | 100 | 74 |
+| swipe_left | 36 | 61 | 7 | 0 | 0 |
+| swipe_right | 35 | 1 | 56 | 2 | 2 |
+| zoom_in | 27 | 0 | 6 | 44 | 17 |
+| zoom_out | 29 | 1 | 4 | 10 | 50 |

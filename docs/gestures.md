@@ -84,6 +84,14 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
 >    dời bị triệt tiêu: chỉ 37–45% còn được nhận, 14–17% bị đoán ngược chiều.
 > 3. **Đủ nhanh và đủ xa.** Cổ tay đi khoảng một lòng bàn tay, tốc độ đỉnh từ khoảng 4 lòng
 >    bàn tay/giây. Chỉ đi một nửa quãng đó thì chưa tới một nửa số lần được nhận.
+>
+> **Tự kiểm điều 1** (thêm 2026-10-09): `demo.py --show-features`, phím 1 hoặc 2. Dòng
+> `open_range` (độ xòe biến thiên trong 1,2 giây) phải xanh, tức nằm trong hộp IPN:
+> [0,66; 1,12] với vuốt trái, [0,73; 1,17] với vuốt phải. Bàn tay giữ dáng khi lướt thường
+> chỉ đạt 0,2–0,6, và mô hình coi vùng đó là tay chỉ trỏ.
+>
+> Tăng cường "bàn tay cứng" có thể nới điều 1, nhưng **đang tắt**: để nhận được cú vuốt giữ
+> dáng, báo nhầm phải tăng gấp 1,5–2,6 lần (`results/phase6/notes.md` mục 8).
 
 ## `swipe_right` — G06 *Throw right*
 

@@ -1,10 +1,15 @@
 # Phase 6 — Ghi chú phân tích rừng ngẫu nhiên
 
-> Claude viết ngày 2026-10-08, bổ sung mục 7 ngày 2026-10-09. Số liệu lấy từ
-> `results/phase6/train_rf/run_05` (mục 1–5, 7) và `results/phase6/probe_swipes/run_01`
-> (mục 7), nên tái lập được bằng `python scripts/train_rf.py` và
-> `python scripts/probe_swipes.py`: mô hình có seed cố định và cho ra cùng kết quả mỗi
+> Claude viết ngày 2026-10-08, bổ sung mục 7 và 8 ngày 2026-10-09. Số liệu lấy từ
+> `results/phase6/train_rf/run_05` (mục 1–5, 7), `results/phase6/probe_swipes/run_01`
+> (mục 7) và `results/phase6/sweep_rigid/run_03` (mục 8). Tái lập bằng
+> `python scripts/train_rf.py`, `python scripts/probe_swipes.py` và
+> `python scripts/sweep_rigid.py`: mô hình có seed cố định và cho ra cùng kết quả mỗi
 > lần chạy. Tên bảng nguồn ghi trong ngoặc ở mỗi mục.
+>
+> **Mô hình demo hiện tại là `train_rf/run_07`.** Nó được huấn luyện lại sau thí nghiệm ở
+> mục 8, với tăng cường tắt, và giống hệt `run_05`: cùng ma trận nhầm lẫn, cùng bảng độ
+> quan trọng.
 
 ## 1. Kết quả trên tập val
 
@@ -328,10 +333,154 @@ Cú vuốt thì ngược lại. Nó phụ thuộc đồng thời vào:
    Nếu làm đúng như vậy mà một lớp vẫn đúng dưới 7/10 lần, đó là điều kiện bật Phase 11
    (dữ liệu tự quay) theo SPEC.
 2. **Chế độ luyện tập nên hiện thêm độ xòe (`open_range`).** Hiện nó chỉ hiện `pinch_delta`,
-   `dx`, `max_vx`, mà với vuốt thì đổi dáng tay mới là điều kiện quyết định.
-3. **Sửa phía mô hình,** mỗi cách có đánh đổi:
+   `dx`, `max_vx`, mà với vuốt thì đổi dáng tay mới là điều kiện quyết định. *Đã làm, mục 8.1.*
+3. **Sửa phía mô hình,** mỗi cách có đánh đổi. *Cách thứ nhất đã làm và đo, mục 8.2–8.6.*
    - **Thêm bản tăng cường "bàn tay cứng" cho cú vuốt khi huấn luyện:** mô hình sẽ chấp nhận
      vuốt kiểu thông thường, nhưng gần như chắc chắn báo nhầm nhiều hơn với tay chỉ trỏ, vì
      tay chỉ trỏ chính là "bàn tay cứng đang di chuyển". Đo được trên val trước khi quyết.
    - **Cửa sổ ngắn hơn cho vuốt:** Phase 8 đã có kế hoạch khảo sát 0,8 / 1,2 / 1,6 giây. Cửa
      sổ ngắn giảm việc dời ra rồi quay về bị triệt tiêu trong cùng một cửa sổ.
+
+## 8. Làm hướng 2 và 3: độ xòe trong chế độ luyện tập, tăng cường "bàn tay cứng"
+
+Người dùng chọn ngày 2026-10-09.
+
+### 8.1. Chế độ luyện tập hiện thêm `open_range`
+
+- `SHOW_FEATURES` giờ là `pinch_delta`, `dx`, `max_vx`, `open_range`. Màn hình
+  `demo.py --show-features` tô dòng `open_range` theo hộp 25–75 của IPN: `swipe_left`
+  [0,66; 1,12], `swipe_right` [0,73; 1,17], hai lớp zoom khoảng [0,45; 0,83]
+  (`results/phase4/ipn_feature_ranges.json`).
+- Log của `demo.py --log` ghi theo `SHOW_FEATURES`, nên giờ có cả `open_range`. Lần thử trực
+  tiếp tới sẽ đo được điều mục 7.3 chưa kiểm được: cú vuốt của người dùng có đổi dáng tay
+  hay không.
+
+### 8.2. Tăng cường bàn tay cứng: cách làm và cách đo
+
+**Cách làm** (`augment.rigid_swipes`, chỉ tập train, chỉ hai lớp vuốt). Mỗi cửa sổ vuốt
+cho `AUG_RIGID_SHARE` bản. Mỗi bản:
+
+- giữ quỹ đạo cổ tay y nguyên;
+- giữ lại k phần sự đổi dáng tay, k đều trong `AUG_RIGID_KEEP`;
+- lấy dáng tay của một bước ngẫu nhiên làm mốc. Bước đó phải có lòng bàn tay bình thường:
+  giữa cú hất, bàn tay hay nghiêng cạnh và lòng bàn tay chỉ còn vài phần trăm;
+- cộng rung `AUG_NOISE_SIGMA`, rồi chuẩn hoá lại.
+
+So hai thiết kế: **cứng hoàn toàn** (k = 0) và **k ngẫu nhiên** (k đều trong [0, 1]).
+
+**Cách đo** (`sweep_rigid.py`). Huấn luyện lại rừng cho mỗi cặp (mức, khoảng k), rồi đo trên
+val:
+
+- **Lợi:** lấy cả 200 cửa sổ vuốt thật của val, chỉ giữ K% sự đổi dáng tay, xem còn bao
+  nhiêu phần được nhận đúng. Khác mục 7.2, phép đo này lấy mọi cửa sổ vuốt, không chỉ cửa sổ
+  mô hình gốc đang nhận đúng. Với mô hình gốc, giữ 100% (cú vuốt tự nhiên) là 58%.
+- **Giá:**
+  - tỉ lệ cửa sổ `none` bị báo thành cử chỉ;
+  - tỉ lệ đó riêng với tay chỉ trỏ (`B0A`, `B0B`);
+  - số cụm báo nhầm mỗi phút thời gian `none`, đếm như `summarize_log.py`.
+
+### 8.3. Kết quả
+
+(`sweep_rigid/run_03`, bảng `sweep`)
+
+| Mức | k | macro-F1 | Sự kiện vuốt | Giữ 0% | Giữ 25% | Giữ 50% | Giữ 75% | Báo nhầm `none` | Tay chỉ trỏ | Cụm/phút |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0 (gốc) | | 0,4361 | 70% | 0% | 0% | 10% | 41% | 8,2% | 7,7% | 14,8 |
+| 0,25 | 0 | 0,4048 | 70% | 66% | 21% | 30% | 51% | 11,4% | 11,5% | 18,9 |
+| 0,25 | 0–1 | 0,4004 | 74% | 41% | 34% | 38% | 54% | 12,5% | 12,7% | 21,4 |
+| 0,5 | 0 | 0,4016 | 72% | 72% | 18% | 28% | 52% | 11,8% | 11,8% | 19,9 |
+| 0,5 | 0–1 | 0,3836 | 76% | 48% | 44% | 48% | 58% | 16,4% | 17,4% | 26,0 |
+| 1 | 0 | 0,4110 | 74% | 74% | 10% | 24% | 52% | 11,2% | 11,1% | 19,6 |
+| 1 | 0–1 | 0,3659 | 80% | 63% | 54% | 56% | 62% | 21,6% | 23,0% | 32,1 |
+
+F1 của hai lớp zoom gần như không đổi (0,34–0,42 ở mọi hàng). macro-F1 giảm chủ yếu vì
+precision của hai lớp vuốt giảm theo số báo nhầm.
+
+### 8.4. Bản cứng hoàn toàn: con số đẹp là ảo
+
+**Bàn tay thật không bao giờ cứng như bản tổng hợp** (`shape_spread`). Độ xòe biến thiên
+trong cửa sổ (`open_range`), phân vị 10 / 50:
+
+| Cửa sổ | p10 | p50 |
+|---|---|---|
+| Bản cứng hoàn toàn | 0,04 | 0,06 |
+| Cú vuốt thật giữ 50% sự đổi dáng tay | 0,23 | 0,41 |
+| Cú vuốt thật giữ 75% sự đổi dáng tay | 0,30 | 0,64 |
+| Tay chỉ trỏ một ngón (`B0A`) di chuyển như vuốt | 0,23 | 0,61 |
+| Tay chỉ trỏ hai ngón (`B0B`) di chuyển như vuốt | 0,33 | 0,76 |
+| Cú vuốt thật của IPN | 0,52 | 0,93 |
+
+"Di chuyển như vuốt" = thoả điều kiện vuốt của luật Phase 5 (`max_vx` > `RULE_VX_HI`,
+`|dx|` > `RULE_DX_HI`). Tay chỉ trỏ là bàn tay giữ dáng, vậy mà độ xòe vẫn biến thiên từ
+khoảng 0,2 (phân vị 10) tới 0,6–0,8 (trung vị), vì:
+
+- điểm mốc rung mạnh hơn khi tay chạy nhanh;
+- góc nhìn đổi trong lúc di chuyển;
+- ngón tay hơi co duỗi.
+
+**Hệ quả:** một cú vuốt bàn tay mở thật, không chủ động đổi dáng, nằm ở cột giữ 50–75%,
+**không** ở cột giữ 0%.
+
+**Bản cứng hoàn toàn tạo chỗ trũng.** Mô hình mức 1 nhận 74% ở cột giữ 0%, nhưng chỉ 10% và
+24% ở cột giữ 25% và 50%. Nó học một "đảo" mà tay thật không bao giờ tới. Lần chạy đầu với
+thiết kế này (`train_rf/run_06`, `probe_swipes/run_02`) cho thấy cùng điều đó trên các cửa sổ
+nó nhận đúng:
+
+| Cú vuốt | Giữ 0% sự đổi dáng | Giữ 25% | Giữ 50% |
+|---|---|---|---|
+| `swipe_left` | 98% | 20% | 39% |
+| `swipe_right` | 95% | 12% | 38% |
+
+### 8.5. Bản k ngẫu nhiên: lợi thật, giá cao
+
+- **Lợi thật:** lấp được chỗ trũng. Mức 1 nhận 54–62% ở mọi cột giữ 25–75%.
+- **Giá cao:** vùng nó dạy là "vuốt" lại chính là vùng của tay chỉ trỏ di chuyển nhanh (mục
+  8.4).
+  - Báo nhầm `none` tăng từ 8,2% lên 21,6%.
+  - Số cụm báo nhầm mỗi phút từ 14,8 lên 32,1 (gấp 2,2 lần).
+  - macro-F1 giảm từ 0,4361 xuống 0,3659.
+- **Mức 0,25 là điểm giữa:**
+  - giữ 50% từ 10% lên 38%, giữ 75% từ 41% lên 54%;
+  - báo nhầm `none` 12,5%, số cụm mỗi phút tăng 45%.
+
+**Lý do sâu là giới hạn của bộ đặc trưng, không phải của mô hình.** Với 15 đặc trưng hiện có,
+cú vuốt bàn tay mở không chủ động đổi dáng gần như trùng với tay chỉ trỏ di chuyển nhanh:
+
+- cùng tốc độ;
+- cùng quãng dời;
+- cùng mức đổi dáng ngẫu nhiên.
+
+Thứ khác nhau là **cấu hình ngón**: tay chỉ trỏ duỗi một hoặc hai ngón, cú vuốt duỗi cả bàn.
+Bộ đặc trưng không đo được điều này, vì độ xòe là trung bình của cả năm ngón và độ mở cái–trỏ
+chỉ nhìn hai ngón.
+
+### 8.6. Quyết định hiện tại và việc tiếp theo
+
+**Đang để tắt** (`AUG_RIGID_SHARE = 0`). Không mức nào lợi mà không tốn:
+
+- bản cứng hoàn toàn chỉ giúp cú vuốt thật một chút (cột giữ 50–75% tăng 11–14 điểm), mà
+  báo nhầm vẫn tăng 3 điểm;
+- bản k ngẫu nhiên giúp thật, nhưng ở mức 1 thì tỉ lệ báo nhầm gấp 2,6 lần.
+
+Chấp nhận bao nhiêu báo nhầm để đổi lấy vuốt là quyết định của người dùng.
+
+- `AUG_RIGID_KEEP = (0, 1)` là thiết kế sẽ dùng khi bật.
+- **Bật:** đặt `AUG_RIGID_SHARE = 0.25` (cân bằng) hoặc `1.0` (nhận vuốt nhiều nhất), rồi chạy
+  `python scripts/train_rf.py`, mất khoảng 5 giây. Mô hình demo đổi theo.
+- **Tắt lại:** đặt về `0.0` rồi chạy lại lệnh đó.
+
+**Việc tiếp theo, theo thứ tự:**
+
+1. **Đo cú vuốt thật.** Chạy `demo.py --model rf --show-features --log <file>`, vuốt theo
+   kiểu tự nhiên 10 lần, xem cột `open_range` (và dòng `open_range` trên màn hình):
+   - **≥ khoảng 0,66 (trong hộp IPN) mà vẫn trượt:** nguyên nhân là tốc độ hoặc việc đi ra
+     rồi quay về (mục 7.2), không phải dáng tay. Tăng cường không giúp gì.
+   - **Khoảng 0,2–0,6:** cú vuốt nằm trong vùng của tay chỉ trỏ. Có hai đường: luyện mở bàn
+     tay trong lúc hất (chế độ luyện tập giờ hiện được điều đó), hoặc bật tăng cường và chấp
+     nhận báo nhầm. Lần thử 5 phút làm việc bình thường của Phase 6 đo được cái giá đó trên
+     webcam.
+2. **Sửa tận gốc: thêm đặc trưng cấu hình ngón** (độ duỗi từng ngón, ví dụ khoảng cách đầu
+   ngón → cổ tay chia khoảng cách gốc ngón → cổ tay, như thước đo ở `docs/gestures.md`). Đây
+   là quyết định "thêm đặc trưng hình dạng ngón" đang chờ. Nó đổi `FEATURE_NAMES`, nên mọi
+   mô hình phải huấn luyện lại. Sau đó chạy lại `sweep_rigid.py`: tăng cường bàn tay cứng chỉ
+   đáng bật khi mô hình có cách khác để nhận ra tay chỉ trỏ.

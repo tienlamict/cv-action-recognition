@@ -115,7 +115,11 @@ MODEL_COMPARISON = RESULTS_DIR / "model_comparison"   # .csv + .md, mỗi mô h�
 CALIB_NONE_PCT = 90         # ngưỡng luật = trung điểm của phân vị 90 lớp nền...
 CALIB_TARGET_PCT = 10       # ...và phân vị 10 lớp đích (SPEC Phase 5)
 BUFFER_EXTRA_SEC = 0.5      # TimeBuffer giữ WIN_SEC + bấy nhiêu giây gần nhất
-SHOW_FEATURES = GATE_FEATURES     # --show-features hiện đúng ba đặc trưng của cổng
+SHOW_FEATURES = GATE_FEATURES + ("open_range",)
+                            # --show-features: ba đặc trưng của cổng, cộng độ xòe
+                            # (thêm 2026-10-09). Với vuốt, rừng ngẫu nhiên đòi bàn
+                            # tay mở ra trong lúc hất mà ba đặc trưng kia không
+                            # cho thấy (results/phase6/notes.md mục 7)
 
 # --------------------------------------------------------------------------
 # Rừng ngẫu nhiên và đánh giá (Phase 6)
@@ -135,6 +139,9 @@ PROFILE_FEATURES = ("max_vx", "dx", "pinch_delta", "pinch_range", "open_range")
                                     # đặc trưng lấy trung vị cho từng ô của ma trận
                                     # nhầm lẫn — bằng chứng cho giả thuyết ở notes.md
 PROFILE_MIN_N = 10                  # ô có ít cửa sổ hơn thì không lập hồ sơ
+POINTING_SRC_LABELS = ("B0A", "B0B")    # nhãn gốc IPN của tay chỉ trỏ (một / hai
+                                    # ngón): bàn tay giữ dáng mà di chuyển nhanh —
+                                    # mẫu âm khó nhất của vuốt (notes.md mục 4.1)
 PROBE_SHAPE_LEVELS = (0.0, 0.25, 0.5, 0.75, 1.0)    # probe_swipes.py: giữ bấy nhiêu
                                     # phần sự đổi dáng tay của cú vuốt thật
 PROBE_MOTION_LEVELS = (0.25, 0.5, 0.75, 1.0, 1.5)   # ... nhân quãng dời cổ tay
@@ -155,6 +162,19 @@ AUG_DROP_P = 0.5            # xác suất xoá một đoạn bước rồi vá
 AUG_DROP_STEPS = (1, 3)     # độ dài đoạn bị xoá; <= MAX_GAP để vá được
 SIGMA_STILL_QUANTILE = 0.05 # ước lượng AUG_NOISE_SIGMA trên 5% cửa sổ none
                             # của train có cổ tay dời ít nhất
+AUG_RIGID_SHARE = 0.0       # rừng ngẫu nhiên (Phase 6, thêm 2026-10-09): số bản
+                            # "bàn tay cứng" trên mỗi cửa sổ vuốt của train;
+                            # 0 = tắt. Đo trên val (sweep_rigid.py run_03): cú
+                            # vuốt giữ 50% sự đổi dáng tay được nhận 10% → 38%
+                            # ở mức 0,25 và → 56% ở mức 1, nhưng báo nhầm none
+                            # 8,2% → 12,5% và → 21,6%. Tắt cho tới khi người
+                            # dùng chọn (results/phase6/notes.md mục 8)
+AUG_RIGID_KEEP = (0.0, 1.0) # mỗi bản giữ k phần sự đổi dáng tay của cú vuốt
+                            # gốc, k đều trong khoảng này; (0, 0) = cứng hoàn
+                            # toàn. Cứng hoàn toàn tạo chỗ trũng: tay đổi dáng
+                            # một phần thì không được nhận (notes.md mục 8)
+AUG_RIGID_SWEEP = (0.0, 0.25, 0.5, 1.0)     # các mức sweep_rigid.py thử...
+AUG_RIGID_KEEP_SWEEP = ((0.0, 0.0), (0.0, 1.0))  # ...với từng khoảng k này
 
 # --------------------------------------------------------------------------
 # Hằng số phải ĐO hoặc HIỆU CHUẨN. Luôn đọc qua require_measured()

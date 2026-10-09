@@ -9,6 +9,18 @@ có làm đổi lớp không?**
 | Co giãn thời gian | ``AUG_TIME_WARP`` | Không |
 | Nhiễu Gauss | ``AUG_NOISE_SIGMA`` | Không |
 | Xoá bước ngẫu nhiên | ``AUG_DROP_STEPS`` rồi ``fill_short_gaps`` | Không |
+| Bàn tay cứng — chỉ cặp vuốt, Phase 6 | ``AUG_RIGID_SHARE``, ``AUG_RIGID_KEEP`` | Không |
+
+**Bàn tay cứng** (thêm 2026-10-09): quỹ đạo cổ tay giữ nguyên, sự đổi dáng tay
+chỉ giữ lại một phần ngẫu nhiên — từ không còn gì (bàn tay cứng hẳn) tới đầy đủ
+như IPN. Cú hất ``Throw`` của IPN luôn mở bàn tay trong lúc hất, nên rừng ngẫu
+nhiên học rằng không đổi dáng tay thì không phải vuốt, và bỏ qua cú vuốt kiểu
+thông thường (bàn tay mở sẵn lướt ngang). Phép này dạy điều ngược lại: vuốt là
+cổ tay đi ngang đủ nhanh và đủ xa, dáng tay không quyết định. Chỉ dùng bản cứng
+hẳn thì không đủ: mô hình học hai "đảo" — cứng hẳn, hoặc đổi dáng như IPN — và
+bỏ qua khoảng giữa, đúng chỗ cú vuốt thật nằm. Cái giá là tay chỉ trỏ cũng là
+một bàn tay gần như cứng đang di chuyển; mức dùng được chọn trên val bằng
+``scripts/sweep_rigid.py`` (``results/phase6/notes.md`` mục 8).
 
 **Đầu vào là cửa sổ ĐÃ chuẩn hoá** (gốc tại cổ tay frame đầu, đơn vị lòng bàn
 tay — đúng thứ ``windows.npz`` lưu), và **kết quả phải đi qua
@@ -35,6 +47,8 @@ _SWAP = {"swipe_left": "swipe_right", "swipe_right": "swipe_left"}
 #: Lớp sau khi lật ngang, theo chỉ số trong ``config.CLASSES``.
 FLIP_LABEL = {i: config.CLASSES.index(_SWAP.get(name, name))
               for i, name in enumerate(config.CLASSES)}
+#: Chỉ số hai lớp vuốt — những lớp duy nhất có bản bàn tay cứng.
+SWIPE_LABELS = tuple(config.CLASSES.index(name) for name in _SWAP)
 
 
 def flip_horizontal(win, label):
@@ -96,6 +110,105 @@ def drop_steps(win, start, length):
     out = np.array(win, dtype=np.float64, copy=True)
     out[start:start + length] = np.nan
     return fill_short_gaps(out)
+
+
+def shape_scaled(win, k, ref=0):
+    """Giữ ``k`` phần sự đổi dáng tay so với dáng của bước ``ref``; quỹ đạo cổ
+    tay giữ nguyên. ``k = 1`` là phép đồng nhất, ``k = 0`` là bàn tay cứng.
+
+    Dáng tay của một bước là 21 điểm trừ đi cổ tay của chính bước đó. Bước mất
+    tay (NaN) vẫn là NaN.
+    """
+    win = np.asarray(win, dtype=np.float64)
+    wrist = win[:, config.WRIST:config.WRIST + 1]
+    pose = win - wrist
+    return wrist + pose[ref][None] + k * (pose - pose[ref][None])
+
+
+def rigid_hand(win, ref=0):
+    """Bàn tay cứng: mọi bước dùng dáng tay của bước ``ref``, đặt tại vị trí cổ
+    tay của chính bước đó — quỹ đạo, tốc độ, quãng dời cổ tay giữ y nguyên."""
+    return shape_scaled(win, 0.0, ref)
+
+
+def usable_steps(win):
+    """Chỉ số các bước có lòng bàn tay dùng làm đơn vị được: không ngắn hơn
+    ``NORM_MIN_PALM_RATIO`` lần trung vị của cửa sổ — đúng tiêu chí mà
+    ``normalize_window`` áp cho bước đầu. Bước mất tay bị loại."""
+    win = np.asarray(win, dtype=np.float64)
+    palms = np.linalg.norm(win[:, config.MIDDLE_MCP] - win[:, config.WRIST], axis=-1)
+    with np.errstate(invalid="ignore"):     # NaN so với ngưỡng ra False: bị loại
+        return np.flatnonzero(palms >= config.NORM_MIN_PALM_RATIO * np.nanmedian(palms))
+
+
+def rigid_swipes(X, y, split, rng, share=None, keep=None, sigma=None):
+    """Bản bàn tay cứng của các cửa sổ vuốt — CHỈ cho tập train (luật 9).
+
+    Mỗi cửa sổ vuốt cho ``⌊share⌋`` bản, cộng một bản nữa ở một phần
+    ``share − ⌊share⌋`` số cửa sổ chọn ngẫu nhiên. Mỗi bản:
+
+    - giữ ``k`` phần sự đổi dáng tay của cú vuốt gốc (:func:`shape_scaled`),
+      ``k`` đều trong ``keep``: từ cứng hẳn tới đổi dáng như IPN, vì cú vuốt
+      thật của người dùng nằm đâu đó ở giữa;
+    - lấy dáng tay của một bước chọn ngẫu nhiên làm mốc — từ chụm lúc đầu cú
+      hất tới xòe hẳn giữa cú hất;
+    - cộng nhiễu ``sigma`` (bàn tay cứng thật vẫn rung), rồi qua
+      ``normalize_window``. Nhãn giữ nguyên.
+
+    Bước làm mốc phải có lòng bàn tay dùng làm đơn vị được (:func:`usable_steps`):
+    giữa cú hất bàn tay hay nghiêng cạnh về phía camera, lòng bàn tay chỉ còn
+    vài phần trăm, và dáng tay của bước đó không phải một bàn tay thật. Bản nào
+    ``normalize_window`` vẫn từ chối thì bỏ — hiếm, khi dáng nội suy giữa hai
+    dáng tay quay ngược nhau làm lòng bàn tay bước đầu gần bằng 0.
+
+    Args:
+        X: ``(N, T, 21, 2)`` cửa sổ đã chuẩn hoá.
+        y: ``(N,)`` chỉ số lớp.
+        split: phải là ``"train"``.
+        rng: ``np.random.Generator``.
+        share: số bản trên mỗi cửa sổ vuốt; ``None`` thì đọc ``AUG_RIGID_SHARE``.
+        keep: khoảng ``(thấp, cao)`` của ``k``; ``None`` thì đọc
+            ``AUG_RIGID_KEEP``. ``(0, 0)`` là cứng hoàn toàn.
+        sigma: độ lệch chuẩn của nhiễu; ``None`` thì đọc ``AUG_NOISE_SIGMA``
+            qua ``require_measured``.
+
+    Returns:
+        ``(X_rigid float32, y_rigid int64, source int64)`` — ``source`` là chỉ
+        số trong ``X`` của cửa sổ gốc, để lấy ``presence`` của nó. Mảng MỚI,
+        ``X`` và ``y`` không đổi.
+
+    Raises:
+        ValueError: ``split`` không phải ``"train"``.
+    """
+    if split != "train":
+        raise ValueError(
+            f"Tăng cường chỉ cho tập train, không cho '{split}' (luật 9).")
+    share = config.AUG_RIGID_SHARE if share is None else share
+    low, high = config.AUG_RIGID_KEEP if keep is None else keep
+    if sigma is None:
+        sigma = config.require_measured("AUG_NOISE_SIGMA")
+
+    y = np.asarray(y)
+    swipes = np.flatnonzero(np.isin(y, SWIPE_LABELS))
+    whole, part = divmod(float(share), 1.0)
+    source = np.concatenate([
+        np.repeat(swipes, int(whole)),
+        rng.choice(swipes, size=int(round(part * swipes.size)), replace=False)
+    ]).astype(np.int64)
+
+    out, made = [], []
+    for i in source:
+        win = np.asarray(X[i], dtype=np.float64)
+        k = rng.uniform(low, high) if high > low else low
+        changed = shape_scaled(win, k, int(rng.choice(usable_steps(win))))
+        try:
+            out.append(normalize_window(add_noise(changed, sigma, rng)))
+        except ValueError:
+            continue
+        made.append(i)
+    made = np.asarray(made, dtype=np.int64)
+    X_rigid = np.asarray(out, dtype=np.float32).reshape(-1, *np.shape(X)[1:])
+    return X_rigid, y[made].astype(np.int64), made
 
 
 def augment(win, label, rng, sigma=None):

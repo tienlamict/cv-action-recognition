@@ -457,7 +457,7 @@ Vuốt được xét **trước** zoom vì cú hất của IPN mở bàn tay ra 
 
 3. `src/buffer.py` — `TimeBuffer.push(ts, xy_norm, w, h)` giữ frame trong `WIN_SEC + 0,5` giây gần nhất, theo thời gian. `window()` gọi `load_sequence` trên dữ liệu đang giữ, lấy `T` bước cuối, trả về `(win_pixel, presence_ratio)` hoặc `None` khi chưa đủ, `presence` thấp, hay bước đầu mất tay. Không gọi `resample` hay `fill_short_gaps` trực tiếp.
 4. `scripts/demo.py --model rules [--log FILE] [--show-features]` — vòng lặp `iter_frames(0)` → `HandTracker` → `TimeBuffer` → mỗi `STRIDE_SEC`: `normalize_window` → `window_features` → `classify`. Hiển thị trên bản đã lật: 21 điểm, nhãn chữ to kèm `confidence`, `presence_ratio`, FPS; `—` khi `window()` trả về `None`. `--model` thiết kế để thêm lựa chọn khác mà không sửa vòng lặp. `demo.py` chỉ import từ `src/`, không tự định nghĩa hàm xử lý nào.
-5. `--show-features` — chế độ **luyện làm cử chỉ theo IPN**. Phím 1–4 chọn cử chỉ đang luyện; màn hình hiện `pinch_delta`, `dx`, `max_vx` (`SHOW_FEATURES`) của cửa sổ gần nhất, tô xanh nếu nằm trong khoảng phân vị 25–75 của lớp đó theo `ipn_feature_ranges.json`, đỏ nếu nằm ngoài.
+5. `--show-features` — chế độ **luyện làm cử chỉ theo IPN**. Phím 1–4 chọn cử chỉ đang luyện; màn hình hiện `pinch_delta`, `dx`, `max_vx` (`SHOW_FEATURES`) của cửa sổ gần nhất, tô xanh nếu nằm trong khoảng phân vị 25–75 của lớp đó theo `ipn_feature_ranges.json`, đỏ nếu nằm ngoài. *Sửa 2026-10-09:* `SHOW_FEATURES` thêm `open_range`, nên cả màn hình lẫn log của `--log` có độ xòe. Rừng ngẫu nhiên ở Phase 6 chỉ nhận cú vuốt khi bàn tay mở ra trong lúc hất (`results/phase6/notes.md` mục 7), mà ba đặc trưng của cổng không cho thấy điều đó.
 6. `scripts/eval_rules.py` — chạy luật trên tập `val`: ma trận nhầm lẫn, macro-F1, hai đường cơ sở (ngẫu nhiên 20% và luôn đoán `none`). Hợp lệ vì ngưỡng chọn trên `train`. Ghi một hàng vào `results/model_comparison.{csv,md}`. `--split test` hoặc `real_test` bắt buộc thêm `--final` (luật 13).
 
 `demo.py` có thêm `--source` (webcam hoặc file video), `--no-display` và `--max-sec` để chạy thử trên video IPN không cần cửa sổ; mọi xử lý nằm trong `src/live.py`.
@@ -483,7 +483,7 @@ test_calibration_de_xuat_hop_ly_tren_du_lieu_tong_hop
 - [ ] `eval_rules.py`: macro-F1 trên `val` cao hơn cả hai đường cơ sở; con số được ghi lại làm hàng đầu tiên của bảng so sánh mô hình
 - [ ] `python scripts/demo.py --model rules` chạy mượt trên webcam
 - [ ] Vuốt sang trái **của bạn** hiện `swipe_left`. Nếu ngược: xem mục Cổng chất lượng, không sửa code
-- [ ] Với `--show-features`, cả ba đặc trưng xanh ở ít nhất 7/10 lần cho mỗi cử chỉ
+- [ ] Với `--show-features`, cả ba đặc trưng của cổng (`pinch_delta`, `dx`, `max_vx`) xanh ở ít nhất 7/10 lần cho mỗi cử chỉ
 - [ ] Làm từng cử chỉ theo `docs/gestures.md` 10 lần: mỗi cử chỉ đúng ít nhất 7 lần; vẫy tay qua lại không ra `swipe`
 - [ ] Gõ phím, dùng chuột 2 phút, đếm số lần báo nhầm, ghi vào `results/phase5/misfires.md` — đường cơ sở để so ở Phase 6 và 10
 
@@ -502,6 +502,11 @@ Nhãn nhấp nháy liên tục hơn một giây mỗi khi làm cử chỉ là **
 5. `demo.py --model rf` — nạp mô hình đã lưu; nhãn là lớp có xác suất cao nhất, `confidence` là xác suất đó. Không đụng tới vòng lặp đã viết ở Phase 5.
 6. `scripts/summarize_log.py <log>` — gom các dự đoán liên tiếp cùng nhãn thành một "cụm", đếm số cụm theo nhãn và số cụm mỗi phút. Chưa có máy trạng thái nên đây là cách xấp xỉ số lần hệ thống *sẽ* phát lệnh.
 7. Ghi giả thuyết bằng lời cho từng ô lớn ngoài đường chéo vào `results/phase6/notes.md`.
+8. *Thêm 2026-10-09 (người dùng chọn):* tăng cường "bàn tay cứng" cho hai lớp vuốt, chỉ trên tập train (`augment.rigid_swipes`, luật 9). Mỗi cửa sổ vuốt cho `AUG_RIGID_SHARE` bản; mỗi bản giữ quỹ đạo cổ tay và chỉ giữ một phần ngẫu nhiên k ∈ `AUG_RIGID_KEEP` sự đổi dáng tay. `scripts/sweep_rigid.py` chọn mức trên `val`, đo cả lợi (cú vuốt thật bị giảm sự đổi dáng còn được nhận bao nhiêu) lẫn giá (báo nhầm `none`, riêng tay chỉ trỏ). *Kết quả:*
+    - Bản cứng hoàn toàn (k = 0) học một vùng mà tay thật không tới: tay chỉ trỏ thật vẫn có `open_range` ≈ 0,2–0,8.
+    - Bản k ngẫu nhiên nhận được cú vuốt giữ dáng, nhưng báo nhầm `none` tăng từ 8,2% lên 12,5–21,6%.
+
+    Mặc định **tắt** (`AUG_RIGID_SHARE = 0`) cho tới khi người dùng chọn mức báo nhầm chấp nhận được; chi tiết ở `results/phase6/notes.md` mục 8. Nguyên nhân gốc là bộ đặc trưng không đo cấu hình ngón, nên không tách được bàn tay mở với tay chỉ trỏ.
 
 **Cổng kiểm tra**
 

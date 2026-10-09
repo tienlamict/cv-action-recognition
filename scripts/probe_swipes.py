@@ -25,30 +25,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np  # noqa: E402
 
 from src import config  # noqa: E402
+from src.augment import SWIPE_LABELS, rigid_hand, shape_scaled  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
-from src.evaluation import split_features  # noqa: E402
-from src.features import FEATURE_NAMES, window_features  # noqa: E402
+from src.evaluation import probe_windows, split_features  # noqa: E402
+from src.features import FEATURE_NAMES  # noqa: E402
 from src.forest import load_bundle  # noqa: E402
-from src.preprocess import normalize_window  # noqa: E402
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
 from src.splits import read_splits  # noqa: E402
 from src.tables import write_table  # noqa: E402
 
 W = config.WRIST
 COL = {name: i for i, name in enumerate(FEATURE_NAMES)}
-SWIPES = (config.CLASSES.index("swipe_left"), config.CLASSES.index("swipe_right"))
-
-
-def rigid_hand(win):
-    """Mọi frame dùng dáng tay của frame đầu, đặt tại vị trí cổ tay hiện tại."""
-    return shape_scaled(win, 0.0)
-
-
-def shape_scaled(win, k):
-    """Giữ ``k`` phần sự đổi dáng tay (so với frame đầu); quỹ đạo cổ tay giữ nguyên."""
-    pose0 = win[0] - win[0, W]
-    pose = win - win[:, W:W + 1]
-    return win[:, W:W + 1] + pose0[None] + k * (pose - pose0[None])
 
 
 def motion_scaled(win, a):
@@ -74,23 +61,14 @@ def out_and_back(win):
 
 
 def probe(model, windows, ratios, label, transform, rng):
-    """Áp ``transform`` lên từng cửa sổ, cộng rung, chuẩn hoá, dự đoán.
+    """Áp ``transform`` lên từng cửa sổ, cộng rung, chuẩn hoá, dự đoán
+    (``evaluation.probe_windows``).
 
     Returns:
         dict: tỉ lệ còn nhận đúng, tỉ lệ từng lớp đoán, và trung vị vài đặc trưng.
     """
-    feats, preds = [], []
-    for win, ratio in zip(windows, ratios):
-        changed = transform(win)
-        changed = changed + rng.normal(0.0, config.AUG_NOISE_SIGMA, changed.shape)
-        try:
-            f = window_features(normalize_window(changed), ratio)
-        except ValueError:
-            preds.append(-1)
-            continue
-        feats.append(f)
-        preds.append(int(model.predict(f.reshape(1, -1))[0]))
-    preds, feats = np.array(preds), np.stack(feats)
+    preds, feats = probe_windows(model.predict, windows, ratios, transform, rng)
+    feats = feats[preds >= 0]
     out = {"kept": float(np.mean(preds == label))}
     out.update({f"to_{c}": float(np.mean(preds == k)) for k, c in enumerate(config.CLASSES)})
     for name in ("open_range", "pinch_range"):
@@ -124,7 +102,7 @@ def main():
                     for a in config.PROBE_MOTION_LEVELS]
 
     rows = []
-    for label in SWIPES:
+    for label in SWIPE_LABELS:
         idx = np.flatnonzero((y == label) & (pred == label))
         for name, transform in experiments:
             result = probe(model, X[idx], presence[idx], label, transform, rng)
@@ -135,7 +113,7 @@ def main():
     write_table(rows, list(rows[0]), run_dir / "probe")
     write_manifest(run_dir, {"script": "probe_swipes", "n_rows": len(rows)})
 
-    for label in SWIPES:
+    for label in SWIPE_LABELS:
         name = config.CLASSES[label]
         print(f"\n{name} — {[r for r in rows if r['class'] == name][0]['n']} cửa sổ "
               "vuốt thật đang được nhận đúng:")

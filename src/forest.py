@@ -6,6 +6,10 @@ chỉ so một đặc trưng với một ngưỡng, nên thang đo khác nhau gi
 không ảnh hưởng — và bỏ hẳn bước chuẩn hoá là cách chắc nhất để không fit nó
 trên dữ liệu ngoài train.
 
+Tập huấn luyện (:func:`training_set`) là mọi cửa sổ train, cộng bản bàn tay cứng
+của các cửa sổ vuốt khi ``AUG_RIGID_SHARE > 0`` (thêm 2026-10-09, lý do ở
+``src/augment.py``).
+
 Mô hình lưu kèm danh sách đặc trưng và danh sách lớp. Lúc nạp, hai danh sách đó
 phải khớp ``FEATURE_NAMES`` và ``CLASSES`` hiện tại — đổi thứ tự đặc trưng mà
 dùng mô hình cũ là một lỗi im lặng điển hình, nên ở đây nó là một lỗi ồn ào.
@@ -18,7 +22,37 @@ import joblib
 import numpy as np
 
 from src import config
-from src.features import FEATURE_NAMES
+from src.augment import rigid_swipes
+from src.features import FEATURE_NAMES, window_features
+
+
+def training_set(X, y, presence, subject, splits, share=None, keep=None,
+                 seed=config.SEED):
+    """Tập huấn luyện của rừng: đặc trưng mọi cửa sổ train, cộng đặc trưng các
+    bản bàn tay cứng của cửa sổ vuốt (``augment.rigid_swipes``) khi ``share > 0``.
+
+    Bản bàn tay cứng giữ ``presence`` của cửa sổ gốc — cùng các bước mất tay.
+
+    Args:
+        share, keep: ``None`` thì đọc ``AUG_RIGID_SHARE``, ``AUG_RIGID_KEEP``.
+
+    Returns:
+        ``(F, y, n_rigid)`` — ``n_rigid`` hàng CUỐI là bản bàn tay cứng.
+    """
+    from src.evaluation import split_features    # nạp lười: kéo theo scikit-learn
+
+    share = config.AUG_RIGID_SHARE if share is None else share
+    F, y_tr, pick = split_features(X, y, presence, subject, splits, "train")
+    if share <= 0:
+        return F, y_tr, 0
+    X_rigid, y_rigid, source = rigid_swipes(np.asarray(X)[pick], y_tr, "train",
+                                            np.random.default_rng(seed), share, keep)
+    if y_rigid.size == 0:
+        return F, y_tr, 0
+    ratios = np.asarray(presence)[pick][source]
+    F_rigid = np.stack([window_features(w, r) for w, r in zip(X_rigid, ratios)])
+    return (np.concatenate([F, F_rigid]), np.concatenate([y_tr, y_rigid]),
+            int(y_rigid.size))
 
 
 def train_forest(F, y, seed=config.SEED, n_jobs=-1):

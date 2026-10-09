@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from src import config
+from src import augment, config
 from src.features import FEATURE_NAMES, openness, window_features
 from src.preprocess import normalize_window
 from tests.fixtures import hand, make_swipe, make_zoom
@@ -20,17 +20,15 @@ def opening_swipe():
                                       for s, o in zip(shift, open_)]))
 
 
-def test_ban_tay_cung_giu_quy_dao_bo_doi_dang():
-    win = opening_swipe()
-    rigid = probe.rigid_hand(win)
-    np.testing.assert_allclose(rigid[:, W], win[:, W])
-    np.testing.assert_allclose(openness(rigid), openness(win)[0])
-    assert np.ptp(openness(win)) > 0.3
+def test_tham_do_dung_chung_phep_bien_doi_voi_tang_cuong():
+    """Bàn tay cứng của phép thăm dò và của tăng cường là MỘT hàm (luật 1):
+    thăm dò đo đúng thứ mà tăng cường tạo ra."""
+    assert probe.rigid_hand is augment.rigid_hand
+    assert probe.shape_scaled is augment.shape_scaled
 
 
-def test_lieu_luong_k_1_va_a_1_la_phep_dong_nhat():
+def test_lieu_luong_a_1_la_phep_dong_nhat():
     win = opening_swipe()
-    np.testing.assert_allclose(probe.shape_scaled(win, 1.0), win)
     np.testing.assert_allclose(probe.motion_scaled(win, 1.0), win)
     half = probe.motion_scaled(win, 0.5)
     np.testing.assert_allclose(half[-1, W] - half[0, W], 0.5 * (win[-1, W] - win[0, W]))

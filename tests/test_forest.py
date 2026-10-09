@@ -4,7 +4,7 @@ import joblib
 import numpy as np
 import pytest
 
-from src import config, evaluation, forest
+from src import augment, config, evaluation, forest
 from src.features import FEATURE_NAMES, window_features
 from tests.fixtures import labeled_windows
 
@@ -18,6 +18,28 @@ def features(parts):
 def trained():
     F, y = features([labeled_windows("tr", n=20, seed=1)])
     return forest.train_forest(F, y, n_jobs=1)
+
+
+def test_tap_huan_luyen_them_ban_tay_cung_chi_tu_cua_so_vuot_cua_train():
+    """Mức 0: đúng các cửa sổ train. Mức 1: thêm một bản cho mỗi cửa sổ vuốt
+    CỦA TRAIN, xếp sau các cửa sổ thật; val không góp bản nào; cùng seed thì
+    cùng tập."""
+    parts = [labeled_windows(s, n=3, seed=i) for i, s in enumerate(("a", "b"))]
+    X, y, pres, subj = (np.concatenate(p) for p in zip(*parts))
+    splits = {"train": ["a"], "val": ["b"]}
+    F_ref, y_ref, _ = evaluation.split_features(X, y, pres, subj, splits, "train")
+
+    F0, y0, n0 = forest.training_set(X, y, pres, subj, splits, share=0.0)
+    assert n0 == 0
+    np.testing.assert_array_equal(F0, F_ref)
+
+    F1, y1, n1 = forest.training_set(X, y, pres, subj, splits, share=1.0)
+    assert n1 == int(np.isin(y_ref, augment.SWIPE_LABELS).sum()) == 6
+    np.testing.assert_array_equal(F1[:len(F_ref)], F_ref)
+    np.testing.assert_array_equal(y1[:len(F_ref)], y_ref)
+    assert set(y1[len(F_ref):]) <= set(augment.SWIPE_LABELS)
+    np.testing.assert_array_equal(
+        forest.training_set(X, y, pres, subj, splits, share=1.0)[0], F1)
 
 
 def test_rung_hoc_duoc_du_lieu_tong_hop(trained):

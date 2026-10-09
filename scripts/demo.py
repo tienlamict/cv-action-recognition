@@ -8,8 +8,10 @@ không có cửa sổ hợp lệ (chưa đủ 1,2 giây, mất tay, hay tay nghi
 cửa sổ).
 
 --show-features: chế độ luyện làm cử chỉ theo IPN. Phím 1–4 chọn cử chỉ đang
-luyện; ba đặc trưng của cửa sổ vừa rồi tô xanh nếu nằm trong hộp 25–75 của lớp
-đó trên IPN, đỏ nếu nằm ngoài.
+luyện; các đặc trưng SHOW_FEATURES của cửa sổ vừa rồi — ba đặc trưng của cổng
+cộng độ xòe open_range — tô xanh nếu nằm trong hộp 25–75 của lớp đó trên IPN,
+đỏ nếu nằm ngoài. Với vuốt, open_range xanh nghĩa là bàn tay có mở ra trong lúc
+hất như IPN. Log của --log ghi đúng các đặc trưng này.
 
 Bấm q hoặc Esc để thoát. Mọi xử lý nằm trong src/live.py — file này chỉ nối
 webcam, màn hình và log.

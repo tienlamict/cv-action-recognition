@@ -8,6 +8,7 @@ from src.live import Prediction, PredictionLog, count_clusters, read_prediction_
 from tests.scripts_import import load_script
 
 summarize = load_script("summarize_log")
+sweep = load_script("sweep_rigid")
 train_rf = load_script("train_rf")
 
 
@@ -103,25 +104,41 @@ def test_ho_so_dac_trung_tung_o_cua_ma_tran_nham_lan():
     assert cells[("none", "B0B", "swipe_left")]["max_vx"] == np.median(np.arange(12, 22))
 
 
-def test_su_kien_xap_xi_gom_cua_so_lien_nhau():
-    """Hai cú vuốt trái (3 + 2 cửa sổ liền nhau) trong một clip: cú đầu được
-    nhận đúng 2 lần, cú sau có một cửa sổ bị đoán ngược chiều."""
-    y = np.array([1, 1, 1, 1, 1, 2, 3, 4])
-    pred = np.array([1, 0, 1, 2, 0, 2, 3, 4])
-    clip = np.array(["c"] * 8)
-    t0 = np.array([0.0, 0.2, 0.4, 5.0, 5.2, 9.0, 12.0, 15.0])
-    rows = {r["class"]: r for r in train_rf.event_rows(y, pred, clip, t0)}
-    left = rows["swipe_left"]
-    assert left["n_events"] == 2
-    assert left["hit_1"] == 0.5 and left["hit_2"] == 0.5
-    assert left["any_opposite"] == 0.5
+def test_quet_ban_tay_cung_chay_muc_0_mot_lan():
+    """Mức 0 không có bản nào nên không phụ thuộc khoảng k: chỉ huấn luyện một lần."""
+    variants = sweep.variants(shares=(0.0, 0.5), keeps=((0.0, 0.0), (0.0, 1.0)))
+    assert variants == [(0.0, (0.0, 0.0)), (0.5, (0.0, 0.0)), (0.5, (0.0, 1.0))]
 
 
-def test_ty_le_bao_nham_theo_nhan_goc():
-    y_true = np.array([0, 0, 0, 0, 1])
-    y_pred = np.array([1, 0, 2, 0, 1])
-    src = np.array(["B0B", "B0B", "D0X", "D0X", "G05"])
-    rows = {r["src_label"]: r for r in train_rf.false_alarm_rows(y_true, y_pred, src)}
-    assert set(rows) == {"B0B", "D0X"}, "chỉ xét cửa sổ none"
-    assert rows["B0B"]["rate"] == 0.5 and rows["B0B"]["swipe_left"] == 1
-    assert rows["D0X"]["swipe_right"] == 1
+def test_hang_quet_tinh_ca_loi_lan_gia():
+    y = np.array([0, 0, 0, 0, 1, 1, 2, 2, 3, 4])
+    pred = np.array([1, 0, 0, 0, 1, 0, 2, 2, 3, 4])
+    src = np.array(["B0A", "B0A", "D0X", "D0X"] + ["G"] * 6)
+    clip = np.array([f"c{i}" for i in range(10)])     # mỗi cửa sổ một cử chỉ
+    hits = {"shape_0": np.array([True, False, True, True])}
+    row = sweep.variant_row(0.5, (0.0, 1.0), 4, y, pred, src, clip, np.zeros(10), hits)
+
+    assert row["keep"] == "0–1" and row["n_rigid"] == 4
+    assert row["swipe_recall"] == 0.75 and row["shape_0"] == 0.75
+    assert row["swipe_events"] == 0.75, "trái 1/2 cú, phải 2/2 cú"
+    assert row["none_alarm"] == 0.25 and row["pointing_alarm"] == 0.5
+    assert row["alarm_per_min"] == pytest.approx(1 / (4 * config.STRIDE_SEC / 60))
+    assert sweep.variant_row(0.0, (0.0, 0.0), 0, y, pred, src, clip, np.zeros(10),
+                             hits)["keep"] == ""
+
+
+def test_bang_do_doi_dang_chi_lay_none_chuyen_dong_nhu_vuot():
+    from src.features import FEATURE_NAMES
+
+    F = np.zeros((4, len(FEATURE_NAMES)))
+    F[:, FEATURE_NAMES.index("max_vx")] = [9.0, 1.0, 9.0, 9.0]
+    F[:, FEATURE_NAMES.index("dx")] = 1.0
+    F[:, FEATURE_NAMES.index("open_range")] = [0.1, 0.2, 0.3, 0.9]
+    y = np.array([0, 0, 0, 1])
+    src = np.array(["B0A", "B0A", "D0X", "G05"])
+    probe_F = {"shape_0": np.vstack([np.full(len(FEATURE_NAMES), np.nan), F[3]])}
+
+    rows = {r["group"]: r for r in sweep.shape_rows(F, y, src, probe_F)}
+    assert rows["none B0A, chuyển động như vuốt"]["n"] == 1, "cửa sổ chậm bị loại"
+    assert rows["vuốt thật, shape_0"]["n"] == 1, "cửa sổ không chuẩn hoá được bị loại"
+    assert rows["vuốt thật"]["open_p50"] == pytest.approx(0.9)

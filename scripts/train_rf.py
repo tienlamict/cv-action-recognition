@@ -3,6 +3,8 @@
 - Mỗi cửa sổ nén thành vector 15 đặc trưng; RandomForestClassifier với
   RF_N_ESTIMATORS cây, class_weight="balanced_subsample", random_state=SEED.
   Không chuẩn hoá đặc trưng.
+- Tập train có thêm AUG_RIGID_SHARE bản "bàn tay cứng" trên mỗi cửa sổ vuốt
+  (src/augment.py; 0 = tắt). Mức này chọn trên val bằng sweep_rigid.py.
 - Đánh giá trên val: macro-F1, classification_report, ma trận nhầm lẫn thô và
   chuẩn hoá theo hàng — in cùng bảng với hai đường cơ sở và mô hình luật.
 - Độ quan trọng đặc trưng theo tạp chất (feature_importances_) và theo hoán vị
@@ -30,10 +32,12 @@ from sklearn.inspection import permutation_importance  # noqa: E402
 
 from src import config, rules  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
-from src.evaluation import (baselines, macro_f1, split_features,  # noqa: E402
+from src.evaluation import (baselines, event_rows,  # noqa: E402
+                            false_alarm_rows, macro_f1, split_features,
                             summarize, upsert_comparison, write_summary)
 from src.features import FEATURE_NAMES  # noqa: E402
-from src.forest import file_sha256, save_bundle, train_forest  # noqa: E402
+from src.forest import (file_sha256, save_bundle, train_forest,  # noqa: E402
+                        training_set)
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
 from src.splits import read_splits, split_of  # noqa: E402
 from src.tables import write_table  # noqa: E402
@@ -137,52 +141,6 @@ def group_correlation_rows(F, groups):
             for g in groups]
 
 
-def false_alarm_rows(y_true, y_pred, src_label):
-    """Cửa sổ none bị đoán thành cử chỉ, theo nhãn gốc IPN: số cửa sổ, số bị
-    báo nhầm, tỉ lệ, và bị đoán thành lớp nào."""
-    rows = []
-    none = y_true == 0
-    for src in sorted(set(src_label[none])):
-        pick = none & (src_label == src)
-        wrong = pick & (y_pred != 0)
-        rows.append({"src_label": str(src), "n_windows": int(pick.sum()),
-                     "false_alarms": int(wrong.sum()),
-                     "rate": float(wrong.sum() / pick.sum()),
-                     **{c: int(np.sum(pick & (y_pred == k)))
-                        for k, c in enumerate(config.CLASSES) if k}})
-    return sorted(rows, key=lambda r: -r["false_alarms"])
-
-
-def event_rows(y_true, y_pred, clip, t0):
-    """Xấp xỉ mức SỰ KIỆN: các cửa sổ dương liền nhau (cùng clip, cùng lớp,
-    cách nhau không quá một bước trượt) là một cử chỉ. Đếm cử chỉ có ít nhất
-    một / hai cửa sổ được nhận đúng, và cử chỉ có cửa sổ bị đoán NGƯỢC chiều.
-
-    Đánh giá mức sự kiện đầy đủ (theo máy trạng thái) là việc của Phase 8.
-    """
-    opposite = {"swipe_left": "swipe_right", "swipe_right": "swipe_left",
-                "zoom_in": "zoom_out", "zoom_out": "zoom_in"}
-    rows = []
-    for name, other in opposite.items():
-        c, o = config.CLASSES.index(name), config.CLASSES.index(other)
-        idx = np.flatnonzero(y_true == c)
-        idx = idx[np.lexsort((t0[idx], clip[idx]))]
-        events, current = [], [idx[0]]
-        for a, b in zip(idx[:-1], idx[1:]):
-            if clip[a] == clip[b] and t0[b] - t0[a] <= config.STRIDE_SEC * 1.25:
-                current.append(b)
-            else:
-                events.append(current)
-                current = [b]
-        events.append(current)
-        rows.append({"class": name, "n_events": len(events),
-                     "hit_1": float(np.mean([np.sum(y_pred[e] == c) >= 1 for e in events])),
-                     "hit_2": float(np.mean([np.sum(y_pred[e] == c) >= 2 for e in events])),
-                     "any_opposite": float(np.mean([np.sum(y_pred[e] == o) >= 1
-                                                    for e in events]))})
-    return rows
-
-
 def gate(rf_f1, rules_f1, rows):
     """Ba điều kiện của cổng Phase 6."""
     top_perm = [r["feature"] for r in rows[:3]]
@@ -213,8 +171,9 @@ def main():
         raise SystemExit(f"RÒ RỈ: train và val chung người {shared_people} "
                          f"hoặc clip {shared_clips}")
 
-    F_tr, y_tr, _ = split_features(data["X"], data["y"], data["presence"],
-                                   data["subject"], splits, "train")
+    F_tr, y_tr, n_rigid = training_set(data["X"], data["y"], data["presence"],
+                                       data["subject"], splits)
+    n_real = y_tr.size - n_rigid
     F_va, y_va, pick_va = split_features(data["X"], data["y"], data["presence"],
                                          data["subject"], splits, "val")
 
@@ -237,8 +196,9 @@ def main():
     singles = [(name,) for group in config.CORRELATED_GROUPS for name in group]
     grouped = grouped_permutation(model, F_va, y_va,
                                   [*config.CORRELATED_GROUPS, *singles, ("max_vx",)])
-    correlations = {r["group"]: r["spearman"]
-                    for r in group_correlation_rows(F_tr, config.CORRELATED_GROUPS)}
+    correlations = {r["group"]: r["spearman"]      # chỉ cửa sổ thật, không bản cứng
+                    for r in group_correlation_rows(F_tr[:n_real],
+                                                    config.CORRELATED_GROUPS)}
     for row in grouped:
         row["spearman_train"] = correlations.get(row["group"], float("nan"))
     profiles = profile_rows(F_va, y_va, pred_rf, data["src_label"][pick_va])
@@ -274,6 +234,7 @@ def main():
                 run_dir / "comparison")
 
     model_path = save_bundle(model, trained_on="train", n_train=int(y_tr.size),
+                             n_rigid=n_rigid, rigid_share=config.AUG_RIGID_SHARE,
                              windows_sha256=file_sha256(args.windows),
                              sklearn_version=sklearn.__version__,
                              created=datetime.now().isoformat(timespec="seconds"))
@@ -282,13 +243,16 @@ def main():
                        "baseline_none": none_f1, "run": relative_to_root(run_dir)})
     write_manifest(run_dir, {
         "script": "train_rf", "n_train": int(y_tr.size), "n_val": int(y_va.size),
+        "n_rigid": n_rigid, "rigid_share": config.AUG_RIGID_SHARE,
         "train_seconds": train_sec, "model": relative_to_root(model_path),
         "model_sha256": file_sha256(model_path),
         "macro_f1_val": rf["macro_f1"], "macro_f1_rules_val": rl["macro_f1"],
         "gate": [{"check": c, "ok": ok, "detail": d} for c, ok, d in checks]})
 
-    print(f"Train {y_tr.size} cửa sổ, val {y_va.size} cửa sổ; huấn luyện "
-          f"{train_sec:.1f} s. Người/clip chung giữa train và val: không có.\n")
+    print(f"Train {y_tr.size} cửa sổ ({n_rigid} trong đó là bản bàn tay cứng, "
+          f"AUG_RIGID_SHARE = {config.AUG_RIGID_SHARE:g}), val {y_va.size} cửa sổ; "
+          f"huấn luyện {train_sec:.1f} s. Người/clip chung giữa train và val: "
+          "không có.\n")
     print("macro-F1 trên val và F1 từng lớp:")
     print(f"{'mô hình':<18}{'macro-F1':>9}" + "".join(f"{c[:11]:>12}" for c in config.CLASSES))
     for row in comparison:

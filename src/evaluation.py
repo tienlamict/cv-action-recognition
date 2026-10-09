@@ -23,7 +23,9 @@ from sklearn.metrics import (classification_report, confusion_matrix,
                              f1_score, precision_recall_fscore_support)
 
 from src import config
+from src.augment import add_noise
 from src.features import FEATURE_NAMES, window_features
+from src.preprocess import normalize_window
 from src.runlog import config_snapshot
 from src.splits import split_of
 from src.tables import write_table
@@ -89,6 +91,111 @@ def summarize(y_true, y_pred):
                                         target_names=config.CLASSES, digits=4,
                                         zero_division=0),
     }
+
+
+def false_alarm_rows(y_true, y_pred, src_label):
+    """Cửa sổ none bị đoán thành cử chỉ, theo nhãn gốc IPN: số cửa sổ, số bị
+    báo nhầm, tỉ lệ, và bị đoán thành lớp nào."""
+    rows = []
+    none = y_true == 0
+    for src in sorted(set(src_label[none])):
+        pick = none & (src_label == src)
+        wrong = pick & (y_pred != 0)
+        rows.append({"src_label": str(src), "n_windows": int(pick.sum()),
+                     "false_alarms": int(wrong.sum()),
+                     "rate": float(wrong.sum() / pick.sum()),
+                     **{c: int(np.sum(pick & (y_pred == k)))
+                        for k, c in enumerate(config.CLASSES) if k}})
+    return sorted(rows, key=lambda r: -r["false_alarms"])
+
+
+def event_rows(y_true, y_pred, clip, t0):
+    """Xấp xỉ mức SỰ KIỆN: các cửa sổ dương liền nhau (cùng clip, cùng lớp,
+    cách nhau không quá một bước trượt) là một cử chỉ. Đếm cử chỉ có ít nhất
+    một / hai cửa sổ được nhận đúng, và cử chỉ có cửa sổ bị đoán NGƯỢC chiều.
+
+    Đánh giá mức sự kiện đầy đủ (theo máy trạng thái) là việc của Phase 8.
+    """
+    opposite = {"swipe_left": "swipe_right", "swipe_right": "swipe_left",
+                "zoom_in": "zoom_out", "zoom_out": "zoom_in"}
+    rows = []
+    for name, other in opposite.items():
+        c, o = config.CLASSES.index(name), config.CLASSES.index(other)
+        idx = np.flatnonzero(y_true == c)
+        idx = idx[np.lexsort((t0[idx], clip[idx]))]
+        events, current = [], [idx[0]]
+        for a, b in zip(idx[:-1], idx[1:]):
+            if clip[a] == clip[b] and t0[b] - t0[a] <= config.STRIDE_SEC * 1.25:
+                current.append(b)
+            else:
+                events.append(current)
+                current = [b]
+        events.append(current)
+        rows.append({"class": name, "n_events": len(events),
+                     "hit_1": float(np.mean([np.sum(y_pred[e] == c) >= 1 for e in events])),
+                     "hit_2": float(np.mean([np.sum(y_pred[e] == c) >= 2 for e in events])),
+                     "any_opposite": float(np.mean([np.sum(y_pred[e] == o) >= 1
+                                                    for e in events]))})
+    return rows
+
+
+def alarm_clusters(y_true, y_pred, clip, t0):
+    """Báo nhầm tính theo CỤM trên các cửa sổ none: chuỗi cửa sổ liền nhau (cùng
+    clip, cách nhau không quá một bước trượt) bị đoán cùng một lớp cử chỉ là một
+    cụm — cùng cách đếm với ``summarize_log.py`` trên log trực tiếp, nên so được
+    với lần thử trên webcam.
+
+    Returns:
+        ``(số cụm, số phút)`` — số phút = số cửa sổ none × ``STRIDE_SEC`` / 60.
+    """
+    idx = np.flatnonzero(y_true == 0)
+    idx = idx[np.lexsort((t0[idx], clip[idx]))]
+    n_clusters, previous = 0, None
+    for i in idx:
+        label = y_pred[i]
+        joined = (previous is not None and previous[0] == clip[i]
+                  and t0[i] - previous[1] <= config.STRIDE_SEC * 1.25
+                  and previous[2] == label)
+        if label != 0 and not joined:
+            n_clusters += 1
+        previous = (clip[i], t0[i], label)
+    return n_clusters, idx.size * config.STRIDE_SEC / 60
+
+
+def probe_windows(predict, windows, presence, transform, rng, sigma=None):
+    """Thí nghiệm phản thực tế: sửa từng cửa sổ ĐÃ chuẩn hoá bằng ``transform``,
+    cộng rung điểm mốc ``sigma`` như dữ liệu thật, rồi đi qua đúng
+    ``normalize_window`` và ``window_features`` như lúc chạy thật, và dự đoán.
+
+    Đây là phép ĐO, không phải tăng cường: cửa sổ đã sửa không bao giờ vào tập
+    huấn luyện, nên dùng được trên val.
+
+    Args:
+        predict: hàm ``F (n, 15) → nhãn (n,)``, ví dụ ``model.predict``.
+        windows: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá.
+        presence: ``(n,)`` tỉ lệ bước có tay của từng cửa sổ.
+        transform: hàm ``cửa sổ → cửa sổ``.
+        rng: ``np.random.Generator`` cho phần rung.
+        sigma: độ lệch chuẩn của rung; ``None`` thì đọc ``AUG_NOISE_SIGMA``.
+
+    Returns:
+        ``(pred (n,) int64, F (n, 15) float32)`` — cửa sổ mà ``normalize_window``
+        từ chối có nhãn ``-1`` và hàng đặc trưng NaN.
+    """
+    if sigma is None:
+        sigma = config.require_measured("AUG_NOISE_SIGMA")
+    F = np.full((len(windows), len(FEATURE_NAMES)), np.nan, dtype=np.float32)
+    for i, (win, ratio) in enumerate(zip(windows, presence)):
+        changed = add_noise(transform(np.asarray(win, dtype=np.float64)), sigma, rng)
+        try:
+            F[i] = window_features(normalize_window(changed), ratio)
+        except ValueError:
+            continue
+    pred = np.full(len(windows), -1, dtype=np.int64)
+    ok = np.isfinite(F).all(axis=1)
+    if ok.any():
+        pred[ok] = predict(F[ok])
+    return pred, F
 
 
 def write_summary(summary, run_dir, prefix=""):

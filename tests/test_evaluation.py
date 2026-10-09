@@ -97,3 +97,70 @@ def test_bang_so_sanh_thay_dung_hang(tmp_path):
     assert lines[2].startswith("rf,val,1,0.6")
     md = stem.with_suffix(".md").read_text(encoding="utf-8")
     assert "0.3000" in md or "| 0.3 |" in md, "hàng đọc lại vẫn định dạng như số"
+
+
+def test_su_kien_xap_xi_gom_cua_so_lien_nhau():
+    """Hai cú vuốt trái (3 + 2 cửa sổ liền nhau) trong một clip: cú đầu được
+    nhận đúng 2 lần, cú sau có một cửa sổ bị đoán ngược chiều."""
+    y = np.array([1, 1, 1, 1, 1, 2, 3, 4])
+    pred = np.array([1, 0, 1, 2, 0, 2, 3, 4])
+    clip = np.array(["c"] * 8)
+    t0 = np.array([0.0, 0.2, 0.4, 5.0, 5.2, 9.0, 12.0, 15.0])
+    rows = {r["class"]: r for r in evaluation.event_rows(y, pred, clip, t0)}
+    left = rows["swipe_left"]
+    assert left["n_events"] == 2
+    assert left["hit_1"] == 0.5 and left["hit_2"] == 0.5
+    assert left["any_opposite"] == 0.5
+
+
+def test_ty_le_bao_nham_theo_nhan_goc():
+    y_true = np.array([0, 0, 0, 0, 1])
+    y_pred = np.array([1, 0, 2, 0, 1])
+    src = np.array(["B0B", "B0B", "D0X", "D0X", "G05"])
+    rows = {r["src_label"]: r for r in evaluation.false_alarm_rows(y_true, y_pred, src)}
+    assert set(rows) == {"B0B", "D0X"}, "chỉ xét cửa sổ none"
+    assert rows["B0B"]["rate"] == 0.5 and rows["B0B"]["swipe_left"] == 1
+    assert rows["D0X"]["swipe_right"] == 1
+
+
+def test_bao_nham_tinh_theo_cum():
+    """Cửa sổ none liền nhau bị đoán cùng một lớp là một cụm; đổi lớp, đứt
+    quãng thời gian hay sang clip khác thì sang cụm mới. Cửa sổ cử chỉ thật
+    không tính."""
+    y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+    pred = np.array([1, 1, 2, 0, 1, 1, 1, 3, 3, 1])
+    clip = np.array(["a"] * 5 + ["b"] * 5)
+    t0 = np.array([0.0, 0.2, 0.4, 0.6, 0.8, 0.0, 5.0, 5.2, 5.4, 5.6])
+    n, minutes = evaluation.alarm_clusters(y, pred, clip, t0)
+    assert n == 6       # a: [1 1] [2] [1]; b: [1] [1] (đứt quãng) [3 3]
+    assert minutes == pytest.approx(9 * config.STRIDE_SEC / 60)
+
+
+def test_tham_do_phan_thuc_te_di_qua_dung_duong_ong():
+    """Phép đồng nhất không rung: đặc trưng đúng bằng window_features của cửa
+    sổ gốc. Cửa sổ normalize_window từ chối ra nhãn -1 và hàng NaN, và không
+    được đưa vào mô hình."""
+    from src.features import window_features
+    from src.preprocess import normalize_window
+
+    X, _, pres, _ = labeled_windows("a", n=1)
+    seen = []
+
+    def predict(F):
+        seen.append(len(F))
+        return np.full(len(F), 3)
+
+    pred, F = evaluation.probe_windows(predict, X, pres, lambda w: w,
+                                       np.random.default_rng(0), sigma=0.0)
+    expected = np.stack([window_features(normalize_window(w), r) for w, r in zip(X, pres)])
+    np.testing.assert_allclose(F, expected, rtol=1e-6, atol=1e-6)
+    assert np.all(pred == 3) and seen == [len(X)]
+
+    def first_step_lost(win):
+        out = win.copy()
+        out[0] = np.nan
+        return out
+
+    pred, F = evaluation.probe_windows(predict, X, pres, first_step_lost,
+                                       np.random.default_rng(0), sigma=0.0)
+    assert np.all(pred == -1) and np.all(np.isnan(F)) and seen == [len(X)]

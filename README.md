@@ -127,7 +127,12 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 1 | `python scripts/record_csv.py --name <tên>` | CSV điểm mốc mỗi frame một dòng, dùng tự do |
 | 4 | | |
 | 5 | | |
-| 6 | | |
+| 6 | `python scripts/train_rf.py` | Rừng ngẫu nhiên học trên train, đánh giá trên val: `results/phase6/train_rf/run_NN/` (ma trận nhầm lẫn, độ quan trọng, mức sự kiện, báo nhầm theo nhãn gốc); lưu `results/phase6/rf_model.joblib`; cập nhật `results/model_comparison` |
+| 6 | `python scripts/sweep_rigid.py` | Quét tăng cường "bàn tay cứng" trên val: `results/phase6/sweep_rigid/run_NN/` (bảng `sweep`: lợi và giá của từng mức; bảng `shape_spread`: độ đổi dáng của tay thật so với bản tổng hợp) |
+| 6 | `python scripts/probe_swipes.py` | Mô hình đang lưu coi gì là vuốt: `results/phase6/probe_swipes/run_NN/probe` |
+| 6 | `python scripts/evaluate.py --model rf --split val` | Đánh giá mô hình đã lưu; `--split test` bắt buộc `--final` và ghi `results/TEST_USED.log` (luật 13) |
+| 6 | `python scripts/demo.py --model rf --show-features --log <file.csv>` | Demo webcam; `--show-features` là chế độ luyện tập (bốn đặc trưng so với hộp IPN) |
+| 6 | `python scripts/summarize_log.py <file.csv>` | Số cụm nhãn khác `none` và số cụm mỗi phút của một log demo |
 | 7 | | |
 | 8 | | |
 | 10 | | |
@@ -145,8 +150,10 @@ conda activate action-recognition
 
 cd /d D:\Project\Python\cv-action-recognition
 
-python scripts/live_landmarks.py
+1.python scripts/live_landmarks.py
 
-python scripts/demo.py --model rules
+2. python scripts/demo.py --model rules
 
-python scripts/demo.py --model rf --log results/phase6/live_rf_work.csv
+3. python scripts/demo.py --model rf --log results/phase6/live_rf_work.csv
+
+4. python scripts/demo.py --model rf --show-features --log results/phase6/live_rf_swipes.csv
