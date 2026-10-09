@@ -102,6 +102,9 @@ NONE_TRAIN_SHARE = 0.5  # none chiếm bấy nhiêu phần tập train sau lấy
 
 PHASE4_RESULTS_DIR = RESULTS_DIR / "phase4"
 IPN_FEATURE_RANGES_JSON = PHASE4_RESULTS_DIR / "ipn_feature_ranges.json"
+GATE_FEATURES = ("pinch_delta", "dx", "max_vx")    # ba đặc trưng của cổng Phase 4
+                            # (duyệt 2026-10-05): luật Phase 5 dựng trên chúng, và
+                            # Phase 6 dự đoán chúng đứng đầu bảng độ quan trọng
 
 # --------------------------------------------------------------------------
 # Mô hình luật và demo (Phase 5)
@@ -112,8 +115,29 @@ MODEL_COMPARISON = RESULTS_DIR / "model_comparison"   # .csv + .md, mỗi mô h�
 CALIB_NONE_PCT = 90         # ngưỡng luật = trung điểm của phân vị 90 lớp nền...
 CALIB_TARGET_PCT = 10       # ...và phân vị 10 lớp đích (SPEC Phase 5)
 BUFFER_EXTRA_SEC = 0.5      # TimeBuffer giữ WIN_SEC + bấy nhiêu giây gần nhất
-SHOW_FEATURES = ("pinch_delta", "dx", "max_vx")   # --show-features: ba đặc
-                            # trưng của cổng Phase 4, cũng là ba đặc trưng luật dùng
+SHOW_FEATURES = GATE_FEATURES     # --show-features hiện đúng ba đặc trưng của cổng
+
+# --------------------------------------------------------------------------
+# Rừng ngẫu nhiên và đánh giá (Phase 6)
+# --------------------------------------------------------------------------
+
+PHASE6_RESULTS_DIR = RESULTS_DIR / "phase6"
+RF_MODEL_PATH = PHASE6_RESULTS_DIR / "rf_model.joblib"   # demo.py --model rf nạp file này
+RF_N_ESTIMATORS = 300               # SPEC Phase 6; phần còn lại để mặc định
+RF_CLASS_WEIGHT = "balanced_subsample"
+PERM_REPEATS = 10                   # số lần xáo mỗi cột trong permutation_importance
+CORRELATED_GROUPS = (("dx", "mean_vx"), ("open_delta", "open_trend"),
+                     ("pinch_delta", "pinch_range"))
+                                    # cặp đặc trưng đo gần cùng một thứ: xáo riêng
+                                    # từng cột thì độ quan trọng bị giấu (cột kia
+                                    # gánh thay), nên đo thêm bằng cách xáo cả nhóm
+PROFILE_FEATURES = ("max_vx", "dx", "pinch_delta", "pinch_range", "open_range")
+                                    # đặc trưng lấy trung vị cho từng ô của ma trận
+                                    # nhầm lẫn — bằng chứng cho giả thuyết ở notes.md
+PROFILE_MIN_N = 10                  # ô có ít cửa sổ hơn thì không lập hồ sơ
+LEAKAGE_F1 = 0.97                   # macro-F1 trên val cao hơn mức này: gần như
+                                    # chắc chắn rò rỉ — dừng, kiểm tra splits.json
+TEST_USED_LOG = RESULTS_DIR / "TEST_USED.log"   # mỗi lần chạm test/real_test một dòng (luật 13)
 
 # --------------------------------------------------------------------------
 # Tăng cường (Phase 4) — chỉ trên tập train, sau khi chia (luật 9)
@@ -252,6 +276,21 @@ FEATURE_EDGE_STEPS = 3      # "đầu" và "cuối" của cửa sổ = trung bì
 FEATURE_EPS = 1e-8          # chặn chia cho 0 trong horiz_ratio và straightness
 
 FIG_DPI = 150               # mọi hình xuất ra .png
+
+# Màu cho hình báo cáo (bảng màu tham chiếu của skill dataviz, chế độ sáng).
+# Ý nghĩa theo vai trò, không theo thứ hạng: ACCENT là nhóm đang được nói tới,
+# DEEMPH là phần còn lại; SEQ_RAMP là dải một màu nhạt → đậm cho độ lớn.
+FIG_SURFACE = "#fcfcfb"
+FIG_INK = "#0b0b0b"
+FIG_INK_2 = "#52514e"
+FIG_GRID = "#e1e0d9"
+FIG_AXIS = "#c3c2b7"
+FIG_ACCENT = "#2a78d6"
+FIG_DEEMPH = "#898781"
+FIG_SEQ_RAMP = ("#fcfcfb", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5",
+                "#256abf", "#184f95", "#0d366b")
+FIG_SEQ_DARK_TEXT_BELOW = 0.45   # ô có giá trị chuẩn hoá dưới mức này viết chữ
+                                 # màu mực, từ mức này trở lên viết chữ trắng
 
 
 def require_measured(name):

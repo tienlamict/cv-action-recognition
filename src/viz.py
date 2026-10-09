@@ -1,4 +1,4 @@
-"""Hình vẽ dùng chung. Phase 3 và Phase 5 dùng lại các hàm ở đây."""
+"""Hình vẽ dùng chung cho các phase. Hình báo cáo dùng màu trong config (FIG_*)."""
 
 import math
 
@@ -91,5 +91,95 @@ def plot_boxplots(F, y, names, out_path, classes=None):
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=config.FIG_DPI)
+    plt.close(fig)
+    return out_path
+
+
+def _report_axes(ax):
+    """Trục kiểu báo cáo: lưới mảnh và lùi về sau, chữ màu mực phụ."""
+    ax.set_facecolor(config.FIG_SURFACE)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(config.FIG_AXIS)
+    ax.tick_params(colors=config.FIG_INK_2, labelsize=8)
+    ax.set_axisbelow(True)
+
+
+def plot_importances(names, impurity, perm_mean, perm_std, highlight, out_path):
+    """Hai bảng xếp hạng độ quan trọng đặt cạnh nhau.
+
+    Hàng xếp theo độ quan trọng hoán vị (lớn nhất ở trên) ở CẢ HAI ô, để mắt
+    so được cùng một đặc trưng giữa hai cách đo. Đặc trưng trong ``highlight``
+    (dự đoán quan trọng) tô màu nhấn, phần còn lại màu xám.
+    """
+    names = list(names)
+    order = np.argsort(perm_mean)
+    rows = np.arange(len(names))
+    colors = [config.FIG_ACCENT if names[i] in highlight else config.FIG_DEEMPH
+              for i in order]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5.5), sharey=True,
+                             facecolor=config.FIG_SURFACE)
+    axes[0].barh(rows, np.asarray(impurity)[order], height=0.5, color=colors)
+    axes[1].barh(rows, np.asarray(perm_mean)[order], height=0.5, color=colors,
+                 xerr=np.asarray(perm_std)[order],
+                 error_kw={"ecolor": config.FIG_INK_2, "elinewidth": 1,
+                           "capsize": 2})
+    axes[0].set_yticks(rows, [names[i] for i in order])
+    titles = ("Theo tạp chất Gini (feature_importances_, train)",
+              "Theo hoán vị trên val (macro-F1 giảm, ±1 độ lệch chuẩn)")
+    for ax, title in zip(axes, titles):
+        _report_axes(ax)
+        ax.xaxis.grid(True, color=config.FIG_GRID, linewidth=0.8)
+        ax.axvline(0.0, color=config.FIG_AXIS, linewidth=1)
+        ax.set_title(title, fontsize=9, color=config.FIG_INK)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=config.FIG_ACCENT),
+               plt.Rectangle((0, 0), 1, 1, color=config.FIG_DEEMPH)]
+    fig.legend(handles, ["dự đoán quan trọng (cổng Phase 4)", "đặc trưng khác"],
+               loc="lower center", ncol=2, frameon=False, fontsize=8,
+               labelcolor=config.FIG_INK_2)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.savefig(out_path, dpi=config.FIG_DPI, facecolor=config.FIG_SURFACE)
+    plt.close(fig)
+    return out_path
+
+
+def plot_confusion(cm, cm_row, classes, out_path, title=""):
+    """Ma trận nhầm lẫn thô (trái) và chuẩn hoá theo hàng (phải).
+
+    Cả hai ô tô màu theo TỈ LỆ HÀNG: tô theo số đếm thô thì lớp ``none`` (hàng
+    vạn cửa sổ) nuốt hết thang màu và mọi ô khác trông như nhau. Ô trái ghi số
+    cửa sổ, ô phải ghi phần trăm.
+    """
+    from matplotlib.colors import LinearSegmentedColormap
+
+    cmap = LinearSegmentedColormap.from_list("seq", config.FIG_SEQ_RAMP)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8), facecolor=config.FIG_SURFACE)
+    panels = ((axes[0], lambda i, j: f"{int(cm[i, j]):,}", "Số cửa sổ"),
+              (axes[1], lambda i, j: f"{cm_row[i, j]:.0%}", "Chuẩn hoá theo hàng"))
+    for ax, text, subtitle in panels:
+        image = ax.imshow(cm_row, cmap=cmap, vmin=0.0, vmax=1.0)
+        for i in range(len(classes)):
+            for j in range(len(classes)):
+                dark = cm_row[i, j] >= config.FIG_SEQ_DARK_TEXT_BELOW
+                ax.text(j, i, text(i, j), ha="center", va="center", fontsize=8,
+                        color="white" if dark else config.FIG_INK)
+        ax.set_xticks(range(len(classes)), classes, rotation=30, ha="right")
+        ax.set_yticks(range(len(classes)), classes)
+        ax.set_xlabel("lớp đoán", color=config.FIG_INK_2, fontsize=9)
+        if ax is axes[0]:       # hai ô chung trục dọc: chỉ ghi nhãn một lần
+            ax.set_ylabel("lớp thật", color=config.FIG_INK_2, fontsize=9)
+        ax.set_title(subtitle, fontsize=9, color=config.FIG_INK)
+        ax.tick_params(colors=config.FIG_INK_2, labelsize=8, length=0)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+    bar = fig.colorbar(image, ax=axes, fraction=0.025, pad=0.02)
+    bar.ax.tick_params(colors=config.FIG_INK_2, labelsize=8)
+    bar.outline.set_visible(False)
+    if title:
+        fig.suptitle(title, fontsize=10, color=config.FIG_INK)
+    fig.savefig(out_path, dpi=config.FIG_DPI, facecolor=config.FIG_SURFACE,
+                bbox_inches="tight")
     plt.close(fig)
     return out_path

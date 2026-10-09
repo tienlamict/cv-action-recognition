@@ -17,8 +17,8 @@ ngưỡng không tách sạch hai nhóm, và sai số ở cả hai phía là kh�
 import numpy as np
 
 from src import config
-from src.features import FEATURE_NAMES, window_features
-from src.splits import split_of
+from src.evaluation import split_features
+from src.features import FEATURE_NAMES
 
 _IDX = {name: i for i, name in enumerate(FEATURE_NAMES)}
 _CLS = {name: i for i, name in enumerate(config.CLASSES)}
@@ -30,10 +30,8 @@ def train_features(X, y, presence, subject, splits):
     Returns:
         ``(F, y)`` — ``F`` ``(n, 15)``.
     """
-    pick = split_of(subject, splits) == "train"
-    F = np.stack([window_features(win, ratio)
-                  for win, ratio in zip(X[pick], presence[pick])])
-    return F, np.asarray(y)[pick]
+    F, y_train, _ = split_features(X, y, presence, subject, splits, "train")
+    return F, y_train
 
 
 def _midpoint(below, above, name):

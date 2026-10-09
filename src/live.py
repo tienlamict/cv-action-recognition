@@ -15,11 +15,13 @@ from collections import namedtuple
 
 from src import config, rules
 from src.buffer import TimeBuffer
+from src.forest import ForestClassifier
 from src.features import FEATURE_NAMES, window_features
 from src.preprocess import normalize_window
 
 #: Mô hình chọn bằng ``demo.py --model``: tên → hàm ``features → (label, confidence)``.
-MODELS = {"rules": rules.classify}
+#: Rừng ngẫu nhiên nạp lười ở lần dự đoán đầu (``forest.ForestClassifier``).
+MODELS = {"rules": rules.classify, "rf": ForestClassifier()}
 
 Prediction = namedtuple("Prediction", "ts label confidence presence features")
 Prediction.__doc__ = """Một lần dự đoán. ``label`` là ``None`` khi không có
@@ -160,22 +162,43 @@ class PredictionLog:
 
 
 def count_episodes(labels):
-    """Đếm số đợt báo của từng lớp: một chuỗi dự đoán LIỀN NHAU cùng lớp là
-    một đợt. Nhãn nhấp nháy mỗi ``STRIDE_SEC`` là đúng ở Phase 5; đếm đợt mới
-    phản ánh số lần người dùng thấy hệ thống "báo".
+    """:func:`count_clusters` trên dãy nhãn dạng chỉ số lớp (``None`` = ``-``)."""
+    return count_clusters([label_name(label) for label in labels])
+
+
+def count_clusters(names):
+    """Đếm số cụm của từng lớp: một chuỗi dự đoán LIỀN NHAU cùng lớp là một
+    cụm. Nhãn nhấp nháy mỗi ``STRIDE_SEC`` là đúng khi chưa có máy trạng thái
+    (Phase 9); đếm cụm xấp xỉ số lần hệ thống *sẽ* phát lệnh.
+
+    Bất kỳ nhãn khác — kể cả ``none`` và ``-`` (không có cửa sổ hợp lệ) — đều
+    cắt cụm.
 
     Args:
-        labels: dãy nhãn theo thời gian (chỉ số lớp hoặc ``None``).
+        names: dãy tên nhãn theo thời gian.
 
     Returns:
-        dict ``{tên lớp: số đợt}`` cho các lớp khác ``none``.
+        dict ``{tên lớp: số cụm}`` cho bốn lớp đích.
     """
     out = {c: 0 for c in PRACTICE_CLASSES}
     previous = None
-    for label in labels:
-        name = label_name(label)
+    for name in names:
         if name in out and name != previous:
             out[name] += 1
         previous = name
     return out
+
+
+def read_prediction_log(path):
+    """Đọc file của :class:`PredictionLog`.
+
+    Returns:
+        ``(ts (n,) float, names list)`` — tên nhãn đúng như đã ghi.
+    """
+    with open(path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    missing = set(PredictionLog.COLUMNS[:2]) - set(rows[0] if rows else {})
+    if not rows or missing:
+        raise ValueError(f"{path} không phải log của demo.py (thiếu cột {missing})")
+    return [float(r["ts"]) for r in rows], [r["label"] for r in rows]
 

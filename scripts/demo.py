@@ -16,6 +16,7 @@ webcam, màn hình và log.
 
 Ví dụ:
     python scripts/demo.py --model rules
+    python scripts/demo.py --model rf --log results/phase6/live_rf.csv
     python scripts/demo.py --model rules --show-features
     python scripts/demo.py --model rules --log results/phase5/misfires_log.csv
     python scripts/demo.py --source data/ipn/videos/videos/1CM42_11_R__205.avi --no-display --max-sec 30

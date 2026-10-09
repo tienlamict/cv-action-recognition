@@ -38,7 +38,7 @@ from src.runlog import (next_run_dir, relative_to_root,  # noqa: E402
 from src.splits import SPLIT_NAMES, read_splits, split_of  # noqa: E402
 from src.viz import plot_boxplots  # noqa: E402
 
-GATE_FEATURES = ("pinch_delta", "dx", "max_vx", "open_delta", "straightness")
+BOX_FEATURES = ("pinch_delta", "dx", "max_vx", "open_delta", "straightness")
 
 
 def quartiles(F, y):
@@ -131,7 +131,7 @@ def main():
 
     out_dir = next_run_dir(config.PHASE4_RESULTS_DIR / "boxplots")
     plot_boxplots(F, y, FEATURE_NAMES, out_dir / "features.png")
-    for name in GATE_FEATURES:
+    for name in BOX_FEATURES:
         column = FEATURE_NAMES.index(name)
         plot_boxplots(F[:, [column]], y, [name], out_dir / f"{name}.png")
 

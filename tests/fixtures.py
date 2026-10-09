@@ -116,3 +116,32 @@ def save_parts_clip(path, parts, subject, fps=config.HZ):
     save_clip(path, ts, xy.astype(np.float32), present, segments,
               [p[1] for p in parts], meta)
     return path
+
+
+JITTER_PX = 0.5     # rung điểm mốc, để các cửa sổ cùng lớp không giống hệt nhau
+
+
+def labeled_windows(subject, n=12, none_maker=None, seed=0):
+    """Bộ cửa sổ ĐÃ chuẩn hoá có nhãn của một người, đúng các cột của
+    ``windows.npz``: ``n`` lượt, mỗi lượt một cửa sổ cho mỗi lớp.
+
+    Vuốt trái là dời ảnh theo dấu ``SWIPE_LEFT_SIGN`` đã đo trên IPN.
+
+    Returns:
+        ``(X, y, presence, subject)``.
+    """
+    from src.preprocess import normalize_window
+
+    none_maker = none_maker or (lambda i: make_static(seed=i))
+    sign = config.SWIPE_LEFT_SIGN or 1
+    cls = {name: i for i, name in enumerate(config.CLASSES)}
+    rng = np.random.default_rng(seed)
+    X, y = [], []
+    for i in range(n):
+        X += [none_maker(i), make_swipe(sign), make_swipe(-sign),
+              make_zoom("in"), make_zoom("out")]
+        y += [cls["none"], cls["swipe_left"], cls["swipe_right"],
+              cls["zoom_in"], cls["zoom_out"]]
+    X = np.stack([normalize_window(w + rng.normal(0, JITTER_PX, w.shape))
+                  for w in X]).astype(np.float32)
+    return X, np.array(y), np.ones(len(y), np.float32), np.full(len(y), subject)
