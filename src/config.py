@@ -70,6 +70,8 @@ MIDDLE_MCP = 9      # khoảng cách 0 -> 9 là đơn vị đo
 TIPS = [4, 8, 12, 16, 20]   # đầu 5 ngón: cái, trỏ, giữa, nhẫn, út
 THUMB_TIP = 4       # đầu ngón cái — cùng INDEX_TIP đo độ mở cái–trỏ (zoom IPN)
 INDEX_TIP = 8       # đầu ngón trỏ — dùng đo độ rung ở Phase 1
+FINGER_MCPS = {"index": 5, "middle": 9, "ring": 13, "pinky": 17}
+                    # gốc bốn ngón; ba khớp kế tiếp của mỗi ngón là +1, +2, +3
 NUM_LANDMARKS = 21
 
 # --------------------------------------------------------------------------
@@ -148,8 +150,11 @@ PROBE_MOTION_LEVELS = (0.25, 0.5, 0.75, 1.0, 1.5)   # ... nhân quãng dời c�
 LEAKAGE_F1 = 0.97                   # macro-F1 trên val cao hơn mức này: gần như
                                     # chắc chắn rò rỉ — dừng, kiểm tra splits.json
 TEST_USED_LOG = RESULTS_DIR / "TEST_USED.log"   # mỗi lần chạm test/real_test một dòng (luật 13)
-MODEL_NAMES = ("rules", "rf", "lstm")   # demo.py/evaluate.py --model, theo thứ tự
-                                    # ra đời — cũng là thứ tự hàng trong bảng so sánh
+MODEL_NAMES = ("rules", "rf", "lstm", "hybrid")
+                                    # demo.py/evaluate.py --model, theo thứ tự ra
+                                    # đời — cũng là thứ tự hàng trong bảng so sánh.
+                                    # hybrid (2026-10-10): vuốt theo LSTM, zoom theo
+                                    # rừng (src/hybrid.py)
 
 # --------------------------------------------------------------------------
 # LSTM trên chuỗi 42 chiều (Phase 7) — CPU, một chiều
@@ -165,10 +170,12 @@ LSTM_POOLING = "last"       # last / mean / max — Phase 8 so ba cách gộp
 LSTM_BATCH = 64
 LSTM_LR = 1e-3              # Adam
 LSTM_MAX_EPOCHS = 150
-LSTM_PATIENCE = 20          # dừng khi macro-F1 val không tăng sau bấy nhiêu epoch
+LSTM_PATIENCE = 20          # dừng khi macro-F1 val — trung bình trượt
+                            # LSTM_CURVE_SMOOTH epoch — không tăng sau bấy nhiêu epoch
 LSTM_EVAL_BATCH = 1024      # cỡ lô khi chỉ dự đoán — không ảnh hưởng kết quả
-LSTM_CURVE_SMOOTH = 10      # trung bình trượt bấy nhiêu epoch khi tìm chỗ loss
-                            # val ngừng giảm — loss val dao động mạnh giữa epoch
+LSTM_CURVE_SMOOTH = 10      # trung bình trượt bấy nhiêu epoch — để dừng sớm và
+                            # chọn checkpoint (từ 2026-10-10), và để tìm chỗ loss val
+                            # ngừng giảm: các đại lượng val dao động mạnh giữa epoch
 
 # --------------------------------------------------------------------------
 # Tăng cường (Phase 4) — chỉ trên tập train, sau khi chia (luật 9)
@@ -196,6 +203,15 @@ AUG_RIGID_KEEP = (0.0, 1.0) # mỗi bản giữ k phần sự đổi dáng tay c
                             # một phần thì không được nhận (notes.md mục 8)
 AUG_RIGID_SWEEP = (0.0, 0.25, 0.5, 1.0)     # các mức sweep_rigid.py thử...
 AUG_RIGID_KEEP_SWEEP = ((0.0, 0.0), (0.0, 1.0))  # ...với từng khoảng k này
+AUG_ZOOM_STYLE_P = 0.0      # LSTM (thêm 2026-10-10): xác suất một cửa sổ zoom của
+                            # train mang dáng ngón giữa–nhẫn–út của một bàn tay
+                            # IPN khác, đứng yên (augment.restyle_zoom). TẮT: ở 0,5
+                            # (train_lstm run_06) LSTM nhận zoom mọi kiểu ngón,
+                            # nhưng tay chỉ trỏ thành zoom_out — báo nhầm B0A/B0B
+                            # 3,0/4,7% → 11,6/12,5%. notes.md Phase 7 mục 9
+AUG_STATIC_SHARE = 0.0      # LSTM: thêm bấy nhiêu phần (so với số cửa sổ train)
+                            # cửa sổ bàn tay đứng yên, nhãn none. TẮT cùng phép trên
+                            # (run_06 dùng 0,1; chưa tách được tác dụng riêng)
 
 # --------------------------------------------------------------------------
 # Hằng số phải ĐO hoặc HIỆU CHUẨN. Luôn đọc qua require_measured()

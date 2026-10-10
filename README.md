@@ -137,8 +137,14 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 7 | `python scripts/train_lstm.py --no-augment` | Khảo sát không tăng cường, dừng sớm như bản chính (`run_03`); không thay mô hình của demo, không ghi bảng so sánh |
 | 7 | `python scripts/train_lstm.py --no-augment --patience 150` | Khảo sát không tăng cường, chạy đủ 150 epoch (`run_04`): đường học cho thấy điểm bắt đầu quá khớp |
 | 7 | `python scripts/probe_swipes.py --model lstm` | LSTM coi gì là vuốt — cùng các phép thử như rừng: `results/phase7/probe_swipes/run_NN/probe` |
+| 7 | `python scripts/probe_zooms.py` | Rừng và LSTM dựa vào phần nào của bàn tay để nhận zoom (ngón phụ duỗi / đứng yên, dáng tay tĩnh): `results/phase7/probe_zooms/run_NN/probe` |
+| 7 | `python scripts/replay_log.py <file>_landmarks.npz` | Chạy lại một phiên demo đã ghi (`demo.py --log` ghi kèm điểm mốc) qua mọi mô hình, cùng đường ống: `results/phase7/replay/run_NN/timeline` |
 | 7 | `python scripts/evaluate.py --model lstm --split val` | Đánh giá checkpoint LSTM đã lưu |
-| 7 | `python scripts/demo.py --model lstm --log <file.csv>` | Demo webcam bằng LSTM (CPU) |
+| 7 | `python scripts/demo.py --model lstm --log <file.csv>` | Demo webcam bằng LSTM (CPU); `--log` ghi kèm điểm mốc thô vào `<file>_landmarks.npz` |
+| 7 | `python scripts/train_lstm.py --zoom-style-p 0.5 --static-share 0.1` | Khảo sát đổi dáng ngón phụ của zoom và bàn tay đứng yên (`run_08`); không thay mô hình của demo |
+| 7 | `python scripts/train_lstm.py --stop-smooth 1` | Tái tạo `run_02`: dừng sớm theo điểm thô, cách cũ (khảo sát, không thay mô hình của demo) |
+| 7 | `python scripts/evaluate.py --model hybrid --split val` | Mô hình ghép — vuốt theo LSTM, zoom theo rừng ngẫu nhiên: thêm hàng vào `results/model_comparison` |
+| 7 | `python scripts/demo.py --model hybrid --show-features --log <file.csv>` | Demo webcam bằng mô hình ghép |
 | 8 | | |
 | 10 | | |
 
@@ -155,10 +161,20 @@ conda activate action-recognition
 
 cd /d D:\Project\Python\cv-action-recognition
 
-1.python scripts/live_landmarks.py
+1.
+python scripts/live_landmarks.py
 
-2. python scripts/demo.py --model rules
+2. 
+python scripts/demo.py --model rules
 
-3. python scripts/demo.py --model rf --log results/phase6/live_rf_work.csv
+3. 
+python scripts/demo.py --model rf --log results/phase6/live_rf_work.csv
 
-4. python scripts/demo.py --model rf --show-features --log results/phase6/live_rf_swipes.csv
+4. 
+python scripts/demo.py --model rf --show-features --log results/phase6/live_rf_swipes.csv
+
+5.
+python scripts/demo.py --model lstm --show-features --log results/phase7/live_lstm.csv
+
+6.
+python scripts/demo.py --model hybrid --show-features --log results/phase7/live_hybrid.csv

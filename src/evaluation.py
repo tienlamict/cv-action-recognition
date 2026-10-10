@@ -284,6 +284,31 @@ def guard_split(split, final, model, details=None, log_path=None):
     return log_path
 
 
+def batch_predictor(model_name, lstm_path=None):
+    """Mô hình đã lưu dưới dạng hàm dự đoán theo lô, nạp MỘT lần — cho các phép
+    thăm dò, nơi cùng một mô hình dự đoán hàng chục lô.
+
+    Args:
+        lstm_path: checkpoint LSTM khác ``LSTM_MODEL_PATH`` — ví dụ của một lần
+            huấn luyện khảo sát.
+
+    Returns:
+        ``(predict, input_kind)``: rừng nhận đặc trưng ``(n, 15)``
+        (``"features"``), LSTM nhận cửa sổ đã chuẩn hoá ``(n, T, 21, 2)``
+        (``"window"``) — đúng quy ước của ``probe_windows``.
+    """
+    if model_name == "lstm":
+        from src.datasets import window_sequences
+        from src.models import load_checkpoint, predict_proba
+        model, _ = load_checkpoint(lstm_path)
+        return (lambda W: predict_proba(model, window_sequences(W)).argmax(axis=1),
+                "window")
+    if model_name == "rf":
+        from src.forest import load_bundle
+        return load_bundle()["model"].predict, "features"
+    raise ValueError(f"Không có bộ dự đoán theo lô cho '{model_name}'")
+
+
 def predict_windows(model_name, F, X=None):
     """Dự đoán cả một tập bằng một mô hình đã có.
 
@@ -301,6 +326,11 @@ def predict_windows(model_name, F, X=None):
     """
     from src import forest, rules     # nạp lười: rf kéo theo scikit-learn
 
+    if model_name == "hybrid":
+        from src.hybrid import hybrid_labels
+        lstm_pred, lstm_details = predict_windows("lstm", F, X)
+        rf_pred, rf_details = predict_windows("rf", F)
+        return hybrid_labels(lstm_pred, rf_pred), {"lstm": lstm_details, "rf": rf_details}
     if model_name == "lstm":
         from src import models        # nạp lười: torch mất ~3 giây
         from src.datasets import window_sequences

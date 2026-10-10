@@ -86,6 +86,27 @@ def test_augment_chi_bat_o_tap_train():
                                   err_msg="tăng cường không được sửa X")
 
 
+def test_mau_ban_tay_dung_yen_mang_nhan_none_va_dem_vao_trong_so():
+    """static_share × N mẫu thêm, nhãn none, không cử động ngoài rung và các phép
+    biến đổi cả cửa sổ; trọng số lớp tính trên đúng các nhãn đó."""
+    from src.augment import finger_pose_pool
+
+    X, y, _, _ = labeled_windows("a", n=4)            # 20 cửa sổ
+    with pytest.raises(ValueError, match="finger_pool"):
+        WindowDataset(X, y, "train", augment=True, zoom_style_p=0.5)
+    dataset = WindowDataset(X, y, "train", augment=True, rng=np.random.default_rng(0),
+                            sigma=0.0, finger_pool=finger_pose_pool(X),
+                            zoom_style_p=1.0, static_share=0.5)
+    assert len(dataset) == 30 and dataset.n_static == 10
+    assert np.bincount(dataset.labels)[0] == np.sum(y == 0) + 10
+    for i in range(20, 30):
+        seq, label = dataset[i]
+        assert label == 0
+        wrist = seq.numpy()[:, :2]
+        assert np.ptp(wrist, axis=0).max() < 0.5, "cổ tay gần như không dời"
+    assert len(WindowDataset(X, y, "train")) == 20, "không tăng cường thì không thêm mẫu"
+
+
 def test_overfit_10_mau():
     """Phép thử vòng huấn luyện: 10 mẫu, 200 epoch → học thuộc gần 100%.
     Không học thuộc nổi thì lỗi ở vòng huấn luyện, mọi kết quả sau vô nghĩa."""
@@ -116,16 +137,39 @@ def test_trong_so_lop_balanced():
 
 
 def test_dung_som_giu_epoch_tot_nhat():
+    """window=1: theo điểm thô."""
     model = small_model()
-    stopper = training.EarlyStop(patience=2)
+    stopper = training.EarlyStop(patience=2, window=1)
     scores = [0.1, 0.3, 0.3, 0.2, 0.25, 0.9]
     for epoch, score in enumerate(scores, start=1):
         stopper.update(epoch, score, model)
         if stopper.should_stop:
             break
     assert (stopper.best_epoch, stopper.best_score) == (2, 0.3), "bằng điểm: giữ epoch sớm"
+    assert stopper.best_raw == 0.3
     assert stopper.last_epoch == 4, "dừng sau 2 epoch không tăng"
     assert stopper.best_state is not None
+
+
+def test_dung_som_theo_trung_binh_truot_khong_bi_dinh_nhieu_danh_lua():
+    """Một đỉnh nhiễu sớm (0,9 ở epoch 2) không làm dừng giữa chừng khi mô hình
+    còn đang lên đều; checkpoint là nơi đường làm mượt cao nhất."""
+    model = small_model()
+    scores = [0.3, 0.9, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6, 0.65, 0.61, 0.55, 0.55]
+    raw = training.EarlyStop(patience=3, window=1)
+    smooth = training.EarlyStop(patience=3, window=3)
+    for stopper in (raw, smooth):
+        for epoch, score in enumerate(scores, start=1):
+            stopper.update(epoch, score, model)
+            if stopper.should_stop:
+                break
+    assert raw.best_epoch == 2 and raw.last_epoch == 5, "đỉnh nhiễu: dừng sớm"
+    assert smooth.last_epoch == 12, "đường làm mượt còn lên: không dừng"
+    assert smooth.best_epoch == 10 and smooth.best_raw == 0.61
+    assert smooth.best_score == pytest.approx((0.6 + 0.65 + 0.61) / 3)
+    early = training.EarlyStop(patience=1, window=3)
+    early.update(1, 0.9, model)
+    assert not early.should_stop and early.best_state is None, "chưa đủ cửa sổ: chưa chọn"
 
 
 def test_tom_tat_duong_hoc_chiu_duoc_nhieu():

@@ -11,6 +11,15 @@
 > Huấn luyện tất định: `run_02` cho đúng từng con số của `run_01`, cả lịch sử 144 epoch lẫn
 > ma trận nhầm lẫn. `run_01` là lần chạy đầu. Checkpoint của nó không nạp được vì lỗi lưu
 > `torch.__version__` (đã sửa, mục 7), nên đã được thay bằng checkpoint của `run_02`.
+>
+> **Cập nhật 2026-10-10 (mục 9):**
+>
+> - Mô hình LSTM của demo giờ là `train_lstm/run_07`. Nó học trên đúng quỹ đạo của `run_02`
+>   (trùng từng chữ số suốt 106 epoch), chỉ khác cách chọn checkpoint: theo trung bình trượt
+>   10 epoch, nên checkpoint là epoch 86 thay vì 124.
+> - Mục 1–8 vẫn là số liệu của `run_02`. Tái tạo bằng `python scripts/train_lstm.py
+>   --stop-smooth 1`.
+> - Demo nên dùng `--model hybrid`: vuốt theo LSTM, zoom theo rừng ngẫu nhiên.
 
 ## 1. Cấu hình
 
@@ -213,5 +222,158 @@ Video thuộc tập val. Đây chỉ là phép thử nhanh, không thay được
 | Đường loss cho thấy rõ điểm bắt đầu quá khớp | **rõ ở bản không tăng cường** (`run_04`): loss val thấp nhất ở epoch 38 rồi tăng. Ở bản chính chỉ thấy khoảng hở nới rộng từ khoảng epoch 20; loss val không quay đầu trong 144 epoch (mục 3). Người dùng xét xem như vậy đã đủ chưa |
 | Bảng một hàng mỗi mô hình trên cùng tập val | **đạt**: mục 2; `results/model_comparison.md` |
 | `test_overfit_10_mau` xanh | **đạt** |
-| `demo.py --model lstm` chạy trên webcam | **chờ người dùng**; đã chạy trên video IPN (mục 6) |
+| `demo.py --model lstm` chạy trên webcam | **đạt** (người dùng, 2026-10-10): vuốt tốt hơn hẳn rừng, nhưng zoom kém đi — nguyên nhân và cách sửa ở mục 9 |
 | `results/TEST_USED.log` vẫn trống | **đạt**: file chưa tồn tại |
+
+## 9. Zoom kém đi khi chạy LSTM trực tiếp (2026-10-10)
+
+**Triệu chứng.** Người dùng chạy `demo.py --model lstm --show-features --log
+results/phase7/live_lstm.csv`. Vuốt cải thiện rõ so với rừng, nhưng zoom tệ đi.
+
+### 9.1. Log trực tiếp và kiểm tra đường ống
+
+- **Lúc người dùng zoom:** `pinch_delta` là +1,6…+1,9 (mở ngón) và −1,6…−2,1 (chụm ngón),
+  cổ tay gần như đứng yên. Tức là còn mạnh hơn hộp 25–75 của IPN (`zoom_in` +0,70…+1,80).
+  LSTM vẫn trả `none`, độ tin 0,89–1,00. Ví dụ ở giây 8,2–8,6 và 10,4–11,0.
+- **Giây 14,0–15,8, bàn tay đứng yên:** `pinch_delta` −0,13…+0,18, `max_vx` 0,10–0,34,
+  `open_range` 0,02–0,14. LSTM báo `zoom_out` liên tục, độ tin 0,70–0,89.
+- **Đường ống không lỗi.** Theo SPEC, khi demo tệ hơn offline thì phải loại trừ lỗi đường ống
+  trước. Lệnh `demo.py --model lstm --source data/ipn/videos/videos/1CM42_12_R__157.avi
+  --no-display --max-sec 135`, dùng mô hình lúc đó là `run_02`, nhận cả hai cú zoom của IPN
+  (khoảng giây 118–121 và 127–130) với độ tin 0,88–1,00. `pinch_delta` của chúng là
+  ±1,2…2,3, cùng tầm với của người dùng.
+
+**Kết luận:** cùng một độ mở–chụm cái–trỏ, nhưng LSTM nhận zoom của IPN mà không nhận zoom
+của người dùng. Thứ khác nhau nằm ở phần còn lại của bàn tay.
+
+### 9.2. LSTM và rừng dựa vào gì để nhận zoom
+
+`scripts/probe_zooms.py`, bảng `probe_zooms/run_03`, mô hình hiện tại. Thử trên các cửa sổ
+zoom thật của val mà mỗi mô hình đang nhận đúng. Cổ tay, ngón cái, ngón trỏ giữ nguyên, chỉ
+đổi các ngón còn lại. "Duỗi thẳng" dùng độ dài ngón đo trên những bàn tay mở hẳn của IPN.
+Số ghi dạng `zoom_in` / `zoom_out`. Lần chạy `run_01`, với LSTM `run_02`, cho cùng bức tranh.
+
+| Sửa đổi | Rừng | LSTM |
+|---|---|---|
+| Không sửa (chỉ cộng rung) | 93% / 98% | 100% / 100% |
+| Nhẫn, út duỗi thẳng | 63% / 85% | **10% / 35%** |
+| Giữa, nhẫn, út duỗi thẳng — zoom hai ngón | 52% / 54% | **7% / 38%** |
+| Giữa, nhẫn, út đứng yên | 76% / 98% | 50% / 80% |
+| Bàn tay đứng yên ở dáng cái–trỏ đang mở | 0% báo zoom | **46–62% vẫn báo zoom** |
+
+Dòng cuối: dáng cuối của cửa sổ `zoom_in` cho 46% `zoom_in`. Dáng đầu của cửa sổ `zoom_out`
+cho 5% `zoom_out` và 57% `zoom_in`.
+
+**Hai nguyên nhân:**
+
+1. **LSTM học kiểu zoom riêng của IPN, không học bản chất zoom.** Người diễn IPN zoom bằng ba
+   ngón, nhẫn và út gập (`docs/gestures.md`). Nhẫn và út duỗi ra là LSTM gần như không còn
+   nhận zoom. Zoom tự nhiên thì thường để các ngón kia thả lỏng hoặc duỗi.
+2. **LSTM đoán zoom từ dáng tay tĩnh.** Đây chính là chuỗi `zoom_out` ở giây 14,0–15,8 của
+   log.
+
+Rừng ít bị ảnh hưởng hơn hẳn, vì nó nhìn chủ yếu khoảng cách cái–trỏ (`pinch_range`,
+`pinch_delta` đứng đầu bảng độ quan trọng). Nó không bao giờ báo zoom khi bàn tay đứng yên.
+
+### 9.3. Thử sửa ngay trong LSTM: không dùng được
+
+Hai phép tăng cường mới, chỉ trên train (`src/augment.py`, `src/datasets.py`):
+
+- **Đổi dáng ngón phụ:** cửa sổ zoom mang dáng ngón giữa–nhẫn–út, hoặc chỉ nhẫn–út, của một
+  bàn tay IPN thật khác, đứng yên.
+- **Bàn tay đứng yên:** thêm cửa sổ cả bàn tay đứng yên, nhãn `none`.
+
+Lần chạy tái lập được là `train_lstm/run_08`:
+`python scripts/train_lstm.py --zoom-style-p 0.5 --static-share 0.1`. `run_05` và `run_06`
+là các lần thử trước bằng code chưa sửa xong (mục 9.4), cho cùng kết luận.
+
+- **Lợi** (`probe_zooms/run_04`): zoom được nhận ở mọi kiểu ngón phụ (88–98%), và bàn tay
+  đứng yên không còn bị báo zoom (0%). Phép thăm dò dùng ngón duỗi thẳng tổng hợp, còn tăng
+  cường dùng dáng tay thật, nên đây là phép kiểm tra tương đối độc lập.
+- **Giá** (`run_08` so với `run_07`, trên val):
+
+| | `run_07` | `run_08` |
+|---|---|---|
+| Precision `zoom_out` | 0,46 | 0,10 |
+| F1 `zoom_out` | 0,53 | 0,18 |
+| Báo nhầm với tay chỉ trỏ `B0A` / `B0B` | 3,5% / 5,9% | 12,0% / 10,2% |
+
+**Lý do:** kiểu ngón riêng của IPN chính là thứ giúp LSTM phân biệt zoom với tay chỉ trỏ.
+Dạy nó "ngón phụ làm gì cũng được, miễn cái–trỏ chụm lại là `zoom_out`" thì tay chỉ trỏ có
+ngón cái nhích lại gần ngón trỏ cũng thành `zoom_out`. Hai phép này được giữ trong code nhưng
+**tắt** (`AUG_ZOOM_STYLE_P = AUG_STATIC_SHARE = 0`). Phép "bàn tay đứng yên" riêng lẻ chưa
+được tách ra đo; để cho bảng khảo sát của Phase 8.
+
+### 9.4. Đổi cách dừng sớm: theo trung bình trượt
+
+- **Lý do:** macro-F1 val lệch khoảng ±0,04 giữa hai epoch liền nhau. Dừng theo điểm thô thì
+  một đỉnh nhiễu đến sớm cắt ngang việc học. `run_05` dừng ở epoch 48 vì một đỉnh ở epoch 28;
+  `run_03` dừng ở epoch 40 vì một đỉnh ở epoch 20. Checkpoint cũng rơi đúng vào đỉnh nhiễu:
+  0,6014 của `run_02`.
+- **Giờ:** dừng sớm và chọn checkpoint theo trung bình trượt 10 epoch (`EarlyStop`; SPEC
+  Phase 7, sửa 2026-10-10).
+- **Kết quả với mô hình chính (`run_07`):**
+  - cùng seed, cùng tăng cường, nên trùng `run_02` từng chữ số suốt 106 epoch;
+  - checkpoint ở epoch 86: trung bình trượt 0,5336, chính epoch đó 0,5560;
+  - đây là con số đưa vào bảng so sánh, thay cho 0,6014.
+- **Cái giá nhỏ:** đường làm mượt của `run_02` còn nhích lên khoảng 0,546 quanh epoch 131,
+  nhưng dừng sau 20 epoch không tăng thì không tới được đó. Chênh lệch khoảng 0,01, nằm trong
+  mức dao động.
+- **Một lỗi phát hiện trên đường đi:** đường dự phòng khi tăng cường bị từ chối từng chuẩn hoá
+  lại cửa sổ gốc, làm lệch chữ số cuối và không tái tạo được `run_02`. Đã sửa. Nhờ vậy
+  `--stop-smooth 1` cho đúng `run_02`.
+
+### 9.5. Cách sửa được chọn: mô hình ghép `--model hybrid`
+
+Mỗi mô hình được tin ở đúng họ cử chỉ mà các phép thăm dò cho thấy nó vững (`src/hybrid.py`):
+
+- LSTM đoán vuốt → lấy vuốt (mục 5: chịu được hất rồi kéo về, cổ tay đi ngắn);
+- rừng đoán zoom → lấy zoom (mục 9.2);
+- còn lại → `none`.
+
+Cả hai thành phần đều đã được người dùng thấy tốt trên webcam: vuốt của LSTM (lần thử này),
+zoom của rừng (Phase 6).
+
+Trên tập val (`evaluate.py --model {lstm,hybrid}`, bảng `evaluate/run_05`, `run_06`):
+
+| Mô hình | macro-F1 | Mức sự kiện vuốt trái / phải | Zoom in / out | Báo nhầm `none` | Cụm báo nhầm/phút |
+|---|---|---|---|---|---|
+| Rừng | 0,4361 | 70% / 70% | 59% / 56% | 8,2% | 14,8 |
+| LSTM (`run_07`) | 0,5560 | 93% / 85% | 89% / 80% | 5,8% | 8,6 |
+| **Ghép** | **0,5061** | 93% / 85% | 59% / 56% | 6,0% | 8,9 |
+
+- **Trên IPN, ghép kém LSTM.** Zoom của LSTM giỏi hơn **khi người làm đúng kiểu IPN**. Với
+  kiểu zoom của người dùng thì lần thử trực tiếp cho thấy điều ngược lại.
+- **Nếu người dùng zoom đúng kiểu IPN** (ba ngón, nhẫn và út gập), `--model lstm` cũng sẽ
+  nhận được.
+- **Chạy thử trên video IPN** (`demo.py --model hybrid --source …1CM42_12_R__157.avi
+  --no-display --max-sec 132`):
+  - nhận được cả hai cú zoom (phần của rừng) và cú vuốt trái G05 (phần của LSTM);
+  - các cụm báo vuốt nhầm lúc người diễn chỉ tay vẫn còn, đó là của LSTM;
+  - chạy lại phiên đó qua bốn mô hình, số cụm nhãn khác `none` trong 2,2 phút: luật 81, rừng
+    29, LSTM 22, ghép 26 (`replay/run_01`).
+
+### 9.6. Ghi điểm mốc để chạy lại phiên trực tiếp
+
+Log của lần thử này chỉ có 4 đặc trưng, nên không kiểm được nguyên nhân trên chính bàn tay
+người dùng.
+
+- **Ghi:** `demo.py --log FILE` giờ ghi kèm điểm mốc thô vào `FILE_landmarks.npz`, theo
+  schema của `data/landmarks`, nguồn `webcam`.
+- **Chạy lại:** `scripts/replay_log.py` đẩy lại từng frame qua đúng `LivePredictor` của demo,
+  với mọi mô hình hoặc một checkpoint khác (`--extra-lstm`).
+- **Kiểm chứng:** chạy lại trùng 150/150 lần dự đoán của LSTM và 659/659 của mô hình ghép so
+  với lúc demo chạy.
+
+### 9.7. Việc tiếp theo
+
+1. **Người dùng thử `--model hybrid` trên webcam**, có ghi log:
+
+   ```
+   python scripts/demo.py --model hybrid --show-features --log results/phase7/live_hybrid.csv
+   ```
+
+   Mỗi cử chỉ 10 lần, cộng 5 phút làm việc bình thường.
+2. **Chạy lại phiên đó qua cả bốn mô hình** bằng `replay_log.py`, trên chính bàn tay người
+   dùng. Nếu zoom vẫn kém, điểm mốc sẽ cho thấy cụ thể khác IPN ở đâu.
+3. **Bảng khảo sát Phase 8:** đổi dáng ngón phụ và bàn tay đứng yên, đo riêng từng phép.

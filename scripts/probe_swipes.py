@@ -28,9 +28,9 @@ import numpy as np  # noqa: E402
 from src import config  # noqa: E402
 from src.augment import SWIPE_LABELS, rigid_hand, shape_scaled  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
-from src.evaluation import probe_windows, split_features  # noqa: E402
+from src.evaluation import (batch_predictor, probe_windows,  # noqa: E402
+                            split_features)
 from src.features import FEATURE_NAMES  # noqa: E402
-from src.forest import load_bundle  # noqa: E402
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
 from src.splits import read_splits  # noqa: E402
 from src.tables import write_table  # noqa: E402
@@ -80,34 +80,22 @@ def probe(predict, windows, ratios, label, transform, rng, input_kind="features"
     return out
 
 
-def load_predictor(name):
-    """Mô hình đã lưu dưới dạng hàm dự đoán theo lô.
-
-    Returns:
-        ``(predict, input_kind, thư mục kết quả của phase)`` — rừng nhận đặc
-        trưng, LSTM nhận cửa sổ đã chuẩn hoá.
-    """
-    if name == "lstm":
-        from src.datasets import window_sequences
-        from src.models import load_checkpoint, predict_proba
-        model, _ = load_checkpoint()
-        return (lambda W: predict_proba(model, window_sequences(W)).argmax(axis=1),
-                "window", config.PHASE7_RESULTS_DIR)
-    return load_bundle()["model"].predict, "features", config.PHASE6_RESULTS_DIR
-
-
 def main():
     setup_console()
     parser = make_parser(__doc__)
     parser.add_argument("--windows", default=config.WINDOWS_NPZ)
     parser.add_argument("--model", default="rf", choices=("rf", "lstm"))
+    parser.add_argument("--lstm-checkpoint", default=None,
+                        help="với --model lstm: checkpoint khác mô hình của demo")
     args = parser.parse_args()
 
     with np.load(args.windows, allow_pickle=False) as data:
         F, y, pick = split_features(data["X"], data["y"], data["presence"],
                                     data["subject"], read_splits(), "val")
         X, presence = data["X"][pick].astype(np.float64), data["presence"][pick]
-    predict, input_kind, base_dir = load_predictor(args.model)
+    predict, input_kind = batch_predictor(args.model, args.lstm_checkpoint)
+    base_dir = (config.PHASE7_RESULTS_DIR if args.model == "lstm"
+                else config.PHASE6_RESULTS_DIR)
     pred = predict(X if input_kind == "window" else F)
     rng = np.random.default_rng(config.SEED)
 
@@ -132,6 +120,7 @@ def main():
     run_dir = next_run_dir(base_dir / "probe_swipes")
     write_table(rows, list(rows[0]), run_dir / "probe")
     write_manifest(run_dir, {"script": "probe_swipes", "model": args.model,
+                             "lstm_checkpoint": args.lstm_checkpoint,
                              "n_rows": len(rows)})
 
     for label in SWIPE_LABELS:

@@ -173,8 +173,12 @@ class LSTMRunner:
             self.model, _ = load_checkpoint(self.path)
         return self
 
-    def __call__(self, win_norm):
+    def proba(self, win_norm):
+        """Xác suất softmax của mọi lớp, theo thứ tự ``CLASSES``: ``(n_classes,)``."""
         self.load()
-        proba = predict_proba(self.model, window_sequence(win_norm)[None])[0]
+        return predict_proba(self.model, window_sequence(win_norm)[None])[0]
+
+    def __call__(self, win_norm):
+        proba = self.proba(win_norm)
         k = int(np.argmax(proba))
         return k, float(proba[k])

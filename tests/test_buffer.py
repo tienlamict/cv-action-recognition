@@ -137,9 +137,46 @@ def test_chon_mo_hinh_theo_ten():
     assert make_model("rules") is rules.classify
     assert isinstance(make_model("rf"), ForestClassifier)
     assert make_model("lstm").input_kind == "window"
+    assert make_model("hybrid").input_kind == "both"
     with pytest.raises(ValueError, match="lstm"):
         make_model("svm")
-    assert set(config.MODEL_NAMES) == {"rules", "rf", "lstm"}
+    assert set(config.MODEL_NAMES) == {"rules", "rf", "lstm", "hybrid"}
+
+
+def test_ghi_diem_moc_roi_chay_lai_ra_dung_du_doan(tmp_path):
+    """Phiên demo ghi điểm mốc theo schema của data/landmarks; chạy lại qua
+    replay_log cho đúng các dự đoán lúc chạy trực tiếp — kể cả frame mất tay."""
+    from src.io_data import load_clip
+    from src.live import LandmarkRecorder, landmarks_path
+    from tests.scripts_import import load_script
+
+    replay = load_script("replay_log")
+
+    def model(features):
+        return int(features[FEATURE_NAMES.index("max_vx")] > 0.5), 0.9
+
+    xy = static_norm(60, seed=1)
+    xy[20:23] = np.nan
+    recorder, live = LandmarkRecorder(), []
+    predictor = LivePredictor(model)
+    for i, frame in enumerate(xy):
+        ts = 5.0 + i / 30          # phiên không bắt đầu ở 0: lưu thì dời về 0
+        recorder.add(ts, frame, np.all(np.isfinite(frame)), W, H)
+        p = predictor.update(ts, frame, W, H)
+        if p is not None:
+            live.append(p.label)
+    path = recorder.save(landmarks_path(tmp_path / "live.csv"), model="test")
+    assert path.endswith("live_landmarks.npz")
+
+    ts, xy_back, w, h, segments, _, meta = load_clip(path)
+    assert (w, h) == (W, H) and meta["source"] == "webcam" and meta["model"] == "test"
+    assert ts[0] == 0.0 and segments.shape == (0, 3)
+    np.testing.assert_allclose(xy_back, xy, rtol=1e-6)
+    replayed = replay.replay(model, ts, xy_back, w, h)
+    assert [p.label for p in replayed] == live
+
+    rows = replay.timeline_rows({"a": replayed, "b": replayed})
+    assert len(rows) == len(live) and rows[0]["a"] == rows[0]["b"]
 
 
 def test_dem_dot_bao_lien_nhau_cung_lop():

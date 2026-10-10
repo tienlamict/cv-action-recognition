@@ -13,6 +13,10 @@ cộng độ xòe open_range — tô xanh nếu nằm trong hộp 25–75 của 
 đỏ nếu nằm ngoài. Với vuốt, open_range xanh nghĩa là bàn tay có mở ra trong lúc
 hất như IPN. Log của --log ghi đúng các đặc trưng này.
 
+--log FILE: ghi mỗi lần dự đoán vào FILE (CSV), và điểm mốc thô của cả phiên vào
+FILE_landmarks.npz — chạy lại phiên đó qua mô hình bất kỳ bằng
+scripts/replay_log.py.
+
 Bấm q hoặc Esc để thoát. Mọi xử lý nằm trong src/live.py — file này chỉ nối
 webcam, màn hình và log.
 
@@ -38,9 +42,10 @@ from src.display import make_display, read_key  # noqa: E402
 from src.fps import FpsMeter  # noqa: E402
 from src.hands import HandTracker  # noqa: E402
 from src.io_video import iter_frames  # noqa: E402
-from src.live import (PRACTICE_CLASSES, LivePredictor,  # noqa: E402
-                      PredictionLog, count_episodes, label_name,
-                      load_feature_ranges, make_model, screen_lines)
+from src.live import (PRACTICE_CLASSES, LandmarkRecorder,  # noqa: E402
+                      LivePredictor, PredictionLog, count_episodes, label_name,
+                      landmarks_path, load_feature_ranges, make_model,
+                      screen_lines)
 from src.recording import track  # noqa: E402
 
 WINDOW = "demo (q = quit)"
@@ -64,6 +69,7 @@ def main():
     ranges = load_feature_ranges() if args.show_features else None
     practice = PRACTICE_CLASSES[0] if args.show_features else None
     log = PredictionLog(args.log) if args.log else None
+    recorder = LandmarkRecorder() if args.log else None
     fps_meter = FpsMeter()
     last, labels = None, []
 
@@ -73,6 +79,8 @@ def main():
                 h, w = tracked.frame_bgr.shape[:2]
                 fps_meter.tick(tracked.ts)
                 prediction = predictor.update(tracked.ts, tracked.xy_norm, w, h)
+                if recorder:
+                    recorder.add(tracked.ts, tracked.xy_norm, tracked.present, w, h)
                 if prediction is not None:
                     last = prediction
                     labels.append(prediction.label)
@@ -100,6 +108,8 @@ def main():
             cv2.destroyAllWindows()
             if log:
                 log.close()
+            if recorder and recorder.ts:
+                recorder.save(landmarks_path(args.log), model=args.model)
 
     n_valid = sum(label is not None for label in labels)
     print(f"\n{len(labels)} lần dự đoán, {n_valid} có cửa sổ hợp lệ.")
@@ -111,6 +121,7 @@ def main():
               f"phân vị {config.FPS_LOW_PERCENTILE:g}% thấp {summary['low_fps']:.1f}")
     if log:
         print(f"Log: {log.path}")
+        print(f"Điểm mốc (chạy lại bằng scripts/replay_log.py): {landmarks_path(args.log)}")
 
 
 if __name__ == "__main__":

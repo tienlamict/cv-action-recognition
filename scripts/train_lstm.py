@@ -2,7 +2,9 @@
 
 - Mỗi cửa sổ đã chuẩn hoá thành chuỗi (T, 42) qua datasets.window_sequence —
   đúng hàm mà demo.py --model lstm dùng. Tập train tăng cường MỚI mỗi epoch
-  (augment.augment); val không bao giờ tăng cường.
+  (augment.augment), cộng hai phép riêng cho LSTM (thêm 2026-10-10): cửa sổ
+  zoom đổi dáng ngón phụ (AUG_ZOOM_STYLE_P) và cửa sổ bàn tay đứng yên nhãn
+  none (AUG_STATIC_SHARE). Val không bao giờ tăng cường.
 - LSTMClassifier một chiều: LSTM_HIDDEN, LSTM_LAYERS, LSTM_DROPOUT, LSTM_POOLING.
 - Adam (LSTM_LR), CrossEntropyLoss có trọng số lớp "balanced" tính trên train.
 - Mỗi epoch đo loss và macro-F1 của train (không tăng cường) và val theo cùng
@@ -16,14 +18,16 @@ Con số val của LSTM lạc quan hơn so với rừng: epoch được CHỌN t
 macro-F1 val, còn rừng không chọn gì trên val. Script in thêm mức trung bình của
 LSTM_PATIENCE epoch cuối, và chỗ loss val (đã làm mượt) ngừng giảm.
 
---no-augment là lần chạy KHẢO SÁT (Phase 8: có so với không tăng cường; và để
-thấy rõ điểm bắt đầu quá khớp): checkpoint lưu trong thư mục chạy, không thay
-mô hình của demo, không ghi vào bảng so sánh mô hình.
+Lệch khỏi config ở bất kỳ tham số nào (--no-augment, --max-epochs, --patience,
+--zoom-style-p, --static-share, --stop-smooth) là một lần KHẢO SÁT: checkpoint
+lưu trong thư mục chạy, không thay mô hình của demo, không ghi vào bảng so sánh.
 
 Ví dụ:
     python scripts/train_lstm.py
     python scripts/train_lstm.py --no-augment
     python scripts/train_lstm.py --no-augment --patience 150   # không dừng sớm
+    python scripts/train_lstm.py --zoom-style-p 0.5 --static-share 0.1
+    python scripts/train_lstm.py --stop-smooth 1     # dừng theo điểm thô, như run_02
     python scripts/train_lstm.py --max-epochs 3      # chạy thử nhanh
 """
 
@@ -41,6 +45,7 @@ from torch.utils.data import DataLoader  # noqa: E402
 
 from src import config  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
+from src.augment import finger_pose_pool  # noqa: E402
 from src.datasets import WindowDataset, window_sequences  # noqa: E402
 from src.evaluation import (baselines, event_rows,  # noqa: E402
                             false_alarm_rows, predict_windows, split_features,
@@ -59,13 +64,17 @@ MODEL_LABELS = {"rules": "luật (Phase 5)", "rf": "rừng ngẫu nhiên (Phase 
                 "lstm": "LSTM (Phase 7)"}
 
 
+#: Mô hình ra đời trước LSTM, đặt cạnh nó trong bảng so sánh. ``hybrid`` dùng
+#: chính LSTM đang huấn luyện nên không thuộc nhóm này — đánh giá nó bằng
+#: ``evaluate.py --model hybrid`` sau khi huấn luyện xong.
+EARLIER_MODELS = ("rules", "rf")
+
+
 def other_models(F_val):
     """Dự đoán của các mô hình trước trên cùng tập val. Mô hình chưa huấn
     luyện thì bỏ qua, kèm lý do."""
     out, skipped = {}, {}
-    for name in config.MODEL_NAMES:
-        if name == "lstm":
-            continue
+    for name in EARLIER_MODELS:
         try:
             out[name] = predict_windows(name, F_val)[0]
         except FileNotFoundError as error:
@@ -115,10 +124,27 @@ def main():
     parser.add_argument("--patience", type=int, default=config.LSTM_PATIENCE,
                         help="mặc định %(default)s; đặt bằng --max-epochs để chạy "
                              "hết, xem đường học khi không dừng sớm")
+    parser.add_argument("--zoom-style-p", type=float, default=config.AUG_ZOOM_STYLE_P,
+                        help="mặc định %(default)s (AUG_ZOOM_STYLE_P)")
+    parser.add_argument("--static-share", type=float, default=config.AUG_STATIC_SHARE,
+                        help="mặc định %(default)s (AUG_STATIC_SHARE)")
+    parser.add_argument("--stop-smooth", type=int, default=config.LSTM_CURVE_SMOOTH,
+                        help="trung bình trượt bấy nhiêu epoch khi dừng sớm; 1 = "
+                             "theo điểm thô như run_01–05. Mặc định %(default)s")
     args = parser.parse_args()
     augment = not args.no_augment
-    labels = MODEL_LABELS if augment else {**MODEL_LABELS,
-                                           "lstm": "LSTM không tăng cường"}
+    # Lệch khỏi config ở bất kỳ tham số nào là một lần KHẢO SÁT: checkpoint nằm
+    # trong thư mục chạy, mô hình của demo và bảng so sánh không đổi.
+    deviations = {name: value for name, value, default in (
+        ("no_augment", args.no_augment, False),
+        ("max_epochs", args.max_epochs, config.LSTM_MAX_EPOCHS),
+        ("patience", args.patience, config.LSTM_PATIENCE),
+        ("zoom_style_p", args.zoom_style_p, config.AUG_ZOOM_STYLE_P),
+        ("static_share", args.static_share, config.AUG_STATIC_SHARE),
+        ("stop_smooth", args.stop_smooth, config.LSTM_CURVE_SMOOTH)) if value != default}
+    survey = bool(deviations)
+    labels = {**MODEL_LABELS, "lstm": "LSTM không tăng cường"} if not augment else (
+        {**MODEL_LABELS, "lstm": "LSTM khảo sát"} if survey else MODEL_LABELS)
 
     set_seed(config.SEED)
     splits = read_splits()
@@ -132,14 +158,18 @@ def main():
     X_va = data["X"][val]
     clip, t0, src = (data[k][val] for k in ("clip", "t0", "src_label"))
 
+    # kho dáng ngón phụ CHỈ từ train (luật 9); không tăng cường thì không cần
+    pool = finger_pose_pool(X_tr) if augment else None
     train_set = WindowDataset(X_tr, y_tr, "train", augment=augment,
-                              rng=np.random.default_rng(config.SEED))
+                              rng=np.random.default_rng(config.SEED), finger_pool=pool,
+                              zoom_style_p=args.zoom_style_p,
+                              static_share=args.static_share)
     loader = DataLoader(train_set, batch_size=config.LSTM_BATCH, shuffle=True,
                         generator=torch.Generator().manual_seed(config.SEED))
     seq_tr, seq_va = window_sequences(X_tr), window_sequences(X_va)
 
     model = LSTMClassifier()
-    weights = class_weights(y_tr)
+    weights = class_weights(train_set.labels)
     loss_fn = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.LSTM_LR)
 
@@ -158,15 +188,16 @@ def main():
     started = time.perf_counter()
     history, stopper = fit(model, loader, seq_tr, y_tr, seq_va, y_va, loss_fn,
                            optimizer, max_epochs=args.max_epochs,
-                           patience=args.patience, on_epoch=report)
+                           patience=args.patience, on_epoch=report,
+                           window=args.stop_smooth)
     train_sec = time.perf_counter() - started
 
     model.load_state_dict(stopper.best_state)
     pred = predict_proba(model, seq_va).argmax(axis=1)
     lstm = summarize(y_va, pred)
-    if abs(lstm["macro_f1"] - stopper.best_score) > 1e-9:
+    if abs(lstm["macro_f1"] - stopper.best_raw) > 1e-9:
         raise SystemExit(f"Nạp lại trọng số tốt nhất ra macro-F1 {lstm['macro_f1']:.6f}, "
-                         f"khác lúc chọn {stopper.best_score:.6f} — kiểm tra vòng huấn luyện.")
+                         f"khác lúc chọn {stopper.best_raw:.6f} — kiểm tra vòng huấn luyện.")
     min_loss = min(history, key=lambda r: r["val_loss"])
     turn_epoch, turn_loss = smoothed_minimum(history, "val_loss")
     tail_mean, tail_std = tail_stats(history, "val_macro_f1")
@@ -194,40 +225,48 @@ def main():
 
     # Lần chạy khảo sát không bao giờ thay mô hình của demo hay bảng so sánh.
     model_path = save_checkpoint(
-        model, None if augment else run_dir / config.LSTM_MODEL_PATH.name,
-        epoch=stopper.best_epoch, val_macro_f1=stopper.best_score,
+        model, run_dir / config.LSTM_MODEL_PATH.name if survey else None,
+        epoch=stopper.best_epoch, val_macro_f1=stopper.best_raw,
+        val_macro_f1_smoothed=stopper.best_score,
         epochs_run=len(history), n_train=int(len(y_tr)), seed=config.SEED,
         augment=augment, windows_sha256=file_sha256(args.windows),
         torch_version=torch.__version__,
         created=datetime.now().isoformat(timespec="seconds"))
-    if augment:
+    if not survey:
         random_f1, none_f1 = baselines(y_va)
         upsert_comparison({"model": "lstm", "split": "val", "n_windows": int(len(y_va)),
                            "macro_f1": lstm["macro_f1"], "baseline_random": random_f1,
                            "baseline_none": none_f1, "run": relative_to_root(run_dir)})
     write_manifest(run_dir, {
-        "script": "train_lstm", "augment": augment, "patience": args.patience,
+        "script": "train_lstm", "augment": augment, "survey": deviations,
+        "patience": args.patience, "stop_smooth": args.stop_smooth,
         "seeds": {"random": config.SEED, "numpy": config.SEED, "torch": config.SEED},
         "n_train": int(len(y_tr)), "n_val": int(len(y_va)),
         "epochs_run": len(history), "best_epoch": stopper.best_epoch,
-        "val_macro_f1": stopper.best_score, "min_val_loss_epoch": min_loss["epoch"],
+        "val_macro_f1": stopper.best_raw, "val_macro_f1_smoothed": stopper.best_score,
+        "min_val_loss_epoch": min_loss["epoch"],
         "val_loss_smoothed_min_epoch": turn_epoch, "val_loss_smoothed_min": turn_loss,
         "val_macro_f1_tail_mean": tail_mean, "val_macro_f1_tail_std": tail_std,
         "train_seconds": train_sec, "augment_fallbacks": train_set.n_fallback,
+        "static_windows_per_epoch": train_set.n_static,
+        "zoom_style_p": train_set.zoom_style_p,
+        "finger_pool_size": 0 if pool is None else int(len(pool[0])),
         "class_weights": weights.tolist(), "torch_version": torch.__version__,
         "torch_threads": torch.get_num_threads(),
         "model": relative_to_root(model_path), "model_sha256": file_sha256(model_path),
         "skipped_models": skipped})
 
-    print(f"\n{len(history)} epoch trong {train_sec:.0f} s. Tốt nhất: epoch "
-          f"{stopper.best_epoch}, macro-F1 val {stopper.best_score:.4f} — đỉnh chọn trên "
-          f"val; {min(config.LSTM_PATIENCE, len(history))} epoch cuối trung bình "
-          f"{tail_mean:.4f} ± {tail_std:.4f}.")
+    print(f"\n{len(history)} epoch trong {train_sec:.0f} s. Checkpoint: epoch "
+          f"{stopper.best_epoch}, nơi macro-F1 val trung bình trượt "
+          f"{stopper.window} epoch cao nhất ({stopper.best_score:.4f}); chính epoch đó "
+          f"{stopper.best_raw:.4f}. {min(config.LSTM_PATIENCE, len(history))} epoch "
+          f"cuối trung bình {tail_mean:.4f} ± {tail_std:.4f}.")
     print(f"Loss val thô thấp nhất ở epoch {min_loss['epoch']} ({min_loss['val_loss']:.4f}); "
           f"trung bình trượt {config.LSTM_CURVE_SMOOTH} epoch thấp nhất ở epoch "
           f"{turn_epoch} ({turn_loss:.4f}) — sau đó loss val không giảm nữa.")
-    if not augment:
-        print("Lần chạy khảo sát: mô hình của demo và bảng so sánh không đổi.")
+    if survey:
+        print(f"Lần chạy khảo sát {deviations}: mô hình của demo và bảng so sánh "
+              "không đổi.")
     if train_set.n_fallback:
         print(f"{train_set.n_fallback} lần tăng cường bị normalize_window từ chối — "
               "dùng cửa sổ gốc.")

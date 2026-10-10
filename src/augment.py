@@ -10,6 +10,14 @@ có làm đổi lớp không?**
 | Nhiễu Gauss | ``AUG_NOISE_SIGMA`` | Không |
 | Xoá bước ngẫu nhiên | ``AUG_DROP_STEPS`` rồi ``fill_short_gaps`` | Không |
 | Bàn tay cứng — chỉ cặp vuốt, Phase 6 | ``AUG_RIGID_SHARE``, ``AUG_RIGID_KEEP`` | Không |
+| Đổi dáng ngón phụ — chỉ cặp zoom, LSTM | ``AUG_ZOOM_STYLE_P`` | Không |
+| Bàn tay đứng yên — mọi lớp, LSTM | ``AUG_STATIC_SHARE`` | **Có**: thành ``none`` |
+
+**Đổi dáng ngón phụ, bàn tay đứng yên** (thêm 2026-10-10, xem ``restyle_zoom``):
+LSTM học zoom theo kiểu riêng của IPN — nhẫn và út gập — và đoán zoom từ cả một
+dáng tay đứng yên (``scripts/probe_zooms.py``, ``results/phase7/notes.md`` mục 9).
+Hai phép này dạy lại đúng định nghĩa: zoom là chuyển động cái–trỏ, các ngón còn
+lại làm gì cũng được; và không có chuyển động thì không có cử chỉ.
 
 **Bàn tay cứng** (thêm 2026-10-09): quỹ đạo cổ tay giữ nguyên, sự đổi dáng tay
 chỉ giữ lại một phần ngẫu nhiên — từ không còn gì (bàn tay cứng hẳn) tới đầy đủ
@@ -49,6 +57,14 @@ FLIP_LABEL = {i: config.CLASSES.index(_SWAP.get(name, name))
               for i, name in enumerate(config.CLASSES)}
 #: Chỉ số hai lớp vuốt — những lớp duy nhất có bản bàn tay cứng.
 SWIPE_LABELS = tuple(config.CLASSES.index(name) for name in _SWAP)
+#: Chỉ số hai lớp zoom — những lớp duy nhất được đổi dáng ngón phụ.
+ZOOM_LABELS = tuple(config.CLASSES.index(name) for name in ("zoom_in", "zoom_out"))
+#: Ngón phụ của zoom, theo thứ tự trong một dáng ngón (``finger_pose_pool``).
+#: Zoom là cái–trỏ; ba ngón này chỉ là KIỂU của người diễn IPN.
+SPARE_FINGERS = ("middle", "ring", "pinky")
+#: Những bộ ngón phụ có thể được đổi dáng: giữ ngón giữa cùng cử động như IPN
+#: (zoom ba ngón), hoặc đổi cả ngón giữa (zoom hai ngón cái–trỏ).
+STYLE_FINGER_SETS = (("ring", "pinky"), ("middle", "ring", "pinky"))
 
 
 def flip_horizontal(win, label):
@@ -142,6 +158,111 @@ def usable_steps(win):
     palms = np.linalg.norm(win[:, config.MIDDLE_MCP] - win[:, config.WRIST], axis=-1)
     with np.errstate(invalid="ignore"):     # NaN so với ngưỡng ra False: bị loại
         return np.flatnonzero(palms >= config.NORM_MIN_PALM_RATIO * np.nanmedian(palms))
+
+
+def finger_joints(finger):
+    """Ba khớp sau gốc ngón ``finger``: PIP, DIP, đầu ngón."""
+    mcp = config.FINGER_MCPS[finger]
+    return [mcp + 1, mcp + 2, mcp + 3]
+
+
+def palm_frame(win):
+    """Hệ toạ độ lòng bàn tay ở từng bước: gốc (cổ tay), đơn vị (|0→9|), trục
+    dọc ``u`` (cổ tay → gốc ngón giữa) và trục ngang ``v`` (``u`` quay 90°).
+
+    Returns:
+        ``(origin (T, 2), scale (T,), u (T, 2), v (T, 2))`` — NaN ở bước mất tay.
+    """
+    win = np.asarray(win, dtype=np.float64)
+    origin = win[:, config.WRIST]
+    axis = win[:, config.MIDDLE_MCP] - origin
+    scale = np.linalg.norm(axis, axis=-1)
+    u = axis / scale[:, None]
+    return origin, scale, u, np.stack([-u[:, 1], u[:, 0]], axis=-1)
+
+
+def to_palm(win, step, idx, frame=None):
+    """Toạ độ lòng bàn tay ``(len(idx), 2)`` của các điểm ``idx`` ở bước ``step``.
+    ``frame`` là ``palm_frame(win)`` nếu đã tính sẵn."""
+    origin, scale, u, v = frame if frame is not None else palm_frame(win)
+    rel = (np.asarray(win, dtype=np.float64)[step, idx] - origin[step]) / scale[step]
+    return np.stack([rel @ v[step], rel @ u[step]], axis=-1)
+
+
+def from_palm(win, q):
+    """Đặt dáng ``q`` (toạ độ lòng bàn tay) vào MỌI bước: ``(T, len(q), 2)``."""
+    origin, scale, u, v = palm_frame(win)
+    return (origin[:, None] + scale[:, None, None]
+            * (q[None, :, :1] * v[:, None] + q[None, :, 1:] * u[:, None]))
+
+
+def hand_side(win, step=0, frame=None):
+    """``+1`` hoặc ``-1``: ngón trỏ nằm phía nào của trục lòng bàn tay. Hai
+    bàn tay trái và phải — hay một bàn tay nhìn từ hai mặt — khác dấu."""
+    q = to_palm(win, step, [config.FINGER_MCPS["index"], config.FINGER_MCPS["pinky"]],
+                 frame)
+    return 1 if q[0, 0] >= q[1, 0] else -1
+
+
+def finger_pose_pool(X):
+    """Kho dáng ngón phụ thật: dáng ngón giữa–nhẫn–út (toạ độ lòng bàn tay) ở mọi
+    bước có lòng bàn tay dùng được của các cửa sổ ``X``, kèm bên tay.
+
+    Chỉ dựng từ tập train (luật 9) — ``scripts/train_lstm.py`` làm điều đó.
+
+    Returns:
+        ``(poses (P, 9, 2), sides (P,))`` — 9 điểm theo thứ tự ``SPARE_FINGERS``.
+    """
+    idx = [j for f in SPARE_FINGERS for j in finger_joints(f)]
+    poses, sides = [], []
+    for win in X:
+        win = np.asarray(win, dtype=np.float64)
+        frame = palm_frame(win)
+        for step in usable_steps(win):
+            poses.append(to_palm(win, step, idx, frame))
+            sides.append(hand_side(win, step, frame))
+    return (np.asarray(poses, dtype=np.float64).reshape(-1, len(idx), 2),
+            np.asarray(sides, dtype=np.int64))
+
+
+def set_spare_fingers(win, fingers, pose, pose_side):
+    """Các ngón ``fingers`` lấy dáng ``pose`` và ĐỨNG YÊN so với lòng bàn tay ở
+    mọi bước; cổ tay, lòng bàn tay, ngón cái, ngón trỏ giữ nguyên.
+
+    Args:
+        pose: ``(9, 2)`` dáng ngón giữa–nhẫn–út từ ``finger_pose_pool``.
+        pose_side: bên tay của dáng đó — khác bên tay của ``win`` thì lật dáng
+            qua trục lòng bàn tay, để ngón không mọc sang phía bên kia.
+    """
+    out = np.array(win, dtype=np.float64, copy=True)
+    q = np.array(pose, dtype=np.float64, copy=True)
+    if pose_side != hand_side(out):
+        q[:, 0] = -q[:, 0]
+    placed = from_palm(out, q)
+    for k, finger in enumerate(SPARE_FINGERS):
+        if finger in fingers:
+            out[:, finger_joints(finger)] = placed[:, 3 * k:3 * k + 3]
+    return out
+
+
+def restyle_zoom(win, rng, pool):
+    """Một cú zoom với ngón phụ mang dáng của một bàn tay IPN khác, đứng yên.
+
+    Zoom là đầu ngón cái và trỏ rời xa hay lại gần nhau; người diễn IPN thì zoom
+    ba ngón, nhẫn và út gập suốt. LSTM học luôn cả kiểu riêng đó và không nhận
+    zoom có nhẫn, út duỗi (``scripts/probe_zooms.py``). Phép này nói với mô hình:
+    ngón phụ làm gì cũng được, miễn đứng yên — còn ngón phụ CỬ ĐỘNG cùng cái và
+    trỏ là xòe cả bàn tay, tức ``G07`` của lớp ``none``, nên không đụng tới.
+    """
+    poses, sides = pool
+    k = int(rng.integers(len(poses)))
+    fingers = STYLE_FINGER_SETS[int(rng.integers(len(STYLE_FINGER_SETS)))]
+    return set_spare_fingers(win, fingers, poses[k], sides[k])
+
+
+def static_window(win, step):
+    """Cả bàn tay đứng yên ở dáng của bước ``step`` — không còn cử chỉ nào."""
+    return np.repeat(np.asarray(win, dtype=np.float64)[[step]], len(win), axis=0)
 
 
 def rigid_swipes(X, y, split, rng, share=None, keep=None, sigma=None):

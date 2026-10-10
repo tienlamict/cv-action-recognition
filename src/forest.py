@@ -133,13 +133,19 @@ class ForestClassifier:
             self._classes = model.classes_
         return self
 
-    def __call__(self, features):
+    def proba(self, features):
+        """Xác suất của mọi lớp, theo thứ tự ``CLASSES``: ``(n_classes,)``."""
         self.load()
         x = np.ascontiguousarray(np.asarray(features, dtype=np.float32).reshape(1, -1))
         proba = np.zeros(len(self._classes))
         for tree in self._trees:
             leaf = tree.predict(x)[0]
             proba += leaf / leaf.sum()
-        proba /= len(self._trees)
+        out = np.zeros(len(config.CLASSES))
+        out[np.asarray(self._classes, dtype=np.int64)] = proba / len(self._trees)
+        return out
+
+    def __call__(self, features):
+        proba = self.proba(features)
         k = int(np.argmax(proba))
-        return int(self._classes[k]), float(proba[k])
+        return k, float(proba[k])

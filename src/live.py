@@ -14,6 +14,9 @@ cả với LSTM: log và chế độ luyện tập cần chúng.
 import csv
 import json
 from collections import namedtuple
+from pathlib import Path
+
+import numpy as np
 
 from src import config, rules
 from src.buffer import TimeBuffer
@@ -21,12 +24,18 @@ from src.forest import ForestClassifier
 from src.features import FEATURE_NAMES, window_features
 from src.preprocess import normalize_window
 
-def make_model(name):
+def make_model(name, lstm_path=None):
     """Mô hình của ``demo.py --model``: một hàm ``đầu vào → (label, confidence)``.
 
     ``rules`` và ``rf`` nhận vector đặc trưng. ``lstm`` nhận cửa sổ đã chuẩn hoá
-    — nó khai báo ``input_kind = "window"``. Thư viện nặng chỉ nạp khi cần:
-    scikit-learn khi rừng nạp mô hình, torch (~3 giây) khi chọn ``lstm``.
+    — nó khai báo ``input_kind = "window"``. ``hybrid`` (vuốt theo LSTM, zoom
+    theo rừng — ``src/hybrid.py``) nhận cả hai, ``input_kind = "both"``. Thư viện
+    nặng chỉ nạp khi cần: scikit-learn khi rừng nạp mô hình, torch (~3 giây) khi
+    chọn ``lstm`` hay ``hybrid``.
+
+    Args:
+        lstm_path: checkpoint LSTM khác ``LSTM_MODEL_PATH`` — để so hai lần
+            huấn luyện trên cùng một phiên ghi (``scripts/replay_log.py``).
 
     Raises:
         ValueError: tên không thuộc ``MODEL_NAMES``.
@@ -37,7 +46,10 @@ def make_model(name):
         return ForestClassifier()
     if name == "lstm":
         from src.models import LSTMRunner
-        return LSTMRunner()
+        return LSTMRunner(lstm_path)
+    if name == "hybrid":
+        from src.hybrid import HybridClassifier
+        return HybridClassifier(lstm_path)
     raise ValueError(f"Không biết mô hình '{name}' — có: {', '.join(config.MODEL_NAMES)}")
 
 Prediction = namedtuple("Prediction", "ts label confidence presence features")
@@ -50,8 +62,8 @@ class LivePredictor:
     """Đẩy từng frame vào, nhận một :class:`Prediction` mỗi ``STRIDE_SEC``.
 
     ``model`` là hàm ``đầu vào → (label, confidence)`` của :func:`make_model`:
-    nhận vector đặc trưng, hoặc cửa sổ đã chuẩn hoá nếu nó khai báo
-    ``input_kind = "window"``.
+    nhận vector đặc trưng; hoặc cửa sổ đã chuẩn hoá nếu nó khai báo
+    ``input_kind = "window"``; hoặc ``(cửa sổ, đặc trưng)`` nếu ``"both"``.
     """
 
     def __init__(self, model, stride_sec=config.STRIDE_SEC):
@@ -90,8 +102,11 @@ class LivePredictor:
         except ValueError:
             return Prediction(ts, None, None, presence, None)
         features = window_features(win_norm, presence)
-        takes_window = getattr(self.model, "input_kind", "features") == "window"
-        label, confidence = self.model(win_norm if takes_window else features)
+        kind = getattr(self.model, "input_kind", "features")
+        if kind == "both":
+            label, confidence = self.model(win_norm, features)
+        else:
+            label, confidence = self.model(win_norm if kind == "window" else features)
         return Prediction(ts, label, confidence, presence, features)
 
 
@@ -187,6 +202,45 @@ class PredictionLog:
 
     def __exit__(self, *exc):
         self.close()
+
+
+class LandmarkRecorder:
+    """Ghi điểm mốc thô của một phiên demo, theo đúng schema của
+    ``data/landmarks`` (``io_data.save_clip``, nguồn ``webcam``, không nhãn).
+
+    Log dự đoán chỉ có vài đặc trưng; điểm mốc thì cho chạy lại CẢ phiên qua bất
+    kỳ mô hình nào (``scripts/replay_log.py``) — để biết vì sao một cử chỉ không
+    được nhận, và để thử cách sửa trên chính bàn tay người dùng.
+    """
+
+    def __init__(self):
+        self.ts, self.xy, self.present = [], [], []
+        self.w = self.h = None
+
+    def add(self, ts, xy_norm, present, w, h):
+        self.ts.append(float(ts))
+        self.xy.append(np.asarray(xy_norm, dtype=np.float32).reshape(
+            config.NUM_LANDMARKS, 2))
+        self.present.append(bool(present))
+        self.w, self.h = w, h
+
+    def save(self, path, **meta):
+        """Ghi ra ``path`` (.npz). ``ts`` dời về 0 ở frame đầu như mọi clip."""
+        from src.io_data import save_clip
+
+        ts = np.asarray(self.ts, dtype=np.float64)
+        info = {"w": self.w, "h": self.h, "source": "webcam", "subject": "live",
+                "clip_id": Path(path).stem,
+                "fps": float((len(ts) - 1) / (ts[-1] - ts[0])) if len(ts) > 1 else 0.0,
+                **meta}
+        return save_clip(path, ts - ts[0], np.stack(self.xy), self.present,
+                         np.empty((0, 3), dtype=np.int64), [], info)
+
+
+def landmarks_path(log_path):
+    """File điểm mốc đi kèm một log dự đoán: ``live.csv`` → ``live_landmarks.npz``."""
+    log_path = Path(log_path)
+    return log_path.with_name(f"{log_path.stem}_landmarks.npz")
 
 
 def count_episodes(labels):

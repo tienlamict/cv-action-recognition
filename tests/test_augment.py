@@ -225,6 +225,52 @@ def test_khoang_k_giu_dung_phan_doi_dang_tay():
                                    0.5 * np.ptp(tip_offset(X[i]), axis=0), atol=1e-5)
 
 
+def zoom_window(direction="in"):
+    return normalize_window(make_zoom(direction))
+
+
+def palm_coords(win, idx):
+    """Toạ độ lòng bàn tay của các điểm ``idx`` ở mọi bước: ``(T, len(idx), 2)``."""
+    return np.stack([augment.to_palm(win, t, idx) for t in range(len(win))])
+
+
+def test_doi_dang_ngon_phu_chi_dung_vao_ngon_phu_va_dung_yen():
+    """Cổ tay, lòng bàn tay, ngón cái, ngón trỏ giữ nguyên; ngón được đổi lấy
+    đúng dáng mới và đứng yên so với lòng bàn tay; ngón phụ khác không đổi."""
+    win = zoom_window("in")
+    poses, sides = augment.finger_pose_pool(np.stack([zoom_window("out")]))
+    out = augment.set_spare_fingers(win, ("ring", "pinky"), poses[0], sides[0])
+
+    kept = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 17]
+    np.testing.assert_allclose(out[:, kept], win[:, kept])
+    changed = augment.finger_joints("ring") + augment.finger_joints("pinky")
+    moved = palm_coords(out, changed)
+    np.testing.assert_allclose(moved, np.repeat(moved[:1], len(win), axis=0), atol=1e-9)
+    np.testing.assert_allclose(moved[0], poses[0][3:], atol=1e-9)
+
+
+def test_dang_cua_ban_tay_ben_kia_duoc_lat():
+    """Dáng ngón lấy từ bàn tay bên kia được lật qua trục lòng bàn tay, để ngón
+    nhẫn vẫn nằm cùng phía với ngón út như trên bàn tay đích."""
+    win = zoom_window("in")
+    mirrored, _ = augment.flip_horizontal(zoom_window("out"), CLS["zoom_out"])
+    assert augment.hand_side(win) == -augment.hand_side(mirrored)
+    poses, sides = augment.finger_pose_pool(np.stack([mirrored]))
+    out = augment.set_spare_fingers(win, ("ring", "pinky"), poses[0], sides[0])
+    pinky_mcp = augment.to_palm(out, 0, [config.FINGER_MCPS["pinky"]])[0, 0]
+    pinky_tip = augment.to_palm(out, 0, [20])[0, 0]
+    assert np.sign(pinky_tip) == np.sign(pinky_mcp), "ngón út mọc sang phía ngón trỏ"
+
+
+def test_doi_dang_zoom_va_ban_tay_dung_yen():
+    win = zoom_window("in")
+    pool = augment.finger_pose_pool(np.stack([zoom_window("out")] * 2))
+    restyled = augment.restyle_zoom(win, np.random.default_rng(0), pool)
+    np.testing.assert_allclose(restyled[:, :10], win[:, :10])        # đến gốc ngón giữa
+    still = augment.static_window(win, 7)
+    np.testing.assert_array_equal(still, np.repeat(win[7:8], len(win), axis=0))
+
+
 def test_moc_dang_tay_bo_buoc_long_ban_tay_bat_thuong():
     """Bước tay nghiêng cạnh (lòng bàn tay ngắn bất thường) hay mất tay không
     bao giờ làm mốc dáng tay; bước mất tay vẫn là NaN trong bản tạo ra."""

@@ -138,6 +138,18 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
 - **Dễ sai — quan trọng nhất:** xòe **cả năm ngón** từ nắm tay thành bàn tay
   mở. Đó là `G07` *Open twice*, thuộc lớp `none` — xem mục dưới.
 
+> **Ngón nhẫn và út quan trọng tới đâu tuỳ mô hình** (đo ngày 2026-10-10 bằng
+> `scripts/probe_zooms.py`, trên cú zoom thật của IPN; `results/phase7/notes.md` mục 9).
+> Giữ nguyên cổ tay, ngón cái, ngón trỏ, chỉ cho nhẫn và út duỗi thẳng:
+>
+> - **LSTM** (`--model lstm`): chỉ còn **8%** cú `zoom_in` và 35% cú `zoom_out` được nhận.
+>   LSTM học đúng kiểu zoom của người diễn IPN, nên **phải gập nhẫn và út**.
+> - **Rừng ngẫu nhiên**, và **mô hình ghép** (`--model hybrid`, zoom theo rừng): còn 63% và
+>   85%. Hai mô hình này nhìn chủ yếu khoảng cách cái–trỏ.
+>
+> LSTM còn báo zoom khi bàn tay **đứng yên** ở dáng cái–trỏ đang mở; rừng thì không bao giờ.
+> Vì vậy demo nên dùng `--model hybrid`. Dù vậy, gập nhẫn và út vẫn là cách chắc chắn nhất.
+
 ## `zoom_out` — G11 *Zoom out*
 
 Ngược hoàn toàn với `zoom_in`: **chụm ba đầu ngón đang mở lại**.

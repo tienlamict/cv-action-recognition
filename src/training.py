@@ -75,31 +75,48 @@ def evaluate(model, sequences, y, loss_fn, batch=config.LSTM_EVAL_BATCH):
 
 
 class EarlyStop:
-    """Dừng sớm theo một điểm số càng cao càng tốt (macro-F1 val).
+    """Dừng sớm theo TRUNG BÌNH TRƯỢT ``window`` epoch của một điểm số càng cao
+    càng tốt (macro-F1 val).
 
-    Giữ bản sao trọng số của epoch tốt nhất. Điểm bằng điểm tốt nhất không tính
-    là tốt hơn — giữ epoch sớm hơn.
+    macro-F1 val dao động mạnh giữa hai epoch liền nhau — mỗi lớp cử chỉ của
+    val chỉ có khoảng 100 cửa sổ. Chọn epoch có điểm THÔ cao nhất là chọn một
+    đỉnh nhiễu: con số báo cáo lạc quan, và một đỉnh đến sớm làm dừng giữa
+    chừng khi mô hình còn đang học (đổi 2026-10-10; ``results/phase7/notes.md``
+    mục 9). Đường làm mượt cho biết mô hình ỔN ĐỊNH ở đâu.
+
+    Checkpoint là epoch CUỐI của cửa sổ trượt có trung bình cao nhất — chọn
+    được ngay lúc epoch đó vừa xong, không cần nhìn trước. Chưa đủ ``window``
+    epoch thì chưa chọn và chưa đếm kiên nhẫn: trung bình của vài epoch đầu vẫn
+    để một đỉnh nhiễu thắng. Bằng điểm tốt nhất không tính là tốt hơn — giữ
+    epoch sớm hơn. ``window=1`` là dừng sớm theo điểm thô.
     """
 
-    def __init__(self, patience=config.LSTM_PATIENCE):
+    def __init__(self, patience=config.LSTM_PATIENCE, window=config.LSTM_CURVE_SMOOTH):
         self.patience = patience
+        self.window = window
+        self.scores = []
         self.best_epoch = 0
-        self.best_score = -np.inf
+        self.best_score = -np.inf       # trung bình trượt tốt nhất
+        self.best_raw = None            # điểm thô của chính epoch đó
         self.best_state = None
         self.last_epoch = 0
 
     def update(self, epoch, score, model):
         """Ghi điểm của một epoch. Trả về ``True`` nếu đây là epoch tốt nhất."""
         self.last_epoch = epoch
-        if score > self.best_score:
-            self.best_epoch, self.best_score = epoch, float(score)
+        self.scores.append(float(score))
+        if len(self.scores) < self.window:
+            return False
+        smoothed = float(np.mean(self.scores[-self.window:]))
+        if smoothed > self.best_score:
+            self.best_epoch, self.best_score, self.best_raw = epoch, smoothed, float(score)
             self.best_state = copy.deepcopy(model.state_dict())
             return True
         return False
 
     @property
     def should_stop(self):
-        return self.last_epoch - self.best_epoch >= self.patience
+        return self.best_epoch > 0 and self.last_epoch - self.best_epoch >= self.patience
 
 
 def smoothed_minimum(history, key, window=config.LSTM_CURVE_SMOOTH):
@@ -132,14 +149,15 @@ def tail_stats(history, key, n=config.LSTM_PATIENCE):
 
 def fit(model, train_loader, train_sequences, y_train, val_sequences, y_val,
         loss_fn, optimizer, max_epochs=config.LSTM_MAX_EPOCHS,
-        patience=config.LSTM_PATIENCE, on_epoch=None):
-    """Huấn luyện, dừng sớm theo macro-F1 val.
+        patience=config.LSTM_PATIENCE, on_epoch=None, window=config.LSTM_CURVE_SMOOTH):
+    """Huấn luyện, dừng sớm theo macro-F1 val đã làm mượt (``EarlyStop``).
 
     Args:
         train_loader: lô train (có tăng cường) để học.
         train_sequences, y_train: tập train KHÔNG tăng cường, để đo.
         val_sequences, y_val: tập val, để đo và dừng sớm.
         on_epoch: hàm gọi sau mỗi epoch với ``(dòng lịch sử, EarlyStop)``.
+        window: số epoch của trung bình trượt; ``1`` là theo điểm thô.
 
     Returns:
         ``(history, stopper)`` — ``history`` là list dict mỗi epoch một dòng:
@@ -149,7 +167,7 @@ def fit(model, train_loader, train_sequences, y_train, val_sequences, y_val,
     """
     from src.evaluation import macro_f1   # nạp lười: kéo theo scikit-learn
 
-    stopper = EarlyStop(patience)
+    stopper = EarlyStop(patience, min(window, max_epochs))   # lần chạy ngắn vẫn có checkpoint
     history = []
     for epoch in range(1, max_epochs + 1):
         running = train_epoch(model, train_loader, loss_fn, optimizer)
