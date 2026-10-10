@@ -148,6 +148,27 @@ PROBE_MOTION_LEVELS = (0.25, 0.5, 0.75, 1.0, 1.5)   # ... nhân quãng dời c�
 LEAKAGE_F1 = 0.97                   # macro-F1 trên val cao hơn mức này: gần như
                                     # chắc chắn rò rỉ — dừng, kiểm tra splits.json
 TEST_USED_LOG = RESULTS_DIR / "TEST_USED.log"   # mỗi lần chạm test/real_test một dòng (luật 13)
+MODEL_NAMES = ("rules", "rf", "lstm")   # demo.py/evaluate.py --model, theo thứ tự
+                                    # ra đời — cũng là thứ tự hàng trong bảng so sánh
+
+# --------------------------------------------------------------------------
+# LSTM trên chuỗi 42 chiều (Phase 7) — CPU, một chiều
+# --------------------------------------------------------------------------
+
+PHASE7_RESULTS_DIR = RESULTS_DIR / "phase7"
+LSTM_MODEL_PATH = PHASE7_RESULTS_DIR / "lstm_model.pt"   # demo.py --model lstm nạp file này
+LSTM_INPUT_SIZE = NUM_LANDMARKS * 2     # 42: (21, 2) mỗi bước được reshape — không z
+LSTM_HIDDEN = 128           # SPEC Phase 7; Phase 8 so với 64
+LSTM_LAYERS = 2
+LSTM_DROPOUT = 0.3          # giữa hai lớp LSTM và trước lớp phân loại
+LSTM_POOLING = "last"       # last / mean / max — Phase 8 so ba cách gộp
+LSTM_BATCH = 64
+LSTM_LR = 1e-3              # Adam
+LSTM_MAX_EPOCHS = 150
+LSTM_PATIENCE = 20          # dừng khi macro-F1 val không tăng sau bấy nhiêu epoch
+LSTM_EVAL_BATCH = 1024      # cỡ lô khi chỉ dự đoán — không ảnh hưởng kết quả
+LSTM_CURVE_SMOOTH = 10      # trung bình trượt bấy nhiêu epoch khi tìm chỗ loss
+                            # val ngừng giảm — loss val dao động mạnh giữa epoch
 
 # --------------------------------------------------------------------------
 # Tăng cường (Phase 4) — chỉ trên tập train, sau khi chia (luật 9)

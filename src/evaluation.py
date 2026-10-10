@@ -162,21 +162,26 @@ def alarm_clusters(y_true, y_pred, clip, t0):
     return n_clusters, idx.size * config.STRIDE_SEC / 60
 
 
-def probe_windows(predict, windows, presence, transform, rng, sigma=None):
+def probe_windows(predict, windows, presence, transform, rng, sigma=None,
+                  input_kind="features"):
     """Thí nghiệm phản thực tế: sửa từng cửa sổ ĐÃ chuẩn hoá bằng ``transform``,
     cộng rung điểm mốc ``sigma`` như dữ liệu thật, rồi đi qua đúng
     ``normalize_window`` và ``window_features`` như lúc chạy thật, và dự đoán.
 
     Đây là phép ĐO, không phải tăng cường: cửa sổ đã sửa không bao giờ vào tập
-    huấn luyện, nên dùng được trên val.
+    huấn luyện, nên dùng được trên val. Rung chỉ phụ thuộc ``rng``, không phụ
+    thuộc mô hình, nên cùng seed thì mọi mô hình bị thử trên cùng các cửa sổ.
 
     Args:
-        predict: hàm ``F (n, 15) → nhãn (n,)``, ví dụ ``model.predict``.
+        predict: hàm ``F (n, 15) → nhãn (n,)`` như ``model.predict`` của rừng;
+            hoặc, với ``input_kind="window"``, hàm ``cửa sổ đã chuẩn hoá
+            (n, T, 21, 2) → nhãn (n,)`` như LSTM.
         windows: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá.
         presence: ``(n,)`` tỉ lệ bước có tay của từng cửa sổ.
         transform: hàm ``cửa sổ → cửa sổ``.
         rng: ``np.random.Generator`` cho phần rung.
         sigma: độ lệch chuẩn của rung; ``None`` thì đọc ``AUG_NOISE_SIGMA``.
+        input_kind: ``"features"`` hoặc ``"window"``.
 
     Returns:
         ``(pred (n,) int64, F (n, 15) float32)`` — cửa sổ mà ``normalize_window``
@@ -185,16 +190,18 @@ def probe_windows(predict, windows, presence, transform, rng, sigma=None):
     if sigma is None:
         sigma = config.require_measured("AUG_NOISE_SIGMA")
     F = np.full((len(windows), len(FEATURE_NAMES)), np.nan, dtype=np.float32)
+    normalized = np.full(np.shape(windows), np.nan, dtype=np.float64)
     for i, (win, ratio) in enumerate(zip(windows, presence)):
         changed = add_noise(transform(np.asarray(win, dtype=np.float64)), sigma, rng)
         try:
-            F[i] = window_features(normalize_window(changed), ratio)
+            normalized[i] = normalize_window(changed)
         except ValueError:
             continue
+        F[i] = window_features(normalized[i], ratio)
     pred = np.full(len(windows), -1, dtype=np.int64)
     ok = np.isfinite(F).all(axis=1)
     if ok.any():
-        pred[ok] = predict(F[ok])
+        pred[ok] = predict(normalized[ok] if input_kind == "window" else F[ok])
     return pred, F
 
 
@@ -229,14 +236,12 @@ def upsert_comparison(row, stem=config.MODEL_COMPARISON):
     return csv_path
 
 
-#: Thứ tự hàng trong bảng so sánh: mô hình theo thứ tự ra đời, rồi theo tập.
-MODEL_ORDER = ("rules", "rf", "lstm")
-
-
 def _comparison_order(row):
+    """Thứ tự hàng trong bảng so sánh: mô hình theo thứ tự ra đời
+    (``MODEL_NAMES``), rồi theo tập."""
     from src.splits import SPLIT_NAMES
-    model = row["model"]
-    rank = MODEL_ORDER.index(model) if model in MODEL_ORDER else len(MODEL_ORDER)
+    model, order = row["model"], config.MODEL_NAMES
+    rank = order.index(model) if model in order else len(order)
     split = SPLIT_NAMES.index(row["split"]) if row["split"] in SPLIT_NAMES else len(SPLIT_NAMES)
     return rank, model, split
 
@@ -279,18 +284,36 @@ def guard_split(split, final, model, details=None, log_path=None):
     return log_path
 
 
-def predict_windows(model_name, F):
-    """Dự đoán cả một tập đặc trưng bằng một mô hình đã có.
+def predict_windows(model_name, F, X=None):
+    """Dự đoán cả một tập bằng một mô hình đã có.
 
-    ``rules`` gọi luật từng cửa sổ; ``rf`` nạp mô hình đã lưu và dự đoán cả lô
-    một lần — cùng kết quả với ``ForestClassifier`` của demo (lớp có xác suất
-    cao nhất), chỉ nhanh hơn.
+    ``rules`` gọi luật từng cửa sổ; ``rf`` và ``lstm`` nạp mô hình đã lưu và dự
+    đoán cả lô một lần — cùng kết quả với bộ phân loại của demo (lớp có xác
+    suất cao nhất), chỉ nhanh hơn.
+
+    Args:
+        F: ``(n, 15)`` đặc trưng — cho ``rules`` và ``rf``.
+        X: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá — bắt buộc với ``lstm``.
 
     Returns:
         ``(pred (n,) int64, details)`` — ``details`` mô tả mô hình đã dùng, để
         ghi vào manifest và ``TEST_USED_LOG``.
     """
     from src import forest, rules     # nạp lười: rf kéo theo scikit-learn
+
+    if model_name == "lstm":
+        from src import models        # nạp lười: torch mất ~3 giây
+        from src.datasets import window_sequences
+        if X is None:
+            raise ValueError("lstm dự đoán từ cửa sổ — truyền X")
+        model, checkpoint = models.load_checkpoint()
+        details = {"model_file": config.LSTM_MODEL_PATH.name,
+                   "model_sha256": forest.file_sha256(config.LSTM_MODEL_PATH),
+                   "created": checkpoint.get("created"),
+                   "epoch": checkpoint.get("epoch"),
+                   "val_macro_f1": checkpoint.get("val_macro_f1")}
+        proba = models.predict_proba(model, window_sequences(X))
+        return proba.argmax(axis=1).astype(np.int64), details
 
     if model_name == "rules":
         details = {k: getattr(config, k) for k in ("RULE_VX_HI", "RULE_DX_HI",
@@ -304,4 +327,5 @@ def predict_windows(model_name, F):
         if len(F) == 0:
             return np.empty(0, dtype=np.int64), details
         return bundle["model"].predict(np.asarray(F, dtype=np.float32)).astype(np.int64), details
-    raise ValueError(f"Không biết mô hình '{model_name}' — có: rules, rf")
+    raise ValueError(f"Không biết mô hình '{model_name}' — có: "
+                     f"{', '.join(config.MODEL_NAMES)}")

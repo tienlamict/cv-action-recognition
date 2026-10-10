@@ -1,4 +1,4 @@
-"""Thăm dò: rừng ngẫu nhiên coi cái gì là một cú vuốt?
+"""Thăm dò: mô hình (rừng ngẫu nhiên hoặc LSTM) coi cái gì là một cú vuốt?
 
 Lấy các cửa sổ vuốt THẬT của tập val mà mô hình đang nhận đúng, sửa đúng một
 khía cạnh của chuyển động, rồi xem mô hình còn nhận ra không:
@@ -14,7 +14,8 @@ normalize_window và window_features như lúc chạy thật. Kết quả cho bi
 một cú vuốt "kiểu thông thường" có thể không được nhận — xem results/phase6/notes.md.
 
 Ví dụ:
-    python scripts/probe_swipes.py
+    python scripts/probe_swipes.py                 # rừng: results/phase6/probe_swipes
+    python scripts/probe_swipes.py --model lstm    # LSTM: results/phase7/probe_swipes
 """
 
 import sys
@@ -60,14 +61,15 @@ def out_and_back(win):
     return win - wrist[:, None] + new[:, None]
 
 
-def probe(model, windows, ratios, label, transform, rng):
+def probe(predict, windows, ratios, label, transform, rng, input_kind="features"):
     """Áp ``transform`` lên từng cửa sổ, cộng rung, chuẩn hoá, dự đoán
     (``evaluation.probe_windows``).
 
     Returns:
         dict: tỉ lệ còn nhận đúng, tỉ lệ từng lớp đoán, và trung vị vài đặc trưng.
     """
-    preds, feats = probe_windows(model.predict, windows, ratios, transform, rng)
+    preds, feats = probe_windows(predict, windows, ratios, transform, rng,
+                                 input_kind=input_kind)
     feats = feats[preds >= 0]
     out = {"kept": float(np.mean(preds == label))}
     out.update({f"to_{c}": float(np.mean(preds == k)) for k, c in enumerate(config.CLASSES)})
@@ -78,18 +80,35 @@ def probe(model, windows, ratios, label, transform, rng):
     return out
 
 
+def load_predictor(name):
+    """Mô hình đã lưu dưới dạng hàm dự đoán theo lô.
+
+    Returns:
+        ``(predict, input_kind, thư mục kết quả của phase)`` — rừng nhận đặc
+        trưng, LSTM nhận cửa sổ đã chuẩn hoá.
+    """
+    if name == "lstm":
+        from src.datasets import window_sequences
+        from src.models import load_checkpoint, predict_proba
+        model, _ = load_checkpoint()
+        return (lambda W: predict_proba(model, window_sequences(W)).argmax(axis=1),
+                "window", config.PHASE7_RESULTS_DIR)
+    return load_bundle()["model"].predict, "features", config.PHASE6_RESULTS_DIR
+
+
 def main():
     setup_console()
     parser = make_parser(__doc__)
     parser.add_argument("--windows", default=config.WINDOWS_NPZ)
+    parser.add_argument("--model", default="rf", choices=("rf", "lstm"))
     args = parser.parse_args()
 
     with np.load(args.windows, allow_pickle=False) as data:
         F, y, pick = split_features(data["X"], data["y"], data["presence"],
                                     data["subject"], read_splits(), "val")
         X, presence = data["X"][pick].astype(np.float64), data["presence"][pick]
-    model = load_bundle()["model"]
-    pred = model.predict(F)
+    predict, input_kind, base_dir = load_predictor(args.model)
+    pred = predict(X if input_kind == "window" else F)
     rng = np.random.default_rng(config.SEED)
 
     experiments = [("gốc (chỉ cộng rung)", lambda w: w),
@@ -105,13 +124,15 @@ def main():
     for label in SWIPE_LABELS:
         idx = np.flatnonzero((y == label) & (pred == label))
         for name, transform in experiments:
-            result = probe(model, X[idx], presence[idx], label, transform, rng)
+            result = probe(predict, X[idx], presence[idx], label, transform, rng,
+                           input_kind)
             rows.append({"class": config.CLASSES[label], "n": int(idx.size),
                          "experiment": name, **result})
 
-    run_dir = next_run_dir(config.PHASE6_RESULTS_DIR / "probe_swipes")
+    run_dir = next_run_dir(base_dir / "probe_swipes")
     write_table(rows, list(rows[0]), run_dir / "probe")
-    write_manifest(run_dir, {"script": "probe_swipes", "n_rows": len(rows)})
+    write_manifest(run_dir, {"script": "probe_swipes", "model": args.model,
+                             "n_rows": len(rows)})
 
     for label in SWIPE_LABELS:
         name = config.CLASSES[label]

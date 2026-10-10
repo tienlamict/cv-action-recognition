@@ -145,6 +145,56 @@ def plot_importances(names, impurity, perm_mean, perm_std, highlight, out_path):
     return out_path
 
 
+def plot_training_curves(history, best_epoch, out_path, title=""):
+    """Đường học của LSTM: loss (trái) và macro-F1 (phải) theo epoch, train và
+    val trên CÙNG một khung — hai đại lượng khác thang đo nên tách hai khung,
+    không dùng hai trục dọc.
+
+    Cả hai đường đo cùng một cách (chế độ eval, không tăng cường), nên khoảng
+    hở giữa chúng là quá khớp. Val tô màu nhấn vì nó là thứ quyết định; vạch dọc
+    đánh dấu epoch có macro-F1 val cao nhất — checkpoint được lưu.
+
+    Args:
+        history: list dict có ``epoch``, ``train_loss``, ``val_loss``,
+            ``train_macro_f1``, ``val_macro_f1``.
+    """
+    epochs = np.array([r["epoch"] for r in history])
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), facecolor=config.FIG_SURFACE)
+    panels = ((axes[0], "loss", "Loss (CrossEntropy có trọng số lớp)"),
+              (axes[1], "macro_f1", "macro-F1"))
+    for ax, key, subtitle in panels:
+        _report_axes(ax)
+        ax.yaxis.grid(True, color=config.FIG_GRID, linewidth=0.8)
+        for split, color, z in (("train", config.FIG_DEEMPH, 2),
+                                ("val", config.FIG_ACCENT, 3)):
+            values = np.array([r[f"{split}_{key}"] for r in history])
+            ax.plot(epochs, values, color=color, linewidth=1.0, zorder=z,
+                    label=split)
+            ax.annotate(split, (epochs[-1], values[-1]), xytext=(4, 0),
+                        textcoords="offset points", va="center", fontsize=8,
+                        color=config.FIG_INK_2)
+        best = next(r for r in history if r["epoch"] == best_epoch)
+        ax.axvline(best_epoch, color=config.FIG_INK_2, linewidth=0.8,
+                   linestyle=(0, (3, 3)), zorder=1)
+        ax.plot([best_epoch], [best[f"val_{key}"]], marker="o", markersize=5,
+                color=config.FIG_ACCENT, markeredgecolor=config.FIG_SURFACE,
+                markeredgewidth=1.0, zorder=4)
+        ax.set_xlabel("epoch", color=config.FIG_INK_2, fontsize=9)
+        ax.set_title(subtitle, fontsize=9, color=config.FIG_INK)
+        ax.set_xlim(epochs[0], epochs[-1] + max(1, len(epochs) // 8))
+    # Chú giải và chú thích vạch dọc đặt ngoài hai khung: trong khung, chúng đè
+    # lên đường cong khi epoch tốt nhất nằm sát mép phải.
+    fig.legend(*axes[0].get_legend_handles_labels(), loc="lower center", ncol=2,
+               frameon=False, fontsize=8, labelcolor=config.FIG_INK_2)
+    note = f"vạch đứng và chấm: epoch {best_epoch}, macro-F1 val cao nhất"
+    fig.suptitle(f"{title}\n{note}" if title else note, fontsize=10,
+                 color=config.FIG_INK)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.savefig(out_path, dpi=config.FIG_DPI, facecolor=config.FIG_SURFACE)
+    plt.close(fig)
+    return out_path
+
+
 def plot_confusion(cm, cm_row, classes, out_path, title=""):
     """Ma trận nhầm lẫn thô (trái) và chuẩn hoá theo hàng (phải).
 

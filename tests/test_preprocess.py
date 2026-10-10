@@ -81,6 +81,33 @@ def test_fill_va_lo_hong_2_buoc_giu_lo_hong_10_buoc():
         "không được sửa mảng đầu vào tại chỗ"
 
 
+def _fill_tung_cot(xy, max_gap):
+    """Thuật toán gốc của fill_short_gaps: tìm và vá đoạn NaN cho TỪNG cột."""
+    flat = np.array(xy, dtype=np.float64).reshape(len(xy), -1)
+    steps = np.arange(len(flat), dtype=np.float64)
+    for column in flat.T:
+        missing = ~np.isfinite(column)
+        padded = np.diff(np.concatenate(([0], missing.astype(np.int8), [0])))
+        for start, stop in zip(np.flatnonzero(padded == 1), np.flatnonzero(padded == -1)):
+            if start == 0 or stop == len(flat) or stop - start > max_gap:
+                continue
+            column[start:stop] = np.interp(steps[start:stop], [start - 1, stop],
+                                           [column[start - 1], column[stop]])
+    return flat.reshape(np.shape(xy))
+
+
+def test_fill_gom_theo_kieu_mat_ra_dung_tung_bit_nhu_tung_cot():
+    """Bản nhanh (tìm đoạn NaN một lần cho mỗi kiểu mất) phải giống hệt bản vá
+    từng cột — kể cả khi các cột mất ở những bước khác nhau."""
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        xy = rng.normal(300.0, 50.0, size=(40, 21, 2))
+        xy[rng.random(40) < 0.15] = np.nan                    # mất cả bước
+        xy[rng.random((40, 21, 2)) < 0.03] = np.nan           # mất lẻ từng toạ độ
+        np.testing.assert_array_equal(fill_short_gaps(xy, max_gap=config.MAX_GAP),
+                                      _fill_tung_cot(xy, config.MAX_GAP))
+
+
 def test_fill_giu_nan_o_dau_va_cuoi_chuoi():
     """Đoạn chạm đầu hoặc cuối chuỗi không có đủ hai đầu mút để nội suy."""
     xy = np.stack([hand(center=(300.0 + 10.0 * i, 240.0)) for i in range(20)])

@@ -164,3 +164,28 @@ def test_tham_do_phan_thuc_te_di_qua_dung_duong_ong():
     pred, F = evaluation.probe_windows(predict, X, pres, first_step_lost,
                                        np.random.default_rng(0), sigma=0.0)
     assert np.all(pred == -1) and np.all(np.isnan(F)) and seen == [len(X)]
+
+
+def test_tham_do_mo_hinh_doc_cua_so_nhan_cung_cua_so_da_rung():
+    """LSTM nhận cửa sổ đã chuẩn hoá; cùng seed thì cùng rung như rừng nhận
+    qua đặc trưng — hai mô hình bị thử trên đúng các cửa sổ như nhau."""
+    from src.features import window_features
+
+    X, _, pres, _ = labeled_windows("a", n=1)
+    got = {}
+
+    def by_window(W):
+        got["W"] = W.copy()
+        return np.zeros(len(W), dtype=np.int64)
+
+    _, F_window = evaluation.probe_windows(by_window, X, pres, lambda w: w,
+                                           np.random.default_rng(5), sigma=0.01,
+                                           input_kind="window")
+    _, F_features = evaluation.probe_windows(lambda F: np.zeros(len(F)), X, pres,
+                                             lambda w: w, np.random.default_rng(5),
+                                             sigma=0.01)
+    assert got["W"].shape == X.shape
+    np.testing.assert_array_equal(F_window, F_features)
+    np.testing.assert_allclose(
+        np.stack([window_features(w, r) for w, r in zip(got["W"], pres)]), F_window,
+        rtol=1e-6)

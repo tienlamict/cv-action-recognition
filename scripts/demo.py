@@ -19,6 +19,7 @@ webcam, màn hình và log.
 Ví dụ:
     python scripts/demo.py --model rules
     python scripts/demo.py --model rf --log results/phase6/live_rf.csv
+    python scripts/demo.py --model lstm --log results/phase7/live_lstm.csv
     python scripts/demo.py --model rules --show-features
     python scripts/demo.py --model rules --log results/phase5/misfires_log.csv
     python scripts/demo.py --source data/ipn/videos/videos/1CM42_11_R__205.avi --no-display --max-sec 30
@@ -37,9 +38,9 @@ from src.display import make_display, read_key  # noqa: E402
 from src.fps import FpsMeter  # noqa: E402
 from src.hands import HandTracker  # noqa: E402
 from src.io_video import iter_frames  # noqa: E402
-from src.live import (MODELS, PRACTICE_CLASSES, LivePredictor,  # noqa: E402
+from src.live import (PRACTICE_CLASSES, LivePredictor,  # noqa: E402
                       PredictionLog, count_episodes, label_name,
-                      load_feature_ranges, screen_lines)
+                      load_feature_ranges, make_model, screen_lines)
 from src.recording import track  # noqa: E402
 
 WINDOW = "demo (q = quit)"
@@ -48,7 +49,7 @@ WINDOW = "demo (q = quit)"
 def main():
     setup_console()
     parser = make_parser(__doc__)
-    parser.add_argument("--model", default="rules", choices=sorted(MODELS))
+    parser.add_argument("--model", default="rules", choices=config.MODEL_NAMES)
     add_source_arg(parser)
     parser.add_argument("--log", default=None, help="ghi mỗi lần dự đoán vào CSV")
     parser.add_argument("--show-features", action="store_true",
@@ -59,7 +60,7 @@ def main():
                         help="dừng sau bấy nhiêu giây")
     args = parser.parse_args()
 
-    predictor = LivePredictor(MODELS[args.model])
+    predictor = LivePredictor(make_model(args.model))
     ranges = load_feature_ranges() if args.show_features else None
     practice = PRACTICE_CLASSES[0] if args.show_features else None
     log = PredictionLog(args.log) if args.log else None

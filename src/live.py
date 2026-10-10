@@ -4,9 +4,11 @@
 xử lý nào (SPEC Phase 5). Đường đi của một frame::
 
     TimeBuffer.push → (mỗi STRIDE_SEC) TimeBuffer.window → normalize_window
-    → window_features → mô hình
+    → window_features → mô hình                    (rules, rf)
+                      → datasets.window_sequence → LSTM   (lstm)
 
-đúng các hàm mà dữ liệu IPN đã đi qua (luật 1).
+đúng các hàm mà dữ liệu IPN đã đi qua (luật 1). Đặc trưng luôn được tính, kể
+cả với LSTM: log và chế độ luyện tập cần chúng.
 """
 
 import csv
@@ -19,9 +21,24 @@ from src.forest import ForestClassifier
 from src.features import FEATURE_NAMES, window_features
 from src.preprocess import normalize_window
 
-#: Mô hình chọn bằng ``demo.py --model``: tên → hàm ``features → (label, confidence)``.
-#: Rừng ngẫu nhiên nạp lười ở lần dự đoán đầu (``forest.ForestClassifier``).
-MODELS = {"rules": rules.classify, "rf": ForestClassifier()}
+def make_model(name):
+    """Mô hình của ``demo.py --model``: một hàm ``đầu vào → (label, confidence)``.
+
+    ``rules`` và ``rf`` nhận vector đặc trưng. ``lstm`` nhận cửa sổ đã chuẩn hoá
+    — nó khai báo ``input_kind = "window"``. Thư viện nặng chỉ nạp khi cần:
+    scikit-learn khi rừng nạp mô hình, torch (~3 giây) khi chọn ``lstm``.
+
+    Raises:
+        ValueError: tên không thuộc ``MODEL_NAMES``.
+    """
+    if name == "rules":
+        return rules.classify
+    if name == "rf":
+        return ForestClassifier()
+    if name == "lstm":
+        from src.models import LSTMRunner
+        return LSTMRunner()
+    raise ValueError(f"Không biết mô hình '{name}' — có: {', '.join(config.MODEL_NAMES)}")
 
 Prediction = namedtuple("Prediction", "ts label confidence presence features")
 Prediction.__doc__ = """Một lần dự đoán. ``label`` là ``None`` khi không có
@@ -30,7 +47,12 @@ cửa sổ hợp lệ (chưa đủ dữ liệu, mất tay, hay đơn vị lòng 
 
 
 class LivePredictor:
-    """Đẩy từng frame vào, nhận một :class:`Prediction` mỗi ``STRIDE_SEC``."""
+    """Đẩy từng frame vào, nhận một :class:`Prediction` mỗi ``STRIDE_SEC``.
+
+    ``model`` là hàm ``đầu vào → (label, confidence)`` của :func:`make_model`:
+    nhận vector đặc trưng, hoặc cửa sổ đã chuẩn hoá nếu nó khai báo
+    ``input_kind = "window"``.
+    """
 
     def __init__(self, model, stride_sec=config.STRIDE_SEC):
         self.model = model
@@ -68,7 +90,8 @@ class LivePredictor:
         except ValueError:
             return Prediction(ts, None, None, presence, None)
         features = window_features(win_norm, presence)
-        label, confidence = self.model(features)
+        takes_window = getattr(self.model, "input_kind", "features") == "window"
+        label, confidence = self.model(win_norm if takes_window else features)
         return Prediction(ts, label, confidence, presence, features)
 
 

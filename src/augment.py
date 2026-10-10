@@ -95,7 +95,10 @@ def time_warp(win, factor):
     left = np.floor(tau).astype(int)
     right = np.minimum(left + 1, n - 1)
     alpha = (tau - left)[:, None, None]
-    return (1 - alpha) * win[left] + alpha * win[right]
+    blend = (1 - alpha) * win[left] + alpha * win[right]
+    # Trúng đúng một bước cũ (alpha = 0) thì lấy thẳng bước đó: 0 × NaN vẫn là
+    # NaN, nên công thức nội suy làm cả bước đầu thành NaN khi bước 1 mất tay.
+    return np.where(alpha > 0, blend, win[left])
 
 
 def add_noise(win, sigma, rng):

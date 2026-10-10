@@ -10,6 +10,7 @@ Phase 8 sẽ mở rộng script này sang đánh giá mức sự kiện.
 Ví dụ:
     python scripts/evaluate.py --model rf
     python scripts/evaluate.py --model rules --split val
+    python scripts/evaluate.py --model lstm --split val
     python scripts/evaluate.py --model rf --split test --final
 """
 
@@ -29,13 +30,11 @@ from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E
 from src.splits import SPLIT_NAMES, read_splits  # noqa: E402
 from src.viz import plot_confusion  # noqa: E402
 
-MODEL_NAMES = ("rules", "rf")
-
 
 def main():
     setup_console()
     parser = make_parser(__doc__)
-    parser.add_argument("--model", required=True, choices=MODEL_NAMES)
+    parser.add_argument("--model", required=True, choices=config.MODEL_NAMES)
     parser.add_argument("--split", default="val", choices=SPLIT_NAMES)
     parser.add_argument("--final", action="store_true",
                         help="bắt buộc với test/real_test — chỉ chạy một lần, ở cuối")
@@ -46,12 +45,13 @@ def main():
     guard_split(args.split, args.final, args.model)
 
     with np.load(args.windows, allow_pickle=False) as data:
-        F, y, _ = split_features(data["X"], data["y"], data["presence"],
-                                 data["subject"], read_splits(), args.split)
+        F, y, pick = split_features(data["X"], data["y"], data["presence"],
+                                    data["subject"], read_splits(), args.split)
+        X = data["X"][pick]
     if y.size == 0:
         raise SystemExit(f"Tập {args.split} không có cửa sổ nào.")
 
-    pred, details = predict_windows(args.model, F)
+    pred, details = predict_windows(args.model, F, X)
     summary = summarize(y, pred)
     random_f1, none_f1 = baselines(y)
 

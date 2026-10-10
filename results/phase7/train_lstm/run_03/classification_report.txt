@@ -1,0 +1,11 @@
+              precision    recall  f1-score   support
+
+        none     0.9938    0.9395    0.9659     10650
+  swipe_left     0.1683    0.8173    0.2791       104
+ swipe_right     0.3142    0.7396    0.4410        96
+     zoom_in     0.4954    0.5745    0.5320        94
+    zoom_out     0.5077    0.7021    0.5893        94
+
+    accuracy                         0.9315     11038
+   macro avg     0.4959    0.7546    0.5615     11038
+weighted avg     0.9718    0.9315    0.9480     11038

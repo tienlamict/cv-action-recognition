@@ -540,11 +540,16 @@ Nhãn nhấp nháy liên tục hơn một giây mỗi khi làm cử chỉ là **
 
 **Việc phải làm**
 
-1. `src/datasets.py` — `WindowDataset` trả về tensor `(T, 42)`, tức `(T, 21, 2)` được `reshape`. Tăng cường nhận qua tham số và chỉ bật cho tập huấn luyện, tạo mới **mỗi epoch**.
+1. `src/datasets.py` — `WindowDataset` trả về tensor `(T, 42)`, tức `(T, 21, 2)` được `reshape`. Tăng cường nhận qua tham số và chỉ bật cho tập huấn luyện, tạo mới **mỗi epoch**. *Ghi chú 2026-10-09:*
+    - **Bước mất tay.** 5–8% số cửa sổ còn bước `NaN` (lỗ dài hơn `MAX_GAP`). Bước đó lấy giá trị của bước có tay gần nhất **trước** nó, trong `datasets.window_sequence`, hàm mà demo cũng dùng. Lý do:
+        - đầu vào phải đúng 42 chiều, nên không thêm được kênh đánh dấu;
+        - nội suy lỗ dài bị cấm;
+        - điền 0 tạo cú nhảy giả về vị trí cổ tay ở bước đầu.
+    - **Bản tăng cường bị từ chối.** Hiếm khi một bản tăng cường bị `normalize_window` từ chối; lúc đó dùng cửa sổ gốc và đếm số lần vào manifest.
 2. `src/models.py` — `LSTMClassifier(input_size=42, hidden=128, num_layers=2, dropout=0.3, pooling="last", n_classes=5)`. Lớp LSTM tạo với `bidirectional=False` **cố định bên trong**, không phải tham số người dùng đặt được.
-3. `scripts/train_lstm.py` — Adam, `CrossEntropyLoss` có trọng số lớp, dừng sớm theo macro-F1 tập `val`, lưu checkpoint tốt nhất, vẽ đường loss của cả `train` lẫn `val` trên một hình.
+3. `scripts/train_lstm.py` — Adam, `CrossEntropyLoss` có trọng số lớp, dừng sớm theo macro-F1 tập `val`, lưu checkpoint tốt nhất, vẽ đường loss của cả `train` lẫn `val` trên một hình. *Ghi chú 2026-10-09:* loss train trên hình đo ở chế độ `eval`, không tăng cường, tức cùng cách đo với val, để khoảng hở giữa hai đường chỉ là quá khớp. Loss chạy trong lúc học (có tăng cường và dropout) vẫn ghi trong bảng `history`. Vòng huấn luyện nằm ở `src/training.py`, để `test_overfit_10_mau` chạy đúng vòng đó.
 4. Cố định seed ở ba chỗ: `random`, `numpy`, `torch`. Ghi seed vào `manifest.json`.
-5. `demo.py --model lstm` — nạp checkpoint, softmax ra nhãn và `confidence`. Chạy trên CPU, không thêm phụ thuộc CUDA nào.
+5. `demo.py --model lstm` — nạp checkpoint, softmax ra nhãn và `confidence`. Chạy trên CPU, không thêm phụ thuộc CUDA nào. *Ghi chú 2026-10-09:* `torch` chỉ được nạp khi chọn `lstm`, vì nạp nó mất khoảng 3 giây. LSTM nhận cửa sổ đã chuẩn hoá, khai báo bằng `input_kind = "window"`. Đặc trưng vẫn được tính cho log và chế độ luyện tập.
 
 **Kiểm thử bắt buộc**
 

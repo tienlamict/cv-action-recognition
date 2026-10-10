@@ -133,7 +133,12 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 6 | `python scripts/evaluate.py --model rf --split val` | Đánh giá mô hình đã lưu; `--split test` bắt buộc `--final` và ghi `results/TEST_USED.log` (luật 13) |
 | 6 | `python scripts/demo.py --model rf --show-features --log <file.csv>` | Demo webcam; `--show-features` là chế độ luyện tập (bốn đặc trưng so với hộp IPN) |
 | 6 | `python scripts/summarize_log.py <file.csv>` | Số cụm nhãn khác `none` và số cụm mỗi phút của một log demo |
-| 7 | | |
+| 7 | `python scripts/train_lstm.py` | LSTM học trên train (tăng cường mới mỗi epoch), dừng sớm theo macro-F1 val: `results/phase7/train_lstm/run_NN/` (đường học `training_curves.png`, lịch sử từng epoch, ma trận nhầm lẫn, bảng ba mô hình trên cùng tập val); lưu `results/phase7/lstm_model.pt`; cập nhật `results/model_comparison` |
+| 7 | `python scripts/train_lstm.py --no-augment` | Khảo sát không tăng cường, dừng sớm như bản chính (`run_03`); không thay mô hình của demo, không ghi bảng so sánh |
+| 7 | `python scripts/train_lstm.py --no-augment --patience 150` | Khảo sát không tăng cường, chạy đủ 150 epoch (`run_04`): đường học cho thấy điểm bắt đầu quá khớp |
+| 7 | `python scripts/probe_swipes.py --model lstm` | LSTM coi gì là vuốt — cùng các phép thử như rừng: `results/phase7/probe_swipes/run_NN/probe` |
+| 7 | `python scripts/evaluate.py --model lstm --split val` | Đánh giá checkpoint LSTM đã lưu |
+| 7 | `python scripts/demo.py --model lstm --log <file.csv>` | Demo webcam bằng LSTM (CPU) |
 | 8 | | |
 | 10 | | |
 

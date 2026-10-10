@@ -102,6 +102,17 @@ def test_co_gian_thoi_gian_neo_buoc_dau_va_giu_T():
     np.testing.assert_allclose(fast[-1], win[-1])                # giữ bước cuối
 
 
+def test_co_gian_thoi_gian_khong_lam_mat_buoc_dau():
+    """Bước 1 mất tay: bước đầu vẫn nguyên (0 × NaN là NaN — lỗi cũ làm
+    normalize_window từ chối cả cửa sổ); bước nội suy cạnh chỗ mất tay vẫn NaN."""
+    win = normalize_window(make_swipe(+1))
+    win[1] = np.nan
+    for factor in (0.8, 1.0, 1.2):
+        warped = augment.time_warp(win, factor)
+        np.testing.assert_allclose(warped[0], win[0])
+    assert np.isnan(augment.time_warp(win, 0.5)[1]).all()       # giữa bước 0 và 1
+
+
 def test_xoa_buoc_roi_va_lai():
     win = normalize_window(make_static())
     patched = augment.drop_steps(win, start=5, length=3)

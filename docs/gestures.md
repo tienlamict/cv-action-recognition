@@ -92,6 +92,15 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
 >
 > Tăng cường "bàn tay cứng" có thể nới điều 1, nhưng **đang tắt**: để nhận được cú vuốt giữ
 > dáng, báo nhầm phải tăng gấp 1,5–2,6 lần (`results/phase6/notes.md` mục 8).
+>
+> **Với LSTM** (`demo.py --model lstm`, Phase 7; `results/phase7/notes.md` mục 5):
+>
+> - **Điều 1 vẫn giữ:** bàn tay cứng chỉ được nhận 0–6%.
+> - **Điều 2 và 3 gần như không còn:** vẫn được nhận 87–99% khi hất ra rồi kéo về ngay, khi
+>   cổ tay chỉ đi một phần tư quãng, hay khi cổ tay đứng yên.
+>
+> LSTM nhận cú vuốt từ động tác của các ngón (chụm rồi mở, ngón chỉ về một bên), không từ
+> quãng đường cổ tay đi.
 
 ## `swipe_right` — G06 *Throw right*
 

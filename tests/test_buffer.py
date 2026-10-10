@@ -107,6 +107,41 @@ def test_live_nap_san_mo_hinh_truoc_vong_lap():
     LivePredictor(lambda features: (0, 1.0))      # hàm thường: không có load, không lỗi
 
 
+def test_live_dua_cua_so_cho_mo_hinh_doc_cua_so():
+    """LSTM (``input_kind = "window"``) nhận cửa sổ đã chuẩn hoá; luật và rừng
+    nhận vector đặc trưng. Đặc trưng vẫn được tính cho log và màn hình."""
+    class WindowModel:
+        input_kind = "window"
+        seen = []
+
+        def __call__(self, win):
+            self.seen.append(win)
+            return 2, 0.9
+
+    model = WindowModel()
+    predictor = LivePredictor(model)
+    xy = static_norm(90)
+    preds = [p for i in range(90)
+             if (p := predictor.update(i / 30, xy[i], W, H)) is not None
+             and p.label is not None]
+    assert preds and all(p.label == 2 and p.features.shape == (15,) for p in preds)
+    assert all(w.shape == (config.T, config.NUM_LANDMARKS, 2) for w in model.seen)
+    np.testing.assert_allclose(model.seen[0][0, config.WRIST], 0.0, atol=1e-9)
+
+
+def test_chon_mo_hinh_theo_ten():
+    from src import rules
+    from src.forest import ForestClassifier
+    from src.live import make_model
+
+    assert make_model("rules") is rules.classify
+    assert isinstance(make_model("rf"), ForestClassifier)
+    assert make_model("lstm").input_kind == "window"
+    with pytest.raises(ValueError, match="lstm"):
+        make_model("svm")
+    assert set(config.MODEL_NAMES) == {"rules", "rf", "lstm"}
+
+
 def test_dem_dot_bao_lien_nhau_cung_lop():
     labels = [0, 1, 1, 1, 0, None, 1, 3, 3, 0, 4]
     assert count_episodes(labels) == {"swipe_left": 2, "swipe_right": 0,

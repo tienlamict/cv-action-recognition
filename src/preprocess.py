@@ -109,18 +109,20 @@ def fill_short_gaps(xy, max_gap=config.MAX_GAP):
     flat = xy.reshape(xy.shape[0], -1)
     steps = np.arange(flat.shape[0], dtype=np.float64)
 
-    for column in flat.T:
-        missing = ~np.isfinite(column)
-        if not missing.any() or missing.all():
-            continue
-        for start, stop in _nan_runs(missing):
-            touches_edge = start == 0 or stop == flat.shape[0]
-            if touches_edge or (stop - start) > max_gap:
-                continue
-            column[start:stop] = np.interp(
-                steps[start:stop], [steps[start - 1], steps[stop]],
-                [column[start - 1], column[stop]],
-            )
+    # Các cột thường mất ở cùng những bước (MediaPipe trả cả 21 điểm hoặc không
+    # điểm nào), nên tìm các đoạn NaN một lần cho mỗi KIỂU mất, rồi nội suy từng
+    # cột như cũ — cùng kết quả đến từng bit, nhanh hơn ~10 lần.
+    patterns, kind = np.unique(~np.isfinite(flat.T), axis=0, return_inverse=True)
+    for k, missing in enumerate(patterns):
+        runs = [(start, stop) for start, stop in _nan_runs(missing)
+                if start > 0 and stop < flat.shape[0] and stop - start <= max_gap]
+        for c in np.flatnonzero(kind.ravel() == k):
+            column = flat[:, c]         # view: ghi thẳng vào flat
+            for start, stop in runs:
+                column[start:stop] = np.interp(
+                    steps[start:stop], [steps[start - 1], steps[stop]],
+                    [column[start - 1], column[stop]],
+                )
 
     return flat.reshape(xy.shape)
 
