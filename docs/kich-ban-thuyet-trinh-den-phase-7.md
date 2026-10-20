@@ -1,31 +1,33 @@
-# Kịch bản thuyết trình — Nhận dạng cử chỉ bàn tay thời gian thực (đến Phase 7)
+# Kịch bản thuyết trình — Nhận dạng cử chỉ bàn tay thời gian thực (Phase 6 và Phase 7)
 
-**Dựa trên:** `docs/tong-ket-den-phase-7.md` (cập nhật 2026-10-19), `docs/gestures.md` và
-`docs/SPEC.md`.
-**Bản trước:** `docs/kich-ban-thuyet-trinh-den-phase-5.md`. Ở bản này Phase 0–5 chỉ còn hai slide
-tóm lược (slide 4–5). Muốn kể kỹ hơn thì lấy thêm slide từ bản trước (Phụ lục C).
-**Thời lượng:** khoảng 25 phút trình bày, cộng 1,5 phút nếu demo trực tiếp, chưa tính hỏi đáp.
-Bản rút gọn khoảng 12 phút ở Phụ lục C.
-**Số slide:** 20, trong đó slide 18 (demo) là tuỳ chọn.
+**Dựa trên:** `docs/tong-ket-den-phase-7.md` (cập nhật 2026-10-20).
+**Người nghe:** không cần biết trước về học máy. Mỗi khái niệm được giải thích ngay lần đầu xuất
+hiện, bằng đúng các ví dụ đời thường của bản tổng kết.
+**Thời lượng:** khoảng 25 phút, cộng 1,5 phút nếu demo trực tiếp, chưa tính hỏi đáp. Bản rút gọn
+khoảng 12 phút ở Phụ lục C.
+**Số slide:** 22, trong đó slide 20 (demo) là tuỳ chọn.
+**Phase 0–5** chỉ còn trong phần bối cảnh (slide 3–4). Bản kể kỹ, cho người nghe có nền kỹ thuật:
+`docs/kich-ban-thuyet-trinh-den-phase-5.md`.
 
 **Cách dùng kịch bản**
 
-- Mỗi slide có hai phần chính:
-  - *Trên slide*: chữ và hình đưa lên màn chiếu. Càng ít chữ càng tốt, font chữ Time New Roman
+- Mỗi slide có hai phần:
+  - *Trên slide*: chữ và hình đưa lên màn chiếu. Càng ít chữ càng tốt.
   - *Lời thoại*: phần nói. Không đọc lại slide.
 - Kịch bản xưng "tôi"; đổi thành "em" hoặc "nhóm em" tuỳ bối cảnh.
-- Mạch chính của buổi này: **từ con số trên giấy tới bàn tay thật**. Điểm trên val tăng dần qua
-  ba mô hình, nhưng chính hai lần thử trên webcam quyết định mô hình nào được dùng.
-- Bốn nguyên tắc khi nói:
-  1. Mỗi kỹ thuật kể theo mạch **vấn đề → cách làm → bằng chứng bằng số**.
-  2. Nói thẳng hạn chế: báo nhầm còn cao, chưa có máy trạng thái, chưa có phép thử trực tiếp có
-     cấu trúc.
-  3. Tập test **chưa dùng**, và không được nói như đã dùng.
-  4. Nói rõ con số thuộc loại nào:
-     - **trên val**: con số báo cáo;
-     - **mức sự kiện xấp xỉ**: tỉ lệ cử chỉ có ít nhất một cửa sổ được nhận đúng, chưa qua máy
-       trạng thái;
-     - **trên phiên webcam**: phép đo nhanh trên log, đếm cụm nhãn, **chưa phải độ chính xác**.
+- Mạch chính: **từ điểm số trên giấy tới bàn tay thật**. Hai mô hình học máy lần lượt cho điểm cao
+  hơn, nhưng mỗi lần đem ra thử trên webcam lại lộ một vấn đề mà điểm số không cho thấy.
+- Năm nguyên tắc khi nói:
+  1. Khái niệm mới: một câu định nghĩa, rồi một ví dụ đời thường. Từ tiếng Anh chỉ nhắc một lần,
+     ở lần đầu.
+  2. Mỗi slide chỉ nhấn một hai con số. Số còn lại để trên slide cho ai muốn đọc.
+  3. Kể theo mạch **vấn đề → cách làm → bằng chứng bằng số**.
+  4. Nói thẳng hạn chế. Đề thi thật (tập kiểm tra) **chưa mở**, và không được nói như đã mở.
+  5. Nói rõ con số thuộc loại nào:
+     - **trên đề thi thử** (tập kiểm định): con số báo cáo;
+     - **theo cử chỉ**: cử chỉ có ít nhất một cửa sổ được nhận đúng, chưa qua máy trạng thái;
+     - **trên phiên webcam**: đếm số lần báo trong log, **chưa phải độ chính xác**, vì log không ghi
+       lúc nào tôi định làm cử chỉ gì.
 
 ---
 
@@ -34,644 +36,617 @@ Bản rút gọn khoảng 12 phút ở Phụ lục C.
 **Trên slide**
 
 - Nhận dạng cử chỉ bàn tay thời gian thực để điều khiển máy tính
-- Báo cáo tiến độ đến Phase 7: rừng ngẫu nhiên, LSTM, và hai lần thử trên webcam
+- Phase 6 và 7: hai mô hình học máy, và hai lần thử trên webcam
 - Người trình bày · lớp/môn · ngày
 
 **Lời thoại**
 
-> Xin chào thầy cô và các bạn. Hôm nay tôi trình bày tiến độ đề tài nhận dạng cử chỉ bàn tay
-> thời gian thực để điều khiển máy tính, tính đến Phase 7.
+> Xin chào thầy cô và các bạn. Hôm nay tôi trình bày hai giai đoạn gần nhất của đề tài nhận dạng
+> cử chỉ bàn tay thời gian thực để điều khiển máy tính: Phase 6 và Phase 7.
 >
-> Ở mốc trước, hệ thống mới có một mô hình luật. Từ đó đến nay có thêm hai mô hình học máy:
-> rừng ngẫu nhiên và LSTM. Nhưng câu chuyện chính hôm nay không nằm ở chỗ điểm trên tập val
-> tăng bao nhiêu. Nó nằm ở hai lần thử trên webcam: cả hai lần, mô hình tốt trên giấy lại hỏng
-> ở một cử chỉ khi gặp bàn tay thật. Tôi sẽ trình bày cách tìm ra nguyên nhân, và cách đã chọn
-> để sửa.
+> Trong hai giai đoạn này, tôi dạy máy tính nhận cử chỉ bằng hai mô hình học máy: rừng ngẫu
+> nhiên, rồi một mô hình mạnh hơn tên là LSTM. Mỗi mô hình đều được đem ra thử trên webcam, và mỗi
+> lần thử lại lộ ra một vấn đề mà điểm số trên giấy không cho thấy. Không cần biết trước về học
+> máy: khái niệm nào cần, tôi sẽ giải thích ngay khi gặp.
 
 ---
 
-## Slide 2 — Bài toán, hướng tiếp cận và tiến độ · ⏱ 1:30
+## Slide 2 — Bài toán: năm lớp cần nhận · ⏱ 1:00
 
 **Trên slide**
 
-- Webcam laptop, CPU, thời gian thực: tại mỗi thời điểm chỉ dùng quá khứ
-- Bốn cử chỉ → bốn lệnh dự kiến: vuốt trái → slide trước · vuốt phải → slide sau · zoom in →
-  phóng to · zoom out → thu nhỏ
-- Cộng lớp nền "không cử chỉ", chiếm gần hết thời gian khi dùng thật
-- Sơ đồ (cần tự vẽ):
-  - Webcam → 21 điểm mốc → cửa sổ 1,2 giây → chuẩn hoá, rồi tách hai nhánh:
-    - 15 đặc trưng → luật ngưỡng hoặc rừng ngẫu nhiên
-    - chuỗi toạ độ → LSTM
-  - → nhãn trên màn hình ··· *(chưa làm: máy trạng thái → phím tắt)*
-- Tiến độ 13 phase:
-  - Phase 0–4: xong
-  - Phase 5–7: xong phần chính; còn các phép thử trực tiếp có cấu trúc
-  - Phase 8–12: chưa bắt đầu
-
-**Lời thoại**
-
-> Nhắc lại bài toán: từ webcam laptop thông thường, nhận ra bốn cử chỉ (vuốt trái, vuốt phải,
-> zoom in, zoom out) để sau này phát phím tắt, ví dụ chuyển slide hay phóng to. Mọi chuyển động
-> tay khác thuộc lớp "không cử chỉ", và đây là lớp chiếm gần hết thời gian khi dùng thật. Hệ
-> thống chạy trên CPU, và tại mỗi thời điểm chỉ được nhìn vào quá khứ.
->
-> Hướng tiếp cận không đổi. MediaPipe rút mỗi khung hình thành 21 điểm mốc trên bàn tay. Chuỗi
-> điểm mốc được cắt thành cửa sổ 1,2 giây rồi chuẩn hoá. Từ đó có hai nhánh: 15 đặc trưng thiết
-> kế bằng tay cho mô hình luật và rừng ngẫu nhiên, hoặc nguyên chuỗi toạ độ cho LSTM.
->
-> Về tiến độ: dự án có 13 phase. Phase 0 tới 4 đã xong. Phase 5 tới 7 xong phần chính, còn chờ
-> vài phép thử trực tiếp có cấu trúc mà tôi sẽ nói ở cuối. Máy trạng thái và phát phím tắt thật
-> thuộc Phase 9 và 10, chưa làm. Vì vậy hôm nay hệ thống mới hiển thị nhãn trên màn hình, chưa
-> điều khiển máy tính.
-
----
-
-## Slide 3 — Kết quả trong một slide · ⏱ 1:30
-
-**Trên slide**
-
-| Mô hình | Đầu vào | Macro-F1 trên val |
+| Lớp | Cử chỉ | Lệnh muốn phát |
 |---|---|---|
-| Đoán ngẫu nhiên | — | 0,0796 |
-| Luôn đoán "không cử chỉ" | — | 0,1964 |
-| Luật ngưỡng (Phase 5) | 15 đặc trưng | 0,2305 |
-| Rừng ngẫu nhiên (Phase 6) | 15 đặc trưng | 0,4361 |
-| LSTM (Phase 7) | chuỗi 18 bước × 42 toạ độ | **0,5560** |
-| Ghép: vuốt theo LSTM, zoom theo rừng (Phase 7) | cả hai | 0,5061 |
+| `swipe_left` | Hất tay sang trái | Slide trước |
+| `swipe_right` | Hất tay sang phải | Slide sau |
+| `zoom_in` | Mở ngón cái và ngón trỏ ra | Phóng to |
+| `zoom_out` | Chụm ngón cái và ngón trỏ lại | Thu nhỏ |
+| `none` | Mọi thứ khác: tay nghỉ, gõ phím, chỉ trỏ, gãi đầu… | Không làm gì |
 
-- Val: 11 038 cửa sổ của 7 người không có trong train; 96,5% là "không cử chỉ"
-- Mô hình khuyên dùng cho demo: **mô hình ghép**
-- 152 kiểm thử tự động đạt · tập test chưa dùng
+- `none` là lớp khó nhất: gồm **mọi** chuyển động khác, và chiếm phần lớn thời gian
+- Hình gợi ý: đoạn mẫu bốn cử chỉ (Phụ lục C)
 
 **Lời thoại**
 
-> Tôi nói kết quả trước. Hệ thống chạy đầu-cuối trên webcam với bốn mô hình, chọn bằng một tham
-> số lúc chạy.
+> Mục tiêu của đề tài: dùng webcam laptop nhận ra bốn cử chỉ để điều khiển máy tính. Hất tay sang
+> trái là về slide trước, hất sang phải là sang slide sau. Mở ngón cái và ngón trỏ ra là phóng to,
+> chụm lại là thu nhỏ, như trên điện thoại.
 >
-> Thước đo là macro-F1 trên tập val, tức trung bình F1 của năm lớp, lớp nào cũng nặng như nhau.
-> Tôi không dùng độ chính xác, vì val có 96,5% cửa sổ không cử chỉ: luôn đoán "không cử chỉ" đã
-> đạt 96,5% độ chính xác mà không nhận ra được cử chỉ nào.
->
-> Từ luật sang rừng ngẫu nhiên, macro-F1 gần gấp đôi, từ 0,23 lên 0,44. LSTM lên 0,56.
->
-> Nhưng xin để ý dòng cuối. Mô hình tôi khuyên dùng cho demo là mô hình ghép, có điểm trên val
-> thấp hơn LSTM. Lý do nằm ở hai lần thử trên webcam, và đó là phần chính của buổi hôm nay.
->
-> Thêm hai điều. Phần mềm có 152 kiểm thử tự động, đều đạt. Và tập test vẫn được khoá: mọi con
-> số hôm nay là trên train, trên val, hoặc trên phiên thử trực tiếp của tôi.
+> Còn một lớp thứ năm, gọi là `none`: mọi thứ khác, như tay nghỉ, gõ phím, chỉ trỏ, gãi đầu. Đây là
+> lớp khó nhất, vì nó gồm mọi chuyển động không phải bốn cử chỉ kia, và phần lớn thời gian ta không
+> làm cử chỉ nào. Một hệ thống tự chuyển slide khi bạn chỉ đang gãi đầu thì không ai dùng được.
 
 ---
 
-## Slide 4 — Nền móng Phase 0–5: dữ liệu và đường ống · ⏱ 1:45
+## Slide 3 — Hệ thống "nhìn" bàn tay thế nào · ⏱ 1:15
 
 **Trên slide**
 
-- IPN Hand: 200 video, 50 người
-  - 4 lớp đích lấy từ: hất trái, hất phải, zoom in, zoom out
-  - các lớp còn lại → "không cử chỉ", gồm cả mẫu âm khó: chỉ trỏ, hất lên/xuống, xòe tay hai lần
-- Chia theo người: train 30 · val 7 · test 13 (đúng split test chính thức)
-- Một đường ống cho mọi nguồn (video IPN, webcam): điểm mốc 2D → lưới 15 Hz → vá lỗ ≤ 3 bước →
-  cửa sổ 1,2 s, trượt 0,2 s → [tăng cường, chỉ khi huấn luyện] → chuẩn hoá → đặc trưng hoặc chuỗi
-  toạ độ
-- Chuẩn hoá: gốc = cổ tay ở **frame đầu** cửa sổ; đơn vị = chiều dài lòng bàn tay ở frame đầu →
-  giữ nguyên quỹ đạo
-- Lỗi im lặng đã sửa:
-  - bộ giải mã âm thầm bỏ frame "not coded": 101/200 video, 677 frame → mốc thời gian theo vị trí
-    frame trong file
-  - nhãn IPN đếm frame không thống nhất → chọn cách đếm cho từng video; loại 11 video
-- Hằng số đo, không đoán: hướng vuốt (đo trên 189 đoạn), mức nhiễu tăng cường (0,0159 lòng bàn
-  tay)
-- Nhãn cửa sổ neo vào **khoảnh khắc chính** của cử chỉ
+- Hình (cần tự vẽ, hoặc cắt từ đoạn mẫu): bàn tay với 21 điểm nối thành hình que
+- MediaPipe (công cụ có sẵn của Google) → **21 điểm mốc** mỗi khung hình: cổ tay, các khớp, đầu
+  năm ngón
+- **Cửa sổ 1,2 giây** = 18 thời điểm. Cứ 0,2 giây hỏi một lần: "trong 1,2 giây vừa rồi có cử chỉ
+  nào không?" → 5 câu trả lời mỗi giây
+- Mỗi cửa sổ tóm tắt thành **15 con số** (đặc trưng), ví dụ:
+  - cổ tay dời ngang bao xa, nhanh nhất bao nhiêu
+  - khoảng cách đầu ngón cái – đầu ngón trỏ thay đổi bao nhiêu
+  - bàn tay xòe ra hay khép lại bao nhiêu
+- Đơn vị đo: **"lòng bàn tay"** (cổ tay → gốc ngón giữa) → tay gần hay xa camera đều đo như nhau
 
 **Lời thoại**
 
-> Phần này tôi tóm tắt nhanh nền móng đã có từ mốc trước.
+> Hệ thống không xử lý trực tiếp từng điểm ảnh của camera. Một công cụ có sẵn của Google tên là
+> MediaPipe tìm bàn tay trong mỗi khung hình, rồi trả về 21 điểm mốc: cổ tay, các khớp và đầu năm
+> ngón. Từ đây trở đi, với hệ thống, bàn tay chỉ còn là 21 điểm chuyển động theo thời gian, giống
+> một hình que đang cử động.
 >
-> Dữ liệu là IPN Hand: 200 video của 50 người. Bốn lớp đích lấy từ hất trái, hất phải, zoom in
-> và zoom out; mọi lớp còn lại thành "không cử chỉ", trong đó có những mẫu âm khó như chỉ trỏ
-> hay xòe tay hai lần. Dữ liệu được chia theo người: 30 người train, 7 người val, 13 người test
-> theo đúng split chính thức. Không bao giờ chia ngẫu nhiên trên cửa sổ, vì hai cửa sổ liền
-> nhau gần như trùng nhau.
+> Một cử chỉ là một chuyển động, nên không thể nhận ra từ một khung hình. Hệ thống xét từng cửa sổ
+> dài 1,2 giây. Cứ mỗi 0,2 giây, nó lấy 1,2 giây gần nhất và hỏi: trong đoạn này có cử chỉ nào
+> không? Tức là mỗi giây có năm câu trả lời.
 >
-> Nguyên tắc số một là một đường ống cho mọi nguồn: video IPN lúc huấn luyện và webcam lúc chạy
-> thật đi qua đúng cùng các hàm, theo cùng thứ tự. Mấu chốt của đường ống là chuẩn hoá: gốc toạ
-> độ là cổ tay ở frame đầu cửa sổ, đơn vị là chiều dài lòng bàn tay ở frame đầu. Nhờ vậy biểu
-> diễn không phụ thuộc vị trí hay cỡ bàn tay, mà vẫn giữ được quỹ đạo của cú vuốt.
->
-> Trên đường đi tôi đã tìm và sửa nhiều lỗi im lặng của dữ liệu, như bộ giải mã âm thầm bỏ 677
-> frame ở 101 video, hay file nhãn IPN đếm frame không thống nhất. Các hằng số quy ước, như
-> hướng vuốt hay mức nhiễu, đều được đo trên dữ liệu chứ không đoán. Và nhãn của mỗi cửa sổ được
-> neo vào khoảnh khắc chính của cử chỉ, tức lúc động tác diễn ra nhanh nhất.
+> Với mô hình luật và rừng ngẫu nhiên, mỗi cửa sổ còn được tóm tắt thành 15 con số, gọi là đặc
+> trưng: cổ tay đi ngang bao xa, khoảng cách đầu ngón cái tới đầu ngón trỏ thay đổi bao nhiêu, bàn
+> tay xòe ra hay khép lại bao nhiêu… Mọi khoảng cách đo bằng đơn vị "lòng bàn tay", tức từ cổ tay
+> tới gốc ngón giữa, nên tay gần hay xa camera đều đo như nhau.
 
 ---
 
-## Slide 5 — Nền móng Phase 0–5: mô hình luật và demo v0 · ⏱ 0:45
+## Slide 4 — Từ luật do người viết đến học từ ví dụ · ⏱ 1:00
 
 **Trên slide**
 
-- Luật ngưỡng trên 3 đặc trưng: tốc độ ngang đỉnh, dời ngang, thay đổi độ mở cái–trỏ. Ngưỡng
-  hiệu chuẩn tự động, **chỉ trên train**
-- Macro-F1 val 0,2305: vượt hai đường cơ sở, nhưng **44%** cửa sổ "không cử chỉ" bị báo thành cử
-  chỉ
-- Demo v0: mỗi 0,2 giây, đưa 1,2 giây gần nhất qua đúng đường ống của IPN
-- Chế độ luyện tập: so đặc trưng của cử chỉ vừa làm với khoảng 25–75% của người diễn IPN; xanh
-  là khớp, đỏ là lệch
+- Điểm xuất phát (Phase 5): **luật do người viết**
+  - "cổ tay đi ngang đủ nhanh, đủ xa → vuốt; cái–trỏ mở ra đủ nhiều → zoom in"
+  - chạy được nhưng yếu: gần **một nửa** số lúc không có cử chỉ bị báo nhầm thành cử chỉ
+- **Học máy:** cho máy xem rất nhiều ví dụ có đáp án, để máy **tự tìm ra quy luật**
+  - thứ máy tìm ra = **mô hình**: nhận một cửa sổ, trả một lớp kèm **độ tin** (0 → 1)
+  - quá trình cho máy xem ví dụ = **huấn luyện**
+- Ví dụ có đáp án: bộ dữ liệu công khai **IPN Hand**
+  - 200 video, 50 người, 14 loại động tác đã gán sẵn
+  - 4 loại → bốn cử chỉ; 10 loại còn lại (có cả chỉ trỏ bằng một ngón, hai ngón) → `none`
 
 **Lời thoại**
 
-> Mô hình đầu tiên là bộ luật ba ngưỡng, hiệu chuẩn tự động trên train. Nó vượt hai đường cơ sở
-> nhưng còn yếu: 44% cửa sổ không cử chỉ bị báo nhầm. Điểm yếu đã được định vị: luật không tách
-> được cử chỉ khỏi chuyển động nền, nhất là tay đang chỉ trỏ.
+> Trước Phase 6, hệ thống đã chạy được bằng luật do người viết, kiểu "cổ tay đi ngang đủ nhanh và
+> đủ xa thì là vuốt". Nó chạy được nhưng rất yếu: gần một nửa số lúc không có cử chỉ bị báo nhầm
+> thành cử chỉ.
 >
-> Cùng lúc, demo thời gian thực đã chạy được, kèm một chế độ luyện tập: màn hình so đặc trưng của
-> cử chỉ vừa làm với khoảng giá trị của người diễn IPN. Chế độ này sẽ quay lại ở phần sau.
+> Học máy làm ngược lại: thay vì người viết luật, ta cho máy xem rất nhiều ví dụ có đáp án và để máy
+> tự tìm ra quy luật. Thứ máy tìm ra gọi là mô hình: đưa vào một cửa sổ mới, nó trả ra một lớp, kèm
+> độ tin từ 0 đến 1. Quá trình cho máy xem ví dụ gọi là huấn luyện.
+>
+> Ví dụ có đáp án lấy từ bộ dữ liệu công khai IPN Hand: 200 video của 50 người, mỗi đoạn đã gán sẵn
+> tên động tác. Bốn loại thành bốn cử chỉ của tôi; mười loại còn lại, trong đó có chỉ trỏ bằng một
+> ngón và hai ngón, gộp vào `none`. Hai kiểu chỉ trỏ này sẽ còn được nhắc nhiều.
 
 ---
 
-## Slide 6 — Rừng ngẫu nhiên: cách làm và kết quả · ⏱ 1:45
+## Slide 5 — Bài tập về nhà, đề thi thử, đề thi thật · ⏱ 1:00
 
 **Trên slide**
 
-- 300 cây trên 15 đặc trưng; trọng số lớp cân lại trong từng mẫu bootstrap; không cần chuẩn hoá
-  thang đo; huấn luyện 1,6 giây
-- Kiểm trước khi huấn luyện: không người nào, clip nào có mặt ở cả train và val
-- Một bộ đánh giá dùng chung cho mọi mô hình → các con số so được với nhau
-- Tập test khoá ngay trong code: thiếu cờ "lần cuối" thì từ chối; có cờ thì ghi nhật ký
-  **trước** khi đọc dữ liệu
+| Tập dữ liệu | Ví như | Số người | Dùng để |
+|---|---|---|---|
+| Huấn luyện (*train*) | Bài tập về nhà | 30 | Máy học từ đây |
+| Kiểm định (*val*) | Đề thi thử | 7 | Chấm điểm, chọn cách làm |
+| Kiểm tra (*test*) | Đề thi thật, **niêm phong** | 13 | Mở đúng một lần, ở cuối dự án |
 
-| F1 trên val | Macro-F1 | Không cử chỉ | Vuốt trái | Vuốt phải | Zoom in | Zoom out |
-|---|---|---|---|---|---|---|
-| Luật | 0,2305 | 0,714 | 0,056 | 0,043 | 0,164 | 0,176 |
-| Rừng ngẫu nhiên | **0,4361** | 0,951 | 0,212 | 0,232 | 0,368 | 0,417 |
-
-- Recall các lớp cử chỉ 0,49–0,63 · precision chỉ 0,13–0,35
-- 877 cửa sổ nền bị báo nhầm (8,2%), trong khi cả val chỉ có **388** cửa sổ cử chỉ thật
-- Cử chỉ có ít nhất một cửa sổ được nhận đúng: vuốt 70% / 70%, zoom 59% / 56%
-- Cổng Phase 6: cao hơn hẳn luật ✅ · không vượt 0,97, ngưỡng nghi rò rỉ ✅ · ba đặc trưng đầu
-  bảng đúng như dự đoán: chưa đạt theo chữ, có giải thích (slide 7)
-- Hình: ma trận nhầm lẫn
+- **Chia theo người:** mô hình phải đúng với người nó chưa từng thấy
+- **Khoá kỹ thuật:** script từ chối mở đề thi thật nếu không ghi rõ "lần cuối"; mỗi lần mở để lại một
+  dòng nhật ký → **đến nay chưa mở lần nào**
+- Đề thi thử giữ tỉ lệ ngoài đời: 11 038 cửa sổ, **96,5%** là `none`, mỗi cử chỉ chỉ khoảng **100**
+  cửa sổ
 
 **Lời thoại**
 
-> Mô hình thứ hai là rừng ngẫu nhiên 300 cây trên cùng 15 đặc trưng. Trọng số lớp được cân lại
-> trong từng mẫu bootstrap, vì lớp nền vẫn chiếm một nửa train. Cây quyết định chia theo ngưỡng
-> nên không cần chuẩn hoá thang đo. Huấn luyện chỉ mất 1,6 giây.
+> Dữ liệu được chia làm ba phần, giống việc học ở trường. Tập huấn luyện là bài tập về nhà: máy học
+> từ đây. Tập kiểm định là đề thi thử: dùng để chấm điểm trong lúc phát triển. Tập kiểm tra là đề
+> thi thật, được niêm phong, chỉ mở đúng một lần ở cuối dự án; nhìn đề thật rồi sửa cho hợp đề thì
+> điểm sẽ đẹp giả. Dự án có một cái khoá kỹ thuật cho việc này, và đến nay đề thi thật chưa bị mở lần
+> nào.
 >
-> Trước khi huấn luyện, script kiểm rằng không người nào, không clip nào có mặt ở cả train lẫn
-> val. Mọi mô hình đi qua cùng một bộ hàm đánh giá, nên các con số so được với nhau. Tập test bị
-> khoá ngay trong code: thiếu cờ "lần cuối" thì script từ chối; có cờ thì nó ghi một dòng nhật ký
-> trước khi đọc dữ liệu. Đến nay chưa có dòng nào.
->
-> Kết quả: macro-F1 0,44, gần gấp đôi luật, và F1 của mọi lớp cử chỉ đều tăng mạnh. Recall các
-> lớp cử chỉ từ 0,49 tới 0,63. Điểm yếu vẫn là precision, chỉ 0,13 tới 0,35. Lý do nằm ở tỉ lệ
-> nền. 8,2% cửa sổ nền bị báo nhầm nghe có vẻ ít, nhưng đó là 877 cửa sổ, trong khi cả tập val
-> chỉ có 388 cửa sổ cử chỉ thật. Báo nhầm đông hơn cả số cử chỉ có thật.
->
-> Gom các cửa sổ liền nhau của cùng một cử chỉ lại thì 70% cú vuốt, và khoảng 56 tới 59% cú zoom,
-> có ít nhất một cửa sổ được nhận đúng.
->
-> Phase 6 có cổng ba điều kiện. Rừng cao hơn hẳn luật: đạt. Không vượt 0,97, ngưỡng nghi rò rỉ dữ
-> liệu: đạt. Điều kiện thứ ba về độ quan trọng đặc trưng chưa đạt theo đúng chữ; slide sau giải
-> thích vì sao.
+> Dữ liệu chia theo người: nếu cùng một người có mặt ở cả bài tập lẫn đề thi, máy có thể "nhận ra
+> người quen" thay vì nhận ra cử chỉ. Đề thi thử giữ đúng tỉ lệ ngoài đời: 96,5% số cửa sổ là không
+> có cử chỉ, mỗi cử chỉ chỉ khoảng 100 cửa sổ. Con số 100 này sẽ quan trọng ở phần sau.
 
 ---
 
-## Slide 7 — Đọc lỗi của rừng: báo nhầm từ đâu, mô hình dựa vào gì · ⏱ 1:30
+## Slide 6 — Đo mô hình tốt tới đâu · ⏱ 1:45
 
 **Trên slide**
 
-- Báo nhầm, tách theo nhãn gốc của IPN:
-  - nguồn chính: tay chỉ trỏ (một ngón, hai ngón) và tay không làm cử chỉ
-  - xòe tay hai lần: 19% số cửa sổ bị báo nhầm, chủ yếu thành zoom
-- Độ quan trọng đặc trưng, đo hai cách:
-  - Gini: lúc dựng cây, trên train
-  - Hoán vị: xáo một cột trên val, đo macro-F1 giảm bao nhiêu
-- Ba đặc trưng đầu bảng (hoán vị): biên độ độ mở cái–trỏ · thay đổi độ mở cái–trỏ · tốc độ ngang
-  đỉnh
-  - dự đoán trước: thay đổi độ mở cái–trỏ · **dời ngang** · tốc độ ngang đỉnh
-- Dời ngang bị "giấu" vì trùng thông tin với tốc độ ngang trung bình (tương quan hạng Spearman
-  0,966). Xáo **cả cặp** thì:
-  - macro-F1 giảm 0,042, ngang tốc độ ngang đỉnh
-  - số cú vuốt bị đoán **ngược hướng**: 8 → 42,8
+- Như một **chuông báo cháy**:
+  - **Tỉ lệ bắt được** (*recall*): trong các đám cháy thật, chuông kêu được bao nhiêu phần?
+  - **Tỉ lệ báo đúng** (*precision*): trong các lần chuông kêu, bao nhiêu lần là cháy thật?
+- Ví dụ thật: vuốt trái, rừng ngẫu nhiên, đề thi thử
+  - 104 cửa sổ vuốt trái thật, bắt được 56 → **bắt được 54%**
+  - mô hình nói "vuốt trái" 424 lần, chỉ 56 lần đúng (366 lần là `none`) → **báo đúng 13%**
+- **F1**: gộp hai tỉ lệ, chỉ cao khi **cả hai** cao (ví dụ trên: 0,21) · **macro-F1**: trung bình F1
+  của năm lớp → điểm chính để so mô hình
+- **Đường cơ sở**: luôn đoán `none` 0,196 · đoán ngẫu nhiên 0,080
+- **Theo cử chỉ**: bắt được nếu **ít nhất một** cửa sổ của cử chỉ được nhận đúng
+- **Cụm báo nhầm**: chuỗi câu trả lời nhầm liền nhau ≈ một lần hệ thống *sẽ* phát lệnh sai
+
+**Lời thoại**
+
+> Để biết mô hình tốt tới đâu, hãy nghĩ tới một chuông báo cháy. Trong các đám cháy thật, chuông kêu
+> được bao nhiêu phần: đó là tỉ lệ bắt được. Trong các lần chuông kêu, bao nhiêu lần là cháy thật: đó
+> là tỉ lệ báo đúng. Chuông lúc nào cũng kêu thì bắt được hết nhưng gần như không bao giờ báo đúng;
+> chuông không bao giờ kêu thì vô dụng. Cần cả hai.
+>
+> Ví dụ thật, với vuốt trái và rừng ngẫu nhiên. Đề thi thử có 104 cửa sổ vuốt trái, mô hình bắt được
+> 56, tức 54%. Nhưng nó nói "vuốt trái" tổng cộng 424 lần mà chỉ đúng 56 lần; 366 lần là lúc không có
+> cử chỉ nào. Tỉ lệ báo đúng chỉ 13%.
+>
+> Điểm F1 gộp hai tỉ lệ này thành một số từ 0 đến 1, chỉ cao khi cả hai cùng cao; ví dụ trên có F1 là
+> 0,21. Macro-F1 là trung bình F1 của năm lớp, và là điểm chính để so các mô hình. Tôi không dùng tỉ
+> lệ đoán đúng thông thường, vì một mô hình lười lúc nào cũng đoán "không có cử chỉ" đã đúng 96,5%.
+> Mô hình lười đó chỉ được macro-F1 0,196, đoán ngẫu nhiên được 0,08: đó là hai mốc để so.
+>
+> Thêm hai cách đếm gần với trải nghiệm thật. Đếm theo cử chỉ: bạn vuốt một lần, máy chỉ cần nhận ra
+> một lần. Và cụm báo nhầm: một chuỗi câu trả lời nhầm liền nhau, tương đương một lần hệ thống sẽ tự
+> ý chuyển slide.
+
+---
+
+## Slide 7 — Rừng ngẫu nhiên: cách hoạt động và kết quả · ⏱ 1:45
+
+**Trên slide**
+
+- **Cây quyết định** = trò "20 câu hỏi": máy tự chọn chuỗi câu hỏi có/không về 15 con số
+  ("khoảng cái–trỏ có đổi hơn 1,2 lòng bàn tay không?" → "tăng hay giảm?" → …)
+- **Rừng ngẫu nhiên** = 300 cây, mỗi cây học từ một phần ví dụ rút ngẫu nhiên → **cùng biểu quyết**
+- Coi trọng các lớp cử chỉ hơn cho cân bằng · huấn luyện trên 3 326 cửa sổ: **1,6 giây**
+
+| Trên đề thi thử | macro-F1 | Bắt được (bốn cử chỉ) | Báo đúng (bốn cử chỉ) |
+|---|---|---|---|
+| Luôn đoán `none` | 0,196 | 0% | — |
+| Luật (Phase 5) | 0,231 | 44–62% | 2–10% |
+| **Rừng ngẫu nhiên** | **0,436** | 49–63% | 13–35% |
+
+- Báo nhầm: **877** cửa sổ `none` (8,2%) bị báo thành cử chỉ, gấp hơn hai lần toàn bộ **388** cửa sổ
+  cử chỉ thật của đề
+- Theo cử chỉ: vuốt trái 70% · vuốt phải 70% · zoom in 59% · zoom out 56%
+- Nhầm nhiều nhất: **tay đang chỉ trỏ** và **tay không làm cử chỉ**, thường thành **vuốt**
+- Hình: ma trận nhầm lẫn (hàng = lớp thật, cột = lớp đoán)
+
+**Lời thoại**
+
+> Mô hình học máy đầu tiên là rừng ngẫu nhiên. Hãy nghĩ tới trò chơi "20 câu hỏi": một cây quyết
+> định là một chuỗi câu hỏi có hoặc không về 15 con số, ví dụ "khoảng cách cái–trỏ có thay đổi hơn
+> 1,2 lòng bàn tay không?", rồi "nó tăng hay giảm?", cho tới khi trả lời được "đây là zoom in". Câu
+> hỏi và ngưỡng do máy tự chọn. Một cây đơn lẻ dễ học tủ, nên rừng ngẫu nhiên trồng 300 cây, mỗi cây
+> học từ một phần ví dụ rút ngẫu nhiên, rồi cả 300 cây cùng biểu quyết. Huấn luyện cả rừng chỉ mất
+> 1,6 giây.
+>
+> Kết quả: macro-F1 0,436, gần gấp đôi mô hình luật. Điểm yếu là báo nhầm: 877 cửa sổ không có cử chỉ
+> bị báo thành cử chỉ, gấp hơn hai lần toàn bộ 388 cửa sổ cử chỉ thật của đề. Đếm theo cử chỉ thì 70%
+> cú vuốt được nhận ra ít nhất một lần.
+>
+> Hình bên là ma trận nhầm lẫn: hàng là lớp thật, cột là lớp mô hình đoán. Ô "thật là `none`, đoán
+> là vuốt trái" chính là con số 366 vừa rồi. Phần lớn báo nhầm đến từ tay đang chỉ trỏ và tay không
+> làm cử chỉ, và thường thành vuốt: khi chỉ trỏ, người ta cũng di tay nhanh và xa, có khi còn nhanh
+> hơn một cú vuốt.
+
+---
+
+## Slide 8 — Mô hình dựa vào con số nào · ⏱ 1:00
+
+**Trên slide**
+
+- **Độ quan trọng của đặc trưng:** xáo trộn một trong 15 cột trên đề thi thử, xem điểm tụt bao nhiêu
+- Ba con số quan trọng nhất:
+  - khoảng cái–trỏ có thay đổi nhiều không
+  - cái–trỏ mở ra hay chụm lại
+  - cổ tay đi ngang nhanh nhất bao nhiêu
+- Bất ngờ: "cổ tay dời ngang bao xa", dự đoán là top 3, chỉ đứng **thứ 13**
+  - vì có **"người sinh đôi"**: vận tốc ngang trung bình (tương quan 0,97)
+  - xáo **cả cặp**: điểm tụt ngang "cổ tay đi nhanh nhất"; cửa sổ vuốt bị đoán **ngược hướng**
+    8 → khoảng 43
+  - → thông tin "vuốt về bên nào" nằm ở cặp này
 - Hình: độ quan trọng đặc trưng
 
 **Lời thoại**
 
-> Con số tổng chưa đủ, nên tôi đọc lỗi theo từng nguồn. Lớp nền được tách theo nhãn gốc của IPN.
-> Báo nhầm chủ yếu đến từ tay đang chỉ trỏ và tay không làm cử chỉ. Riêng động tác xòe tay hai
-> lần bị báo nhầm 19% số cửa sổ, chủ yếu thành zoom, vì nó cũng là các ngón tay mở ra.
+> Muốn biết mô hình dựa vào con số nào, có một cách rất trực quan: xáo trộn một cột trong 15 cột trên
+> đề thi thử, rồi xem điểm tụt bao nhiêu. Tụt nhiều thì mô hình dựa nhiều vào con số đó.
 >
-> Tiếp theo: mô hình dựa vào đặc trưng nào? Tôi đo theo hai cách. Cách Gini đo lúc dựng cây,
-> trên train. Cách hoán vị xáo trộn một cột trên val rồi xem macro-F1 giảm bao nhiêu.
->
-> Trước khi huấn luyện, tôi dự đoán ba đặc trưng quan trọng nhất là thay đổi độ mở cái–trỏ, dời
-> ngang và tốc độ ngang đỉnh. Thực tế, dời ngang không vào top ba. Nguyên nhân: dời ngang và tốc
-> độ ngang trung bình gần như mang cùng một thông tin, tương quan hạng 0,966. Xáo một cột thì cột
-> kia vẫn còn, mô hình gần như không mất gì, nên phép hoán vị từng cột đánh giá thấp cả hai.
->
-> Để kiểm, tôi xáo cả cặp theo cùng một hoán vị. Macro-F1 giảm 0,042, ngang với tốc độ ngang
-> đỉnh. Và số cú vuốt bị đoán ngược hướng tăng từ 8 lên khoảng 43. Tức là cặp đặc trưng này chính
-> là nơi mô hình lấy thông tin trái hay phải. Vì vậy tôi ghi điều kiện thứ ba là "chưa đạt theo
-> chữ, đã giải thích", chứ không nới điều kiện.
+> Ba con số quan trọng nhất là hai con số về động tác cái–trỏ, và tốc độ đi ngang lớn nhất của cổ
+> tay. Điều bất ngờ: con số "cổ tay dời ngang bao xa", mà tôi đoán sẽ vào top ba, chỉ đứng thứ 13. Lý
+> do là nó có một "người sinh đôi", vận tốc ngang trung bình: hai con số gần như luôn tăng giảm cùng
+> nhau. Xáo một mình nó thì mô hình vẫn dùng được người sinh đôi, nên điểm không tụt. Xáo cả cặp thì
+> điểm tụt ngang con số quan trọng thứ ba, và số cửa sổ vuốt bị đoán ngược hướng tăng từ 8 lên khoảng
+> 43. Vậy thông tin "vuốt về bên nào" nằm ở cặp này.
 
 ---
 
-## Slide 8 — Thử trực tiếp lần 1: vì sao cú vuốt không được nhận · ⏱ 1:45
+## Slide 9 — Thử trực tiếp lần 1: vì sao vuốt kém · ⏱ 2:00
 
 **Trên slide**
 
-- Triệu chứng (log webcam, rừng ngẫu nhiên):
-  - zoom được nhận đều
-  - cú vuốt nhanh (tốc độ đỉnh 3,2–9,3 lòng bàn tay/giây) nhưng dời ròng chỉ 0–0,6 lòng bàn tay
-    → "không cử chỉ"
-- Thí nghiệm phản thực tế:
-  1. Lấy cú vuốt thật của val mà rừng đang nhận đúng
-  2. Sửa **đúng một** khía cạnh, giữ nguyên mọi thứ khác
-  3. Cộng rung điểm mốc như dữ liệu thật
-  4. Cho qua đúng chuẩn hoá và đặc trưng như lúc chạy thật
+- Webcam, rừng ngẫu nhiên: **zoom khá tốt, vuốt kém**
+  - vuốt chậm, đi xa → được nhận
+  - vuốt nhanh rồi kéo tay về ngay → `none` (sau 1,2 giây cổ tay gần như về chỗ cũ)
+- Trên IPN, vuốt **không** kém zoom (70% so với 56–59%) → **lệch miền**: tôi vuốt khác người diễn IPN
+- **Thí nghiệm "đổi đúng một thứ"** (phản thực tế): lấy cú vuốt thật của IPN mà mô hình đang nhận
+  đúng → sửa đúng một khía cạnh → cộng độ rung như tay thật → còn được nhận không?
 
 | Sửa đổi | Còn được nhận (trái / phải) |
 |---|---|
-| Bàn tay cứng: giữ quỹ đạo và tốc độ cổ tay, không đổi dáng tay | **0% / 0%** |
-| Giữ 50% sự đổi dáng tay | 18% / 15% |
-| Đi ra rồi quay về trong cùng cửa sổ | 45% / 37% |
-| Quãng dời cổ tay × 0,5 | 48% / 47% |
-| Cổ tay đứng yên, chỉ đổi dáng tay | 0% / 0% |
+| Không sửa | 100% / 92% |
+| **Bàn tay giữ nguyên dáng**, cổ tay vẫn đi y như cũ | **0% / 0%** |
+| Đi ra rồi quay về ngay | 45% / 37% |
+| Cổ tay chỉ đi nửa quãng đường | 48% / 47% |
 
-- Với rừng, "vuốt" = cú hất của IPN: cổ tay đi ngang **đủ nhanh, đủ xa**, **và** bàn tay đổi từ
-  chụm sang mở
-- Hình gợi ý (cần tự vẽ): quỹ đạo cổ tay và dáng tay của một cú vuốt gốc, đặt cạnh bản "bàn tay
-  cứng" và bản "đi ra rồi quay về"
+- Với rừng, "vuốt" = cú **hất** của IPN: cổ tay đi ngang đủ nhanh, đủ xa rồi **dừng ở đó**, **và** bàn
+  tay **mở ra trong lúc hất**
+- Hình gợi ý (cần tự vẽ): cú vuốt gốc đặt cạnh bản "giữ nguyên dáng" và bản "đi ra rồi quay về"
 
 **Lời thoại**
 
-> Đây là lần thử trực tiếp đầu tiên, với rừng ngẫu nhiên. Zoom được nhận đều. Nhưng nhiều cú vuốt
-> của tôi bị coi là không cử chỉ. Log cho thấy đó là những cú vuốt rất nhanh, tốc độ đỉnh 3 tới 9
-> lòng bàn tay mỗi giây, nhưng tay hất ra rồi kéo về ngay, nên dời ròng gần như bằng không.
+> Tôi chạy demo bằng rừng ngẫu nhiên trên webcam. Zoom được nhận khá tốt, nhưng vuốt thì kém. Log cho
+> thấy: cú vuốt chậm, đi xa thì được nhận; cú vuốt nhanh rồi kéo tay về ngay thì bị coi là không có
+> cử chỉ, vì sau 1,2 giây cổ tay gần như về chỗ cũ.
 >
-> Độ chính xác tổng không trả lời được câu hỏi "vì sao cú vuốt của tôi không được nhận". Nên tôi
-> hỏi thẳng mô hình bằng thí nghiệm phản thực tế. Lấy những cú vuốt thật trong val mà rừng đang
-> nhận đúng. Sửa đúng một khía cạnh của chuyển động, giữ nguyên mọi thứ khác. Cộng rung điểm mốc
-> như dữ liệu thật. Cho đi qua đúng các bước chuẩn hoá và tính đặc trưng như lúc chạy thật. Rồi
-> đếm xem còn bao nhiêu phần được nhận.
+> Trên dữ liệu IPN, vuốt không hề kém zoom. Vậy vấn đề nằm ở chỗ tôi làm khác người diễn IPN. Hiện
+> tượng này gọi là lệch miền: giống người học lái xe ở một thành phố, sang thành phố khác có biển báo
+> khác thì lúng túng.
 >
-> Kết quả rất rõ. Giữ nguyên quỹ đạo và tốc độ cổ tay, chỉ bỏ sự đổi dáng của bàn tay: không cú
-> nào được nhận. Ngược lại, giữ sự đổi dáng mà cổ tay đứng yên: cũng không cú nào. Đi ra rồi quay
-> về, hay chỉ đi nửa quãng, thì mất hơn một nửa.
+> Để biết mô hình thật sự coi cái gì là một cú vuốt, tôi làm thí nghiệm "đổi đúng một thứ". Muốn biết
+> một người nhận ra bạn qua giọng nói hay khuôn mặt, ta đổi đúng một thứ rồi xem họ còn nhận ra không.
+> Ở đây cũng vậy: lấy cú vuốt thật của IPN mà mô hình đang nhận đúng, sửa đúng một khía cạnh, cộng chút
+> độ rung như tay thật, rồi xem còn được nhận không.
 >
-> Nghĩa là rừng hiểu "vuốt" đúng như cú hất của người diễn IPN: cổ tay đi ngang đủ nhanh và đủ
-> xa, đồng thời bàn tay mở ra từ dáng chụm. Trên chính cú vuốt của IPN, rừng nhận được 70%, cao
-> hơn cả zoom. Vấn đề là lệch miền: tôi vuốt khác cách người diễn IPN vuốt.
+> Giữ nguyên đường đi của cổ tay, chỉ bắt bàn tay giữ nguyên dáng: không cú nào được nhận. Đi ra rồi
+> quay về, hay chỉ đi nửa quãng: mất hơn một nửa. Vậy với rừng, "vuốt" là cú hất của người diễn IPN:
+> cổ tay đi ngang đủ nhanh, đủ xa rồi dừng ở đó, và bàn tay mở ra trong lúc hất. Sự mở tay giúp nó
+> phân biệt cú hất với tay chỉ trỏ, vì tay chỉ trỏ di chuyển mà không đổi dáng.
 
 ---
 
-## Slide 9 — Xử lý: luyện theo IPN, và một phép tăng cường bị tắt · ⏱ 1:15
+## Slide 10 — Hai cách sửa · ⏱ 1:30
 
 **Trên slide**
 
-- Dạy người theo mô hình: chế độ luyện tập hiện thêm **biên độ độ xòe** (bàn tay mở ra bao nhiêu
-  trong 1,2 giây), xanh khi nằm trong khoảng 25–75% của IPN
-- Dạy mô hình theo người: tăng cường "bàn tay cứng" cho cú vuốt
-  - bản cứng hoàn toàn: biên độ độ xòe 0,06, trong khi tay chỉ trỏ thật đang di chuyển có
-    0,2–0,8 → chỉ giúp nhận một thứ không có ở tay thật
-  - bản thực tế (giữ ngẫu nhiên 0–100% sự đổi dáng): cú vuốt giữ 50% đổi dáng được nhận
-    10% → 38–56%
-  - giá: báo nhầm nền 8,2% → 12,5–21,6% (gấp 1,5–2,6 lần)
-  - → có trong code, **tắt**; số đo đã ghi để quyết định sau
-- Phiên sau khi luyện (1 phút, đo nhanh trên log):
-  - 43 cửa sổ chuyển động kiểu vuốt
-  - 88% có biên độ độ xòe nằm trong khoảng của IPN
-  - rừng nhận **79%** là vuốt
+- **Cách 1, sửa cách làm của người:** chế độ luyện tập hiện thêm độ mở bàn tay, xanh nếu giống người
+  diễn IPN, đỏ nếu khác
+  - phiên thử sau (1 phút): 43 cửa sổ có chuyển động kiểu vuốt · **88%** đã mở tay đúng kiểu IPN ·
+    rừng nhận **79%** là vuốt
+- **Cách 2, sửa mô hình:** **tăng cường dữ liệu** = tạo thêm ví dụ bằng biến đổi không làm đổi đáp án
+  (xoay nhẹ, lật ngang, nhanh chậm, rung)
+  - ý tưởng: giữ đường đi cổ tay, "làm cứng" bàn tay, vẫn dạy là "vuốt"
+  - bản cứng hoàn toàn là giả tạo: độ mở bàn tay 0,06, trong khi tay chỉ trỏ thật vẫn dao động 0,2–0,8
+  - bản thực tế hơn: cú vuốt chỉ đổi dáng một nửa được nhận 10% → 38–56%; **giá**: báo nhầm tăng
+    1,5–2,6 lần
+  - → nằm trong code, **đang tắt**
 
 **Lời thoại**
 
-> Có hai hướng xử lý: dạy người theo mô hình, hoặc dạy mô hình theo người.
+> Có hai cách sửa: sửa cách làm của người, hoặc sửa mô hình.
 >
-> Hướng thứ nhất rẻ: chế độ luyện tập hiện thêm biên độ độ xòe, tức bàn tay mở ra bao nhiêu trong
-> cửa sổ, và tô xanh khi nằm trong khoảng của người diễn IPN.
+> Cách thứ nhất: demo có sẵn một chế độ luyện tập, hiện vài con số của cửa sổ vừa rồi, tô xanh nếu
+> giống người diễn IPN, đỏ nếu khác. Tôi thêm con số cho biết bàn tay có mở ra trong lúc làm cử chỉ
+> không. Ở phiên thử sau, trong 43 cửa sổ có chuyển động kiểu vuốt, 88% tôi đã mở tay đúng kiểu IPN,
+> và rừng nhận 79% là vuốt.
 >
-> Hướng thứ hai là tăng cường dữ liệu: tạo thêm những cú vuốt "bàn tay cứng" để rừng học cả kiểu
-> vuốt giữ nguyên dáng tay. Ở đây có một bài học. Bản cứng hoàn toàn trông rất hiệu quả, nhưng khi
-> so phân bố thì nó không giống tay thật: độ xòe của nó gần như không đổi, còn tay thật đang di
-> chuyển thì độ xòe đo được vẫn thay đổi khá nhiều, do góc nhìn đổi, điểm mốc rung và ngón tay hơi
-> co duỗi. Bản cứng hoàn toàn chỉ dạy mô hình nhận một thứ không tồn tại.
->
-> Bản thực tế hơn thì có giúp: trong phép quét trên val, cú vuốt giữ một nửa sự đổi dáng được nhận
-> từ 10% lên 38 tới 56%. Nhưng báo nhầm nền tăng 1,5 tới 2,6 lần. Với một hệ thống mà báo nhầm là
-> lỗi nguy hiểm nhất, cái giá đó quá đắt. Phép tăng cường được giữ trong code nhưng tắt, kèm số
-> đo, để quyết định sau.
->
-> Sau khi luyện theo chế độ mới, ở phiên kế tiếp, 88% chuyển động kiểu vuốt của tôi đã mở bàn tay
-> đúng kiểu IPN, và rừng nhận 79% là vuốt. Đây là phép đo nhanh trên log, chưa phải phép thử có
-> cấu trúc.
+> Cách thứ hai là tăng cường dữ liệu: tạo thêm ví dụ bằng cách biến đổi ví dụ có sẵn mà không đổi đáp
+> án, như cho học sinh xem một bài toán viết theo nhiều cách. Ở đây là giữ đường đi của cổ tay nhưng
+> "làm cứng" bàn tay, rồi vẫn dạy là vuốt. Bản cứng hoàn toàn hoá ra giả tạo, vì tay thật đang di
+> chuyển không bao giờ cứng hẳn. Bản thực tế hơn thì có giúp: cú vuốt chỉ đổi dáng một nửa được nhận
+> từ 10% lên 38 đến 56%. Nhưng báo nhầm tăng 1,5 đến 2,6 lần, vì tay chỉ trỏ giờ cũng bị coi là vuốt.
+> Cách này vẫn nằm trong code nhưng đang tắt; đánh đổi bao nhiêu là quyết định còn để ngỏ.
 
 ---
 
-## Slide 10 — LSTM: thiết kế · ⏱ 1:30
+## Slide 11 — Mạng nơ-ron, LSTM và cách dạy · ⏱ 1:45
 
 **Trên slide**
 
-- Đầu vào: cửa sổ đã chuẩn hoá, 18 bước × 21 điểm × 2 toạ độ → chuỗi 18 × 42
-- Bước mất tay: lấy bước có tay gần nhất **trước** nó
-  - chỉ dùng quá khứ · không bịa quỹ đạo · không tạo cú nhảy giả như khi điền 0
-- LSTM **một chiều** (cố định trong code), 2 lớp × 128, dropout 0,3, lấy đầu ra ở bước cuối
-- Loss CrossEntropy có trọng số lớp (nền 0,40; cử chỉ 1,59–1,63) · Adam, lr 0,001, lô 64
-- 6 phép tăng cường của Phase 4, tạo mới ở mỗi epoch
-- Dừng sớm và chọn checkpoint theo trung bình trượt 10 epoch của macro-F1 val (slide 12)
-- CPU 4 luồng, không phụ thuộc CUDA: 106 epoch ≈ 13 phút
-- Kiểm thử bắt buộc: học thuộc 10 mẫu trong 200 epoch, bằng đúng vòng huấn luyện của script
+- Rừng ngẫu nhiên chỉ thấy **15 con số tóm tắt do người chọn**
+- **Mạng nơ-ron:** một công thức rất lớn với nhiều **"núm vặn"** (trọng số). LSTM của dự án có khoảng
+  **220 nghìn** núm; huấn luyện = vặn dần từng núm cho đoán sai ít đi
+- **LSTM:** đọc lần lượt 18 thời điểm, mỗi thời điểm đủ 21 điểm (42 con số), vừa đọc vừa **ghi nhớ**
+  - đọc **một chiều**: không bao giờ "nhìn trước" tương lai
+- Cách dạy:
+  - **epoch** = một lượt xem hết bài tập về nhà · **loss** = mức sai
+  - mỗi epoch, một **bản biến đổi mới** của mỗi ví dụ → không thể thuộc lòng
+  - lỗi trên cử chỉ tính nặng gấp khoảng **4 lần** lỗi trên `none`
+  - mất dấu tay → giữ vị trí cuối cùng còn thấy
+  - CPU thường: huấn luyện 13–25 phút; mỗi câu trả lời khi chạy demo ≈ **1 mili-giây**
 
 **Lời thoại**
 
-> Mô hình thứ ba là LSTM. Khác với rừng, nó không dùng đặc trưng thiết kế bằng tay mà đọc thẳng
-> chuỗi toạ độ: 18 bước, mỗi bước 21 điểm, mỗi điểm hai toạ độ, tức 42 con số. Dữ liệu IPN và
-> webcam đi qua đúng một hàm mã hoá này.
+> Rừng ngẫu nhiên chỉ thấy 15 con số tóm tắt do người chọn; nếu thứ quyết định một cử chỉ không nằm
+> trong đó, nó chịu. Phase 7 dùng một mô hình xem được toàn bộ chuyển động.
 >
-> Một chi tiết nhỏ: bước mất tay thì điền gì? Tôi lấy giá trị của bước có tay gần nhất trước nó.
-> Có ba lý do: chỉ dùng quá khứ; không bịa ra quỹ đạo, vì nội suy qua lỗ dài là điều bị cấm; và
-> không điền 0, vì sau chuẩn hoá, 0 chính là vị trí cổ tay ở bước đầu, nên điền 0 sẽ tạo một cú
-> nhảy giả.
+> Mạng nơ-ron là một công thức rất lớn với nhiều "núm vặn"; LSTM của dự án có khoảng 220 nghìn núm.
+> Lúc đầu các núm ở vị trí ngẫu nhiên và công thức đoán bừa. Huấn luyện là vặn dần từng núm cho số lần
+> đoán sai giảm xuống. Không ai chỉ định núm nào làm gì; mạng tự tìm ra dấu hiệu có ích.
 >
-> LSTM luôn một chiều, cố định trong code chứ không phải tham số. LSTM hai chiều đọc cả tương lai;
-> nó có thể cho số đẹp hơn, nhưng là con số không đạt được khi chạy thật.
+> LSTM là loại mạng chuyên đọc chuỗi theo thời gian. Nó đọc lần lượt 18 thời điểm của cửa sổ, mỗi thời
+> điểm đủ 21 điểm của bàn tay, vừa đọc vừa ghi nhớ, như ta đọc một câu từng chữ mà vẫn nhớ đầu câu. Nó
+> chỉ đọc một chiều, từ quá khứ tới hiện tại, vì khi chạy thật thì tương lai chưa xảy ra.
 >
-> Hàm loss có trọng số lớp, và sáu phép tăng cường được tạo mới ở mỗi epoch. Huấn luyện trên CPU
-> mất khoảng 13 phút. Trước khi tin vòng huấn luyện, có một kiểm thử bắt buộc: mô hình phải học
-> thuộc được 10 mẫu. Không thuộc nổi 10 mẫu thì lỗi nằm ở vòng huấn luyện, không ở dữ liệu.
+> Mỗi lượt xem hết bài tập về nhà gọi là một epoch, và mức sai gọi là loss. Mỗi epoch, mạng thấy một
+> bản biến đổi mới của mỗi ví dụ, nên không thể thuộc lòng. Lỗi trên cử chỉ được tính nặng gấp khoảng
+> bốn lần lỗi trên `none`, vì cử chỉ hiếm hơn. Tất cả chạy trên CPU thường: huấn luyện mất 13 đến 25
+> phút, và mỗi câu trả lời khi chạy demo mất khoảng 1 mili-giây.
 
 ---
 
-## Slide 11 — LSTM: kết quả · ⏱ 1:15
+## Slide 12 — LSTM: kết quả · ⏱ 0:45
 
 **Trên slide**
 
-| F1 trên val | Macro-F1 | Không cử chỉ | Vuốt trái | Vuốt phải | Zoom in | Zoom out |
-|---|---|---|---|---|---|---|
-| Rừng ngẫu nhiên | 0,4361 | 0,951 | 0,212 | 0,232 | 0,368 | 0,417 |
-| LSTM | **0,5560** | 0,968 | 0,397 | 0,376 | 0,506 | 0,533 |
-
-| | Rừng | LSTM |
+| | Rừng ngẫu nhiên | **LSTM** |
 |---|---|---|
-| Cử chỉ có ≥ 1 cửa sổ đúng: vuốt trái / phải | 70% / 70% | **93% / 85%** |
-| … zoom in / out | 59% / 56% | **89% / 80%** |
-| Cửa sổ nền bị báo nhầm | 8,2% | 5,8% |
-| Cụm báo nhầm mỗi phút nền | 14,8 | 8,6 |
-| Báo nhầm khi chỉ trỏ một / hai ngón | 5,8% / 9,7% | 3,5% / 5,9% |
-| Báo nhầm khi tay không làm cử chỉ | 10,6% | 14,5% |
+| macro-F1 (đề thi thử) | 0,436 | **0,556** |
+| Vuốt trái: bắt được / báo đúng | 54% / 13% | **89% / 26%** |
+| Theo cử chỉ: vuốt trái / phải | 70% / 70% | **93% / 85%** |
+| Theo cử chỉ: zoom in / out | 59% / 56% | **89% / 80%** |
+| Cửa sổ `none` bị báo nhầm | 8,2% | **5,8%** |
+| Cụm báo nhầm mỗi phút không cử chỉ | 14,8 | **8,6** |
+| Báo nhầm khi chỉ trỏ (một / hai ngón) | 5,8% / 9,7% | **3,5% / 5,9%** |
 
-- Dự đoán một cửa sổ ≈ 1 ms trên CPU
-
-**Lời thoại**
-
-> LSTM tăng macro-F1 từ 0,44 lên 0,56, và F1 của mọi lớp cử chỉ đều tăng. Ở mức cử chỉ, 93% cú
-> vuốt trái và 85% cú vuốt phải có ít nhất một cửa sổ được nhận đúng; với zoom là 89% và 80%.
->
-> Báo nhầm cũng giảm: còn 5,8% cửa sổ nền. Nếu tính một chuỗi cửa sổ liền nhau cùng nhãn là một
-> cụm, thì đó là khoảng 8,6 cụm báo nhầm mỗi phút thời gian nền của IPN, so với gần 15 của rừng.
-> Báo nhầm khi chỉ trỏ giảm khoảng một nửa. Nhưng không phải chỗ nào cũng tốt hơn: với tay không
-> làm cử chỉ, LSTM báo nhầm nhiều hơn rừng.
->
-> Tốc độ không thành vấn đề: dự đoán một cửa sổ mất khoảng 1 mili giây. Demo chỉ nạp thư viện học
-> sâu khi thật sự dùng LSTM, để chạy luật hay rừng không phải chờ.
-
----
-
-## Slide 12 — Đường học: con số đáng tin tới đâu · ⏱ 1:30
-
-**Trên slide**
-
-- Hai hình đặt cạnh nhau:
-  - trái: mô hình chính, có tăng cường
-  - phải: bản không tăng cường, chạy đủ 150 epoch
-- Hai đường loss đo cùng một cách (chế độ đánh giá, không tăng cường) → khoảng hở chỉ do quá khớp
-- Mô hình chính: loss val giảm tới khoảng epoch 20 rồi chững ở 0,43–0,50; loss train 0,25 →
-  0,012; khoảng hở nới rộng nhưng loss val **không quay đầu**
-- Không tăng cường: loss val (làm mượt) thấp nhất ở epoch 38 (0,490) rồi tăng lên 0,56–0,67 →
-  điểm bắt đầu quá khớp hiện rõ
-- Macro-F1 val dao động ±0,04 giữa hai epoch liền nhau (mỗi lớp cử chỉ chỉ có 94–104 cửa sổ):
-  - chọn epoch có điểm thô cao nhất: 0,6014, một đỉnh nhiễu
-  - chọn theo trung bình trượt 10 epoch: checkpoint 0,5560, trung bình trượt 0,5336
-- Có / không tăng cường, ở mức thường đạt: 0,532 ± 0,036 so với 0,512 ± 0,020 → **chưa đủ bằng
-  chứng để kết luận**
-- Tái lập: chạy lại trùng từng chữ số suốt 106 epoch
+- Ngoại lệ: tay nghỉ không làm cử chỉ, LSTM không khá hơn (14,5% so với 10,6%)
 
 **Lời thoại**
 
-> Slide này trả lời câu hỏi: con số 0,556 đáng tin tới đâu.
->
-> Hình bên trái là mô hình chính. Hai đường loss được đo cùng một cách, ở chế độ đánh giá và không
-> tăng cường, nên khoảng hở giữa chúng chỉ phản ánh quá khớp. Loss val giảm nhanh tới khoảng epoch
-> 20 rồi đi ngang, còn loss train tiếp tục giảm gần về 0. Khoảng hở nới rộng, nhưng loss val không
-> quay đầu đi lên: tăng cường mới ở mỗi epoch và dropout đã giữ nó lại. Để thấy rõ điểm bắt đầu
-> quá khớp, tôi chạy thêm bản không tăng cường cho đủ 150 epoch, là hình bên phải: loss val thấp
-> nhất quanh epoch 38 rồi đi lên rõ rệt.
->
-> Điểm thứ hai là nhiễu. Mỗi lớp cử chỉ trong val chỉ có khoảng 100 cửa sổ, nên macro-F1 nhảy
-> khoảng 0,04 giữa hai epoch liền nhau. Lần huấn luyện đầu chọn epoch có điểm cao nhất và báo 0,60.
-> Đó là một đỉnh nhiễu. Tôi đổi sang chọn theo trung bình trượt 10 epoch. Con số báo cáo vì vậy
-> thấp hơn, 0,556, nhưng trung thực hơn. Vạch dọc trên hình trái là checkpoint chọn theo cách này,
-> nên thầy cô sẽ thấy vài điểm thô phía sau cao hơn nó.
->
-> Cũng vì nhiễu đó, tôi không khẳng định tăng cường làm tăng macro-F1: chênh lệch nhỏ hơn độ lệch
-> chuẩn. Con số không thiên lệch sẽ đến từ năm seed ở Phase 8 và lần chạy duy nhất trên test.
->
-> Cuối cùng, kết quả tái lập được: chạy lại cho ra đúng từng chữ số, suốt 106 epoch.
+> LSTM tốt hơn rừng ở gần như mọi mặt: macro-F1 tăng từ 0,436 lên 0,556. Lấy lại ví dụ vuốt trái:
+> bắt được tăng từ 54 lên 89%, báo đúng tăng gấp đôi, từ 13 lên 26%. Đếm theo cử chỉ, 93% cú vuốt
+> trái và 89% cú zoom in được nhận ra ít nhất một lần. Báo nhầm khi chỉ trỏ giảm khoảng một nửa. Riêng
+> với tay nghỉ không làm cử chỉ thì LSTM không khá hơn rừng.
 
 ---
 
-## Slide 13 — LSTM nhận cú vuốt theo cách khác rừng · ⏱ 0:45
+## Slide 13 — Học thuộc lòng, và con số đáng tin tới đâu · ⏱ 1:45
 
 **Trên slide**
 
-| Sửa đổi (còn được nhận, trái / phải) | Rừng | LSTM |
+- **Quá khớp** = học thuộc lòng: mức sai trên bài tập về nhà vẫn giảm, trên đề thi thử thì thôi giảm
+  hoặc tăng lên
+- Hai đường học đặt cạnh nhau:
+  - **mô hình chính:** mức sai trên đề thi thử giảm nhanh ~20 epoch đầu rồi đứng yên, **không quay
+    đầu tăng**
+  - **bản không tăng cường:** thấp nhất ở **epoch 38**, rồi tăng dần khoảng 30% → điểm bắt đầu quá
+    khớp
+- Điểm thi thử **dao động ±0,04** giữa hai epoch liền nhau (mỗi cử chỉ chỉ ~100 cửa sổ)
+- **Lạc quan do chọn lọc:** lần dạy đầu báo epoch có điểm cao nhất, **0,601**, một đỉnh may mắn
+- Cách làm hiện tại: chọn theo **trung bình 10 epoch liền nhau** → **0,556**, mức thường đạt
+  khoảng **0,53**
+  - còn sửa một lỗi thật: hai lần dạy trước dừng quá sớm (epoch 40 và 48) vì đỉnh may mắn đến sớm
+- Con số không thiên lệch: dạy lại với 5 cách xáo dữ liệu (Phase 8), và lần mở đề thi thật duy nhất
+
+**Lời thoại**
+
+> Một nguy cơ của mạng nơ-ron là học thuộc lòng, gọi là quá khớp: như học sinh thuộc đáp án bài tập
+> về nhà, gặp đề mới thì kém. Dấu hiệu là mức sai trên bài tập tiếp tục giảm, còn trên đề thi thử thì
+> thôi giảm hoặc tăng lên.
+>
+> Hình trái là mô hình chính: mức sai trên đề thi thử giảm nhanh trong khoảng 20 epoch đầu rồi đứng
+> yên, không quay đầu tăng; ví dụ biến đổi mới mỗi epoch đã ngăn mạng học thuộc lòng. Hình phải là bản
+> không biến đổi, chạy riêng để thấy rõ: mức sai thấp nhất ở epoch 38, rồi tăng dần khoảng 30%. Đó là
+> điểm bắt đầu quá khớp.
+>
+> Con số 0,556 có đáng tin không? Mỗi cử chỉ trong đề thi thử chỉ khoảng 100 cửa sổ, nên giữa hai
+> epoch liền nhau, macro-F1 dao động khoảng 0,04 dù mạng gần như không đổi. Lần dạy đầu chọn đúng epoch
+> có điểm cao nhất và báo 0,601, giống thi thử 100 lần rồi chỉ khoe điểm cao nhất: một phần là do may.
+> Giờ tôi chọn theo trung bình 10 epoch liền nhau: 0,556, mức thường đạt khoảng 0,53, thấp hơn nhưng
+> trung thực hơn. Cách chọn này còn sửa một lỗi thật: hai lần dạy trước bị dừng quá sớm, chỉ vì một
+> đỉnh may mắn đến sớm.
+
+---
+
+## Slide 14 — LSTM nhìn cú vuốt khác rừng · ⏱ 0:45
+
+**Trên slide**
+
+| Sửa đổi (cú vuốt trái / phải) | Rừng ngẫu nhiên | LSTM |
 |---|---|---|
-| Bàn tay cứng | 0% / 0% | 8% / 0% |
-| Đi ra rồi quay về | 45% / 37% | **96% / 99%** |
-| Quãng dời cổ tay × 0,25 | 4% / 0% | **100% / 94%** |
-| Cổ tay đứng yên, chỉ đổi dáng tay | 0% / 0% | **100% / 87%** |
+| Bàn tay giữ nguyên dáng | 0% / 0% | 8% / 0% |
+| Đi ra rồi quay về ngay | 45% / 37% | **96% / 99%** |
+| Cổ tay chỉ đi một phần tư quãng | 4% / 0% | **100% / 94%** |
+| Cổ tay đứng yên, chỉ các ngón chuyển động | 0% / 0% | **100% / 87%** |
 
-- LSTM nhận cú vuốt từ **động tác của các ngón** (chụm rồi mở, ngón chỉ về một bên), không từ
+- LSTM nhận vuốt từ **động tác của các ngón** (chụm lại rồi mở ra, ngón chỉ về một bên), không từ
   quãng đường cổ tay đi
-- Vẫn đòi bàn tay đổi dáng, nhưng chịu được kiểu hất rồi kéo về
+- Chịu được kiểu "hất rồi kéo về", nhưng vẫn đòi bàn tay mở ra
 
 **Lời thoại**
 
-> Chạy cùng phép thăm dò đó với LSTM cho một bức tranh khác hẳn. LSTM vẫn nhận cú vuốt khi tay hất
-> ra rồi kéo về, khi cổ tay chỉ đi một phần tư quãng, thậm chí khi cổ tay đứng yên. Nó nhận cú
-> vuốt từ động tác của các ngón: chụm rồi mở, ngón chỉ về một bên. Nó vẫn đòi bàn tay đổi dáng,
-> nhưng không đòi cổ tay đi xa.
->
-> Điều này khớp với lần thử trên webcam: với LSTM, cú vuốt của tôi được nhận tốt hơn hẳn. Nhưng
-> zoom thì kém đi.
+> Lặp lại đúng các thí nghiệm "đổi một thứ" với LSTM cho một bức tranh khác hẳn. LSTM vẫn nhận cú vuốt
+> khi tay hất ra rồi kéo về, khi cổ tay chỉ đi một phần tư quãng, thậm chí khi cổ tay đứng yên. Nó nhận
+> vuốt từ động tác của các ngón: chụm lại rồi mở ra, ngón chỉ về một bên. Nhưng nó vẫn đòi bàn tay phải
+> mở ra. Đúng như vậy, trên webcam, vuốt với LSTM tốt hơn hẳn. Nhưng zoom lại kém đi.
 
 ---
 
-## Slide 14 — Thử trực tiếp lần 2: zoom kém đi với LSTM · ⏱ 1:45
+## Slide 15 — Thử trực tiếp lần 2: zoom kém đi · ⏱ 1:45
 
 **Trên slide**
 
 - Triệu chứng (log webcam, LSTM):
-  - lúc zoom: độ mở cái–trỏ thay đổi ±1,6…2,1 lòng bàn tay, **mạnh hơn** khoảng 25–75% của IPN,
-    vậy mà LSTM vẫn trả "không cử chỉ", độ tin cậy 0,89–1,00
-  - lúc bàn tay đứng yên: báo zoom out liên tục gần 2 giây
-- Loại trừ lỗi đường ống trước: cho demo, qua đúng vòng lặp trực tiếp, chạy trên một video IPN
-  của val → hai cú zoom được nhận, độ tin cậy 0,88–1,00
-- Thăm dò zoom: giữ cổ tay, ngón cái, ngón trỏ; chỉ đổi các ngón còn lại
+  - tôi zoom, cái–trỏ mở ra chụm lại rất rõ, **còn mạnh hơn** người diễn IPN → LSTM vẫn trả "không
+    có cử chỉ", độ tin gần tuyệt đối
+  - tay **đứng yên** → LSTM báo `zoom_out` liên tục gần 2 giây
+- **Loại trừ lỗi đường ống:** cho chính chương trình demo chạy trên video IPN có cú zoom → nhận đúng
+  cả hai, độ tin 0,88–1,00 → phần mềm ổn
+- Thí nghiệm "đổi một thứ" trên cú zoom thật: giữ cổ tay, ngón cái, ngón trỏ; chỉ đổi các ngón còn lại
 
-| Sửa đổi (zoom in / out) | Rừng | LSTM |
+| Sửa đổi (zoom in / zoom out) | Rừng ngẫu nhiên | LSTM |
 |---|---|---|
 | Không sửa | 93% / 98% | 100% / 100% |
-| Nhẫn và út duỗi thẳng | 63% / 85% | **10% / 35%** |
-| Giữa, nhẫn và út duỗi thẳng (zoom hai ngón) | 52% / 54% | **7% / 38%** |
-| Bàn tay đứng yên ở dáng cái–trỏ đang mở | 0% báo zoom | **46–62% vẫn báo zoom** |
+| **Ngón nhẫn và ngón út duỗi thẳng** | 63% / 85% | **10% / 35%** |
+| Chỉ còn ngón cái và trỏ cử động (zoom hai ngón) | 52% / 54% | **7% / 38%** |
+| **Bàn tay đứng yên** ở dáng cái–trỏ đang mở | 0% báo zoom | **46–62% vẫn báo zoom** |
 
 - Hai nguyên nhân:
-  1. LSTM học **kiểu zoom riêng của người diễn IPN** (ba ngón, nhẫn và út gập), không học bản
-     chất "cái và trỏ rời xa hay lại gần"
-  2. LSTM đoán zoom từ **một dáng tay tĩnh**
+  1. LSTM học **"kiểu zoom của người diễn IPN"** (ba ngón, nhẫn và út **luôn gập**), không học "zoom
+     là gì"
+  2. LSTM đoán zoom từ **dáng tay đứng yên**
 
 **Lời thoại**
 
-> Lần thử thứ hai, với LSTM. Lúc tôi zoom, độ mở cái–trỏ thay đổi còn mạnh hơn người diễn IPN,
-> vậy mà LSTM vẫn trả "không cử chỉ" với độ tin cậy gần tuyệt đối. Ngược lại, lúc tay tôi đứng
-> yên, nó báo zoom out liên tục gần hai giây.
+> Lần thử thứ hai, với LSTM. Lúc tôi zoom, khoảng cách cái–trỏ mở ra, chụm lại rất rõ, còn mạnh hơn
+> người diễn IPN, vậy mà LSTM trả "không có cử chỉ" với độ tin gần như tuyệt đối. Còn lúc tay tôi đứng
+> yên, nó lại báo zoom out liên tục gần hai giây.
 >
-> Trước khi kết luận là lệch miền, tôi phải loại trừ lỗi đường ống. Tôi cho chính demo đó, qua
-> đúng vòng lặp trực tiếp, chạy trên một video IPN của tập val. Hai cú zoom của IPN được nhận với
-> độ tin cậy 0,88 tới 1, và độ mở cái–trỏ cùng tầm với của tôi. Vậy đường ống không lỗi; khác biệt
-> nằm giữa tay tôi và tay người diễn IPN.
+> Trước khi đổ cho chuyện tôi làm khác IPN, phải chắc phần mềm không có lỗi. Tôi cho chính chương trình
+> demo chạy trên một video IPN có cú zoom đã biết. Demo nhận đúng cả hai cú zoom, độ tin 0,88 đến 1.
+> Vậy phần mềm ổn.
 >
-> Tôi làm phép thăm dò tương tự cho zoom. Lấy cú zoom thật của IPN, giữ nguyên cổ tay, ngón cái và
-> ngón trỏ, chỉ thay đổi các ngón còn lại. Chỉ cần cho ngón nhẫn và út duỗi thẳng, LSTM chỉ còn
-> nhận 10% cú zoom in, trong khi rừng vẫn nhận 63%. Và khi bàn tay đứng yên ở dáng cái–trỏ đang
-> mở, LSTM vẫn báo zoom trong khoảng một nửa số trường hợp; rừng thì không bao giờ.
+> Lại làm thí nghiệm "đổi một thứ", lần này trên cú zoom thật của IPN: giữ nguyên cổ tay, ngón cái,
+> ngón trỏ, chỉ đổi các ngón còn lại. Chỉ cần ngón nhẫn và út duỗi thẳng, điều rất tự nhiên khi zoom,
+> LSTM chỉ còn nhận 10% cú zoom in; rừng vẫn nhận 63%. Và khi bàn tay đứng yên ở dáng cái–trỏ đang mở,
+> LSTM vẫn báo zoom khoảng một nửa số lần; rừng thì không bao giờ.
 >
-> Kết luận: LSTM học kiểu zoom riêng của người diễn IPN, ba ngón với nhẫn và út gập, chứ không học
-> bản chất của zoom là ngón cái và ngón trỏ rời xa hay lại gần nhau. Nó còn đoán zoom từ một dáng
-> tay tĩnh. Rừng nhìn chủ yếu vào khoảng cách cái–trỏ nên ít bị ảnh hưởng. Ai zoom mà không gập
-> nhẫn và út, hay zoom bằng hai ngón như trên điện thoại, sẽ gần như không được LSTM nhận ra.
+> Hai nguyên nhân. Một: LSTM học "kiểu zoom của người diễn IPN", ba ngón, nhẫn và út luôn gập, chứ
+> không học "zoom là gì". Hai: nó coi dáng tay cái–trỏ đang mở là dấu hiệu của zoom, dù không có
+> chuyển động nào; đó chính là chuỗi báo nhầm lúc tay tôi đứng yên. Rừng ít bị ảnh hưởng, vì nó nhìn
+> chủ yếu khoảng cách cái–trỏ thay đổi, đúng bản chất của zoom.
 
 ---
 
-## Slide 15 — Sửa ngay trong LSTM: có lợi, nhưng giá quá đắt · ⏱ 1:00
+## Slide 16 — Thử sửa ngay trong LSTM, và vì sao không dùng · ⏱ 1:00
 
 **Trên slide**
 
-- Hai phép tăng cường mới:
-  - cú zoom mang dáng ngón phụ của một bàn tay IPN thật khác, giữ đứng yên (kho hơn 58 nghìn dáng
-    tay thật lấy từ train)
-  - thêm cửa sổ bàn tay đứng yên, nhãn "không cử chỉ"
-- Lợi: zoom được nhận ở mọi kiểu ngón (88–98%); hết báo zoom khi tay đứng yên
-- Giá:
-  - precision zoom out 0,46 → **0,10**
-  - báo nhầm khi chỉ trỏ một / hai ngón 3,5% / 5,9% → **12,0% / 10,2%**
-- Lý do: kiểu ngón riêng của IPN chính là thứ giúp LSTM tách zoom khỏi tay chỉ trỏ
-- → Có trong code, **tắt**
+- Dạy lại bằng hai kiểu ví dụ biến đổi mới:
+  - cú zoom với ngón giữa, nhẫn, út **"của người khác"** (dáng tay thật lấy từ hơn 58 nghìn dáng tay
+    trong IPN), giữ yên → "zoom là động tác cái–trỏ; ngón khác làm gì cũng được"
+  - bàn tay đứng yên, đáp án "không có cử chỉ" → "không có chuyển động thì không có cử chỉ"
+- **Lợi:** nhận zoom ở mọi kiểu ngón (88–98%); hết báo zoom khi tay đứng yên
+- **Giá rất đắt:**
+  - cửa sổ không cử chỉ bị báo nhầm thành `zoom_out`: **52 → 528** (gấp 10 lần)
+  - báo nhầm khi chỉ trỏ: 3,5% / 5,9% → **12,0% / 10,2%**
+  - báo đúng của `zoom_out`: 46% → **10%**
+- **Vì sao:** khi chỉ trỏ, ngón cái cũng hay nhích lại gần ngón trỏ → chính "kiểu ngón riêng" của IPN
+  giúp tách zoom khỏi chỉ trỏ
+- → nằm trong code, **đang tắt**
 
 **Lời thoại**
 
-> Cách sửa tự nhiên là dạy LSTM rằng ngón phụ không quan trọng. Tôi thêm hai phép tăng cường: cú
-> zoom mang dáng ngón phụ của một bàn tay IPN thật khác, và cửa sổ bàn tay đứng yên mang nhãn
-> "không cử chỉ". Dáng ngón lấy từ kho hơn 58 nghìn dáng tay thật của train, không tự bịa ra.
+> Cách sửa tự nhiên là dạy lại LSTM bằng hai kiểu ví dụ mới. Một: cú zoom mà ngón giữa, nhẫn, út được
+> thay bằng dáng tay thật của người khác, lấy từ hơn 58 nghìn dáng tay trong IPN, với thông điệp "zoom
+> là động tác cái–trỏ, ngón khác làm gì cũng được". Hai: bàn tay đứng yên, đáp án "không có cử chỉ".
 >
-> Lợi ích đúng như mong đợi: zoom được nhận ở mọi kiểu ngón, và hết báo zoom khi tay đứng yên.
-> Nhưng giá rất đắt: precision của zoom out rơi từ 0,46 xuống 0,10, và báo nhầm khi chỉ trỏ tăng
-> lên 10 tới 12%.
->
-> Lý do đáng suy nghĩ: chính kiểu ngón riêng của IPN là thứ giúp LSTM phân biệt zoom với tay chỉ
-> trỏ. Bỏ nó đi thì mô hình mất luôn khả năng đó, mà bộ đặc trưng hiện tại không đo cấu hình từng
-> ngón để thay thế. Phép tăng cường này cũng được giữ trong code nhưng tắt.
+> Lợi đúng như mong đợi: nhận zoom ở mọi kiểu ngón, hết báo zoom khi tay đứng yên. Nhưng số cửa sổ
+> không cử chỉ bị báo nhầm thành zoom out tăng từ 52 lên 528, gấp mười lần. Lý do: khi chỉ trỏ, ngón
+> cái cũng hay nhích lại gần ngón trỏ, và chính kiểu ngón riêng của IPN là thứ giúp LSTM phân biệt zoom
+> với chỉ trỏ. Xoá nó đi là xoá luôn khả năng phân biệt. Cách sửa này vẫn nằm trong code, nhưng đang
+> tắt.
 
 ---
 
-## Slide 16 — Mô hình ghép: mỗi mô hình làm phần nó vững · ⏱ 1:15
+## Slide 17 — Lời giải: mô hình ghép · ⏱ 1:15
 
 **Trên slide**
 
-- Luật ghép (sơ đồ cần tự vẽ):
-  - LSTM đoán vuốt → lấy vuốt
-  - rừng đoán zoom → lấy zoom
-  - còn lại → "không cử chỉ"
-- Vuốt xét trước zoom; độ tin cậy = xác suất của mô hình đã quyết định nhãn
-- Định nghĩa ở đúng một chỗ, dùng chung cho đánh giá và demo; kiểm thử bảo đảm hai nơi ra cùng
-  nhãn
+- **Hai chuyên gia,** mỗi người lo đúng việc mình giỏi (sơ đồ cần tự vẽ):
+  - **LSTM lo vuốt:** nhận qua động tác ngón tay, chịu được kiểu "hất rồi kéo về"
+  - **Rừng ngẫu nhiên lo zoom:** nhận qua khoảng cách cái–trỏ, ít phụ thuộc ngón khác, không báo zoom
+    khi tay đứng yên
+- Luật ghép: LSTM nói "vuốt" → vuốt; nếu không, rừng nói "zoom" → zoom; còn lại → không có cử chỉ
+- Trên đề thi thử: macro-F1 **0,506**, hơn rừng (0,436), kém LSTM (0,556)
+- Trên chính bàn tay tôi (phát lại một phiên webcam):
 
-| Trên val | Rừng | LSTM | Ghép |
-|---|---|---|---|
-| Macro-F1 | 0,4361 | **0,5560** | 0,5061 |
-| Cử chỉ có ≥ 1 cửa sổ đúng: vuốt trái / phải | 70% / 70% | 93% / 85% | 93% / 85% |
-| … zoom in / out | 59% / 56% | 89% / 80% | 59% / 56% |
-| Cửa sổ nền bị báo nhầm | 8,2% | 5,8% | 6,0% |
-| Cụm báo nhầm mỗi phút nền | 14,8 | 8,6 | 8,9 |
+| Số lần báo zoom trong 1,1 phút | |
+|---|---|
+| LSTM đứng một mình | 24 |
+| **Mô hình ghép** | **45** |
 
-- Hình: ma trận nhầm lẫn của mô hình ghép. Hàng "không cử chỉ": 640 cửa sổ báo nhầm, 475 trong số
-  đó thành vuốt (phần của LSTM)
+- Số lần báo vuốt giữ nguyên · **demo dùng mô hình ghép**
 
 **Lời thoại**
 
-> Cách sửa được chọn là mô hình ghép. Nguyên tắc: tin mỗi mô hình ở đúng họ cử chỉ mà phép thăm
-> dò cho thấy nó vững. LSTM vững với vuốt, kể cả kiểu vuốt khác IPN. Rừng vững với zoom, vì nó
-> nhìn vào khoảng cách cái–trỏ. Nên LSTM đoán vuốt thì lấy vuốt, rừng đoán zoom thì lấy zoom, còn
-> lại là không cử chỉ. Cả hai phần này tôi đều đã thấy chạy tốt trên webcam. Luật ghép được định
-> nghĩa ở đúng một chỗ, dùng chung cho đánh giá và demo, và có kiểm thử bảo đảm hai nơi cho cùng
-> nhãn.
+> Lời giải là mô hình ghép: thay vì một mô hình làm mọi việc, dùng hai chuyên gia, mỗi người lo đúng
+> việc mình giỏi. LSTM lo vuốt, vì nó nhận vuốt qua động tác ngón tay và chịu được kiểu hất rồi kéo
+> về. Rừng ngẫu nhiên lo zoom, vì nó nhìn khoảng cách cái–trỏ và không báo zoom khi tay đứng yên. Luật
+> ghép rất đơn giản: LSTM nói vuốt thì là vuốt; nếu không, rừng nói zoom thì là zoom; còn lại là không
+> có cử chỉ. Cả hai chuyên gia đều đã chạy tốt trên webcam, ở đúng phần việc của mình.
 >
-> Trên val, mô hình ghép thấp hơn LSTM: 0,51 so với 0,56. Phần vuốt giữ nguyên mức của LSTM, phần
-> zoom lùi về mức của rừng. Lý do: người diễn IPN zoom đúng kiểu IPN, và với kiểu đó zoom của
-> LSTM giỏi hơn. Với kiểu zoom khác IPN thì ngược lại. Báo nhầm gần như không đổi so với LSTM, và
-> phần lớn là vuốt, tức đến từ phần LSTM.
->
-> Vậy trên bàn tay của người dùng thật, mô hình nào tốt hơn? Slide sau trả lời.
+> Trên đề thi thử, mô hình ghép được 0,506: hơn rừng, kém LSTM. Điều này hợp lý: người diễn IPN zoom
+> đúng kiểu IPN, nên ở đó zoom của LSTM giỏi hơn. Với bàn tay của tôi thì ngược lại. Phát lại một phiên
+> webcam của tôi, LSTM chỉ báo zoom 24 lần, mô hình ghép báo 45 lần, còn số lần báo vuốt giữ nguyên.
+> Đây là số lần báo, chưa phải độ chính xác. Nhưng đó là lý do demo dùng mô hình ghép.
 
 ---
 
-## Slide 17 — Kiểm chứng trên chính bàn tay người dùng · ⏱ 1:15
+## Slide 18 — "Hộp đen" và tái lập · ⏱ 1:00
 
 **Trên slide**
 
-- Hạ tầng mới:
-  - demo ghi kèm điểm mốc thô của cả phiên, cùng định dạng với dữ liệu IPN
-  - script chạy lại: đẩy từng frame qua đúng vòng dự đoán của demo, với mọi mô hình
-  - kiểm chứng: trùng 150/150 dự đoán (LSTM, video IPN) và 316/316 (mô hình ghép, phiên webcam)
-- Chạy lại một phiên webcam 1,1 phút qua cả bốn mô hình. Số cụm nhãn khác "không cử chỉ":
+- **Ghi và phát lại**, như hộp đen máy bay: mỗi lần chạy demo có ghi log, lưu luôn 21 điểm của bàn tay
+  ở mọi khung hình → phát lại cả phiên qua **bất kỳ** mô hình nào
+  - kiểm chứng: phát lại khớp **316/316** câu trả lời so với lúc chạy thật
+- **Tái lập:** cố định "hạt giống" ngẫu nhiên, như xáo bài theo đúng một cách → chạy lại cùng lệnh
+  ra **đúng từng chữ số**
+  - lần dạy LSTM hiện hành trùng lần trước **từng chữ số suốt 106 epoch**
+  - việc kiểm này bắt được vài lỗi "im lặng": một phép biến đổi làm mất khoảnh khắc đầu cửa sổ · một
+    bước chạy chậm gấp 3 lần · một thay đổi làm lệch chữ số cuối · một file mô hình lưu xong không mở
+    lại được
 
-| | Luật | Rừng | LSTM | Ghép |
+**Lời thoại**
+
+> Con số 24 và 45 có được nhờ một "hộp đen", giống hộp đen máy bay. Lúc chẩn đoán zoom, log chỉ ghi vài
+> con số tóm tắt, nên không kiểm được nguyên nhân trên chính bàn tay tôi. Giờ mỗi lần chạy demo có ghi
+> log, chương trình lưu luôn 21 điểm của bàn tay ở mọi khung hình, để phát lại cả phiên qua bất kỳ mô
+> hình nào. Phát lại khớp đúng 316 trên 316 câu trả lời so với lúc chạy thật.
+>
+> Kết quả cũng tái lập được. Dự án cố định "hạt giống" ngẫu nhiên, như xáo bài theo đúng một cách mỗi
+> lần, nên chạy lại cùng lệnh cho đúng từng chữ số, suốt 106 epoch. Việc kiểm này còn bắt được vài lỗi
+> mà chương trình không hề báo, ví dụ một file mô hình lưu xong nhưng không mở lại được.
+
+---
+
+## Slide 19 — Bốn mô hình đặt cạnh nhau · ⏱ 0:30
+
+**Trên slide**
+
+| Mô hình | Nhìn vào gì | macro-F1 (đề thi thử) | Điểm mạnh | Điểm yếu |
 |---|---|---|---|---|
-| Vuốt trái / phải | 5 / 4 | 5 / 2 | 7 / 11 | 7 / 11 |
-| Zoom in / out | 23 / 25 | 21 / 24 | **10 / 14** | **21 / 24** |
+| Luật (Phase 5) | 3 con số, ngưỡng do người đặt | 0,231 | Đơn giản, dễ hiểu | Báo nhầm gần một nửa thời gian |
+| Rừng ngẫu nhiên (Phase 6) | 15 con số tóm tắt | 0,436 | Zoom vững với nhiều kiểu tay | Đòi cú vuốt kiểu IPN, nhiều báo nhầm |
+| LSTM (Phase 7) | Toàn bộ chuyển động 21 điểm | **0,556** | Vuốt rất tốt, ít báo nhầm hơn | Zoom phụ thuộc kiểu tay của IPN |
+| **Ghép** (Phase 7) | Vuốt theo LSTM, zoom theo rừng | 0,506 | Hợp với cách làm cử chỉ của người dùng | Kém LSTM trên dữ liệu IPN |
 
-- 205 cửa sổ "trông như zoom" (cái–trỏ đổi rõ, cổ tay chậm): LSTM trả "không cử chỉ" 57% · mô
-  hình ghép báo zoom 66% · 6% bị phần vuốt giành mất
-- Lưu ý: đây là **số cụm**, chưa phải độ chính xác: phiên chưa ghi tôi định làm cử chỉ nào lúc nào
+- Cùng 11 038 cửa sổ của đề thi thử · đề thi thật vẫn niêm phong
 
 **Lời thoại**
 
-> Để trả lời, tôi cần chạy nhiều mô hình trên cùng một chuyển động tay. Nên tôi thêm một hạ tầng
-> nhỏ: demo ghi lại điểm mốc thô của cả phiên, theo đúng định dạng dữ liệu IPN, và một script đẩy
-> lại từng frame qua đúng vòng dự đoán của demo, với bất kỳ mô hình nào. Script này đã được kiểm
-> chứng: nó cho lại đúng 150 trên 150 dự đoán của LSTM trên video IPN, và 316 trên 316 dự đoán của
-> mô hình ghép trên phiên webcam.
->
-> Chạy lại một phiên webcam của tôi qua cả bốn mô hình. Trên cùng chuyển động đó, LSTM chỉ ra 24
-> cụm zoom, mô hình ghép ra 45, ngang với rừng và luật. Phần vuốt của mô hình ghép giữ nguyên mức
-> của LSTM, nhiều hơn hẳn rừng.
->
-> Phải nói rõ: đây là số cụm nhãn, chưa phải độ chính xác, vì phiên này không ghi tôi định làm cử
-> chỉ nào lúc nào. Nhưng nếu chỉ xét những cửa sổ trông như zoom, tức ngón cái và ngón trỏ đổi rõ
-> trong khi cổ tay chậm, thì LSTM bỏ qua 57%, còn mô hình ghép báo zoom 66%.
->
-> Từ giờ, mỗi lần thử trực tiếp đều phân tích lại được offline, và mọi cách sửa đều thử được ngay
-> trên chính bàn tay người dùng.
+> Đặt bốn mô hình cạnh nhau: luật đơn giản nhưng báo nhầm nhiều; rừng vững với zoom nhưng đòi vuốt
+> kiểu IPN; LSTM vuốt rất tốt nhưng zoom phụ thuộc kiểu tay IPN; mô hình ghép lấy phần mạnh của hai mô
+> hình sau. Mọi con số đo trên cùng một đề thi thử; đề thi thật vẫn niêm phong.
 
 ---
 
-## Slide 18 — Demo trực tiếp (tuỳ chọn) · ⏱ 1:30
+## Slide 20 — Demo trực tiếp (tuỳ chọn) · ⏱ 1:30
 
 **Trên slide**
 
 - Mô hình ghép, webcam laptop, chỉ dùng CPU
-- Thứ tự: tay để yên → zoom in → zoom out → vuốt trái → vuốt phải → (tuỳ chọn) chỉ trỏ, di tay
-  quanh khung
+- Thứ tự: tay để yên → zoom in → zoom out → vuốt trái → vuốt phải → (tuỳ chọn) chỉ trỏ, di tay quanh
+  khung
 
 **Lệnh chạy** (không chiếu; bấm `q` hoặc `Esc` để thoát)
 
@@ -679,116 +654,104 @@ Bản rút gọn khoảng 12 phút ở Phụ lục C.
 python scripts/demo.py --model hybrid --show-features
 ```
 
-Phím 1–4 chọn cử chỉ để so với khoảng của IPN: 1 vuốt trái · 2 vuốt phải · 3 zoom in · 4 zoom
-out. Nhãn trên màn hình là tên lớp trong code (`none`, `swipe_left`, …); "-" nghĩa là không có
-cửa sổ hợp lệ (chưa đủ 1,2 giây, mất tay, hoặc tay nghiêng cạnh).
+Phím 1–4 chọn cử chỉ để so với người diễn IPN: 1 vuốt trái · 2 vuốt phải · 3 zoom in · 4 zoom out.
+Nhãn trên màn hình là tên lớp trong code (`none`, `swipe_left`, …); "-" nghĩa là không có cửa sổ hợp
+lệ (chưa đủ 1,2 giây, mất tay, hoặc tay nghiêng cạnh).
 
 **Lời thoại** (vừa làm vừa nói)
 
 > Đây là mô hình ghép chạy trực tiếp trên webcam laptop, chỉ dùng CPU.
 >
-> *(Tay để yên trong khung.)* Tay đứng yên: nhãn là "không cử chỉ".
+> *(Tay để yên trong khung.)* Tay đứng yên: câu trả lời là `none`, không có cử chỉ.
 >
-> *(Bấm 3, zoom in; bấm 4, zoom out. Ba ngón cái, trỏ, giữa; nhẫn và út gập.)* Zoom in là mở ba
-> đầu ngón đang chụm; zoom out là chụm lại. Các dòng đặc trưng chuyển xanh nghĩa là động tác của
-> tôi nằm trong khoảng của người diễn IPN.
+> *(Bấm 3, zoom in; bấm 4, zoom out. Ba ngón cái, trỏ, giữa; nhẫn và út gập.)* Zoom in là mở ba đầu
+> ngón đang chụm; zoom out là chụm lại. Các con số chuyển xanh nghĩa là tôi đang làm giống người diễn
+> IPN: đây là chế độ luyện tập vừa kể.
 >
-> *(Bấm 1, vuốt trái; bấm 2, vuốt phải. Chụm đầu ngón, hất ngang, mở bàn tay trong lúc hất, rồi
-> giữ tay ở đó.)* Trái và phải ở đây là trái và phải của chính tôi. Hình trên màn hình được lật
-> như gương cho dễ nhìn; ảnh đưa vào mô hình thì không lật.
+> *(Bấm 1, vuốt trái; bấm 2, vuốt phải. Chụm đầu ngón, hất ngang, mở bàn tay trong lúc hất, rồi giữ
+> tay ở đó.)* Trái và phải ở đây là trái và phải của chính tôi. Hình trên màn hình được lật như gương
+> cho dễ nhìn; ảnh đưa vào mô hình thì không lật.
 >
 > *(Tuỳ chọn: chỉ trỏ, di tay quanh khung.)* Đây là loại chuyển động dễ gây báo nhầm nhất.
 >
-> Xin lưu ý: mỗi cử chỉ làm nhãn sáng trong khoảng một giây, vì cứ 0,2 giây lại có một cửa sổ mới.
-> Gom chúng thành đúng một lệnh là việc của máy trạng thái ở Phase 9. Hệ thống cũng chưa phát phím
-> tắt thật; đó là Phase 10.
+> Xin lưu ý: mỗi cử chỉ làm câu trả lời sáng lên trong khoảng một giây, vì cứ 0,2 giây lại có một câu
+> trả lời mới. Gom chúng thành đúng một lệnh là việc của máy trạng thái ở Phase 9. Hiện hệ thống mới
+> hiển thị câu trả lời, chưa phát lệnh thật.
 
 **Nếu có sự cố**
 
-- Một cử chỉ không được nhận: nói "Đây chính là lệch miền vừa trình bày", bấm phím của cử chỉ đó,
-  chỉ vào dòng đặc trưng bị đỏ, rồi làm lại.
-- Báo nhầm khi chỉ trỏ hay khi để tay yên: "Đây là báo nhầm mà máy trạng thái ở Phase 9 phải xử
-  lý."
+- Một cử chỉ không được nhận: nói "Đây chính là lệch miền vừa kể", bấm phím của cử chỉ đó, chỉ vào
+  con số bị đỏ, rồi làm lại.
+- Báo nhầm khi chỉ trỏ hay khi để tay yên: "Đây là báo nhầm mà máy trạng thái ở Phase 9 phải xử lý."
 - Camera hoặc máy trục trặc: chuyển ngay sang video dự phòng, không sửa tại chỗ.
 
 ---
 
-## Slide 19 — Hạn chế và việc tiếp theo · ⏱ 1:45
+## Slide 21 — Hạn chế và việc tiếp theo · ⏱ 1:30
 
 **Trên slide**
 
 - Hạn chế:
-  - Báo nhầm còn cao: 5,8–8,2% cửa sổ nền, tức 8,6–14,8 cụm mỗi phút nền của IPN. Mốc cần đạt
-    khi làm việc bình thường: dưới 0,5 lần mỗi phút
-  - Nguồn báo nhầm: tay không làm cử chỉ (10,6–14,7% tuỳ mô hình) · xòe tay hai lần (13–19%, chủ
-    yếu thành zoom) · chỉ trỏ
-  - Zoom đổi chiều giữa chừng: 12–28% cú zoom có cửa sổ bị đoán ngược chiều
-  - Đặc trưng chưa đo cấu hình từng ngón → chưa tách được bàn tay mở với tay chỉ trỏ
-  - Val nhỏ (94–104 cửa sổ mỗi lớp cử chỉ): chênh dưới khoảng 0,04 chưa kết luận được
-  - Chưa có phép thử trực tiếp có cấu trúc · mới xét tay phải · test còn 44 video của 12 người
+  - **Báo nhầm vẫn cao:** mô hình tốt nhất vẫn báo nhầm khoảng **9 lần mỗi phút** không làm cử chỉ
+    (trên IPN); mục tiêu khi dùng thật: **dưới 0,5 lần mỗi phút**
+    → Phase 9: **máy trạng thái** chỉ phát lệnh khi vài câu trả lời liền nhau cùng đồng ý, và nghỉ
+    một chút sau mỗi lệnh
+  - **15 con số không mô tả từng ngón tay** → không tách được "bàn tay mở đang lướt" với "tay đang
+    chỉ trỏ" → lý do hai cách sửa kiểu tay đều phải tắt
+  - **Zoom đôi khi bị đoán ngược chiều giữa chừng** (12–28% số cú zoom)
+  - **Đề thi thử nhỏ:** chênh dưới khoảng 0,04 chưa đủ kết luận · **tay trái** chưa xét riêng
 - Việc tiếp theo:
-
-| | Nội dung |
-|---|---|
-| Ngay | Phép thử hướng vuốt · đếm báo nhầm 2 phút gõ phím · mỗi cử chỉ 10 lần + 5 phút làm việc bình thường → quyết định có cần dữ liệu tự quay |
-| Phase 8 | Đánh giá hai mức (cửa sổ, sự kiện) · 7 bảng khảo sát · 5 seed · k-fold theo người · chạy test đúng một lần |
-| Phase 9 | Máy trạng thái: ngưỡng tin cậy, đồng thuận k trên n, thời gian nghỉ sau lệnh, hạ tay để huỷ |
-| Phase 10 | Phát phím tắt thật · đo FPS, độ trễ, báo nhầm mỗi phút ở ba kịch bản · video demo |
-| Phase 11 | *(Tuỳ chọn)* Dữ liệu tự quay, nếu phép thử trực tiếp cho thấy cần |
-| Phase 12 | Tái lập toàn bộ bằng một lệnh |
+  - thử hướng vuốt · đếm báo nhầm 2 phút gõ phím, dùng chuột
+  - thử có cấu trúc: mỗi cử chỉ 10 lần + 5 phút làm việc bình thường → có cần quay dữ liệu riêng
+    (Phase 11) không
+  - Phase 8: dạy lại với 5 cách xáo dữ liệu · Phase 9: máy trạng thái
+  - cân nhắc thêm con số đo độ duỗi từng ngón
 
 **Lời thoại**
 
-> Tôi muốn nêu rõ các hạn chế.
+> Tôi muốn nói thẳng các hạn chế.
 >
-> Lớn nhất vẫn là báo nhầm. Trên val còn khoảng 6 tới 8% cửa sổ nền bị báo nhầm, tức khoảng 9 tới
-> 15 cụm mỗi phút. Con số của IPN chưa phải con số khi làm việc bình thường, nhưng khoảng cách tới
-> mốc 0,5 lần mỗi phút là rất xa. Hướng xử lý chính là máy trạng thái ở Phase 9: chỉ phát lệnh khi
-> độ tin cậy vượt ngưỡng và đa số cửa sổ gần nhất đồng ý, nghỉ một khoảng sau mỗi lệnh, và hạ tay
-> xuống thì huỷ hết. Những việc này không giải quyết được bằng cách huấn luyện mô hình tốt hơn.
+> Lớn nhất là báo nhầm: trên dữ liệu IPN, cứ mỗi phút không làm cử chỉ, mô hình tốt nhất vẫn báo nhầm
+> khoảng 9 lần, trong khi mục tiêu khi dùng thật là dưới 0,5 lần. Bước xử lý chính là máy trạng thái ở
+> Phase 9: chỉ phát lệnh khi vài câu trả lời liền nhau cùng đồng ý, và nghỉ một chút sau mỗi lệnh, giống
+> người bấm thang máy, đã bấm thì không bấm lại liên tục.
 >
-> Thứ hai, 12 tới 28% cú zoom có cửa sổ bị đoán ngược chiều. Giả thuyết của tôi: luật gán nhãn
-> chọn khoảnh khắc chính theo độ lớn, không theo chiều, nên phần thu tay sau cú zoom mang nhãn của
-> cú zoom. Giả thuyết này sẽ được kiểm.
+> Thứ hai, bộ 15 con số không mô tả từng ngón tay, nên không tách được bàn tay mở đang lướt với tay
+> đang chỉ trỏ; đó là lý do hai cách sửa kia đều phải tắt. Cách sửa tận gốc là thêm con số đo độ duỗi
+> từng ngón, hoặc quay thêm dữ liệu của chính người dùng. Ngoài ra, zoom đôi khi bị đoán ngược chiều
+> giữa chừng, đề thi thử còn nhỏ, và tay trái chưa được xét.
 >
-> Thứ ba, bộ đặc trưng chưa đo cấu hình từng ngón. Đó là lý do cả hai phép tăng cường liên quan đến
-> kiểu ngón tay đều phải tắt. Cách sửa tận gốc là thêm đặc trưng độ duỗi của từng ngón, hoặc thêm
-> dữ liệu tự quay.
->
-> Thứ tư, val nhỏ, nên chênh lệch dưới khoảng 0,04 chưa kết luận được. Phase 8 sẽ dùng năm seed và
-> k-fold theo người.
->
-> Việc ngay trước mắt là phần của tôi: phép thử hướng, đếm báo nhầm khi gõ phím, và một lần thử
-> trực tiếp có cấu trúc, gồm mỗi cử chỉ mười lần cộng năm phút làm việc bình thường. Từ số liệu đó
-> sẽ quyết định có cần thu dữ liệu tự quay hay không. Sau đó là đánh giá hai mức, máy trạng thái,
-> demo điều khiển thật kèm đo tốc độ và độ trễ, và cuối cùng là tái lập toàn bộ.
+> Việc tiếp theo trước hết là của tôi: thử hướng vuốt, đếm báo nhầm khi gõ phím, và một lần thử có cấu
+> trúc, mỗi cử chỉ mười lần cộng năm phút làm việc bình thường, để có độ chính xác thật và quyết định có
+> cần quay dữ liệu riêng hay không. Sau đó là Phase 8, dạy lại với năm cách xáo dữ liệu, và Phase 9,
+> máy trạng thái.
 
 ---
 
-## Slide 20 — Kết luận · ⏱ 0:45
+## Slide 22 — Kết luận · ⏱ 0:45
 
 **Trên slide**: Ba điều rút ra
 
-1. Hệ thống chạy đầu-cuối, thời gian thực trên CPU, với bốn mô hình. LSTM tốt nhất trên IPN
-   (macro-F1 0,556); trên bàn tay người dùng, bằng chứng ban đầu nghiêng về mô hình ghép
-2. Con số trên val là cần nhưng không đủ: hai lần thử trên webcam lộ ra lệch miền mà val không
-   thấy, và thí nghiệm phản thực tế chỉ ra mô hình thật sự dựa vào gì
-3. Mọi thay đổi được đo cả lợi lẫn giá trước khi bật; kết quả tái lập được từng chữ số; tập test
-   còn nguyên
+1. Hai mô hình học máy nâng macro-F1 từ 0,23 (luật) lên 0,436 (rừng) và 0,556 (LSTM). Demo dùng mô
+   hình ghép, vì theo bằng chứng ban đầu nó hợp với bàn tay người dùng hơn
+2. Điểm trên đề thi thử là cần nhưng chưa đủ: cả hai lần thử trên webcam đều lộ ra lệch miền, và thí
+   nghiệm "đổi đúng một thứ" chỉ ra mô hình thật sự dựa vào gì
+3. Làm có kiểm chứng: đo cả lợi lẫn giá trước khi bật một thay đổi; kết quả tái lập được từng chữ số;
+   đề thi thật vẫn niêm phong
 
 **Lời thoại**
 
 > Tóm lại, ba điều.
 >
-> Một: hệ thống chạy đầu-cuối, thời gian thực trên CPU, với bốn mô hình. LSTM tốt nhất trên dữ
-> liệu IPN; trên bàn tay của người dùng thật, bằng chứng ban đầu nghiêng về mô hình ghép.
+> Một: hai mô hình học máy đã nâng macro-F1 từ 0,23 của mô hình luật lên 0,436 rồi 0,556. Demo dùng mô
+> hình ghép, vì theo bằng chứng ban đầu, nó hợp với cách người dùng thật làm cử chỉ.
 >
-> Hai: con số trên tập val là cần, nhưng không đủ. Cả hai lần, mô hình tốt trên giấy đều hỏng ở
-> một cử chỉ khi gặp tay thật. Cách tôi tìm ra nguyên nhân là hỏi thẳng mô hình bằng thí nghiệm
-> phản thực tế: sửa đúng một khía cạnh của cử chỉ, rồi xem mô hình còn nhận ra không.
+> Hai: điểm trên đề thi thử là cần, nhưng chưa đủ. Cả hai lần, mô hình tốt trên giấy đều hỏng ở một cử
+> chỉ khi gặp tay thật, và tôi tìm ra nguyên nhân bằng cách hỏi thẳng mô hình qua thí nghiệm "đổi đúng
+> một thứ".
 >
-> Ba: mọi thay đổi đều được đo cả lợi lẫn giá trước khi bật, kết quả tái lập được từng chữ số, và
-> tập test vẫn còn nguyên cho lần đánh giá cuối.
+> Ba: mọi thay đổi đều được đo cả lợi lẫn giá trước khi bật, kết quả tái lập được từng chữ số, và đề
+> thi thật vẫn còn niêm phong cho lần đánh giá cuối.
 >
 > Cảm ơn thầy cô và các bạn đã lắng nghe. Tôi sẵn sàng nhận câu hỏi.
 
@@ -796,235 +759,253 @@ cửa sổ hợp lệ (chưa đủ 1,2 giây, mất tay, hoặc tay nghiêng c�
 
 ## Phụ lục A — Chuẩn bị hỏi đáp
 
-**1. Mô hình ghép có macro-F1 thấp hơn LSTM, sao lại khuyên dùng?**
+Câu trả lời dùng số của bản tổng kết hiện hành. Dòng đánh dấu *(sâu)* dùng số ở Phụ lục B.2, chỉ nói
+khi người hỏi muốn đi sâu.
 
-- Val đo cách làm cử chỉ của người diễn IPN. Họ zoom đúng kiểu ba ngón, nhẫn và út gập, và ở kiểu
-  đó zoom của LSTM giỏi hơn.
-- Thăm dò cho thấy zoom của LSTM gãy khi ngón phụ khác IPN, và còn báo zoom khi tay đứng yên.
-- Trên phiên webcam chạy lại: cụm zoom từ 24 (LSTM) lên 45 (ghép); trong các cửa sổ trông như
-  zoom, LSTM bỏ qua 57%.
-- Đây mới là bằng chứng sơ bộ. Phép thử có cấu trúc sẽ xác nhận hoặc bác bỏ.
+**1. Hệ thống đã điều khiển được máy tính chưa?**
 
-**2. Macro-F1 0,56 có thấp không?**
+- Chưa phát lệnh thật. Demo hiện hiển thị câu trả lời trên màn hình, 5 lần mỗi giây.
+- Muốn phát lệnh cần máy trạng thái (Phase 9), để mỗi cử chỉ ra đúng một lệnh. Nối thẳng bây giờ thì
+  báo nhầm sẽ làm slide tự chuyển.
 
-- Val giữ phân bố tự nhiên: 96,5% nền, mỗi lớp cử chỉ chỉ khoảng 100 cửa sổ. Một tỉ lệ báo nhầm
-  nhỏ trên lớp nền cũng kéo precision lớp cử chỉ xuống mạnh.
-- Ở mức cử chỉ thì cao hơn nhiều: 80–93% cử chỉ có ít nhất một cửa sổ được nhận đúng.
-- Đây là mức cửa sổ, chưa có máy trạng thái.
-- Không so trực tiếp được với kết quả công bố trên IPN: số lớp, cách đo và đầu vào đều khác.
+**2. Mô hình ghép điểm thấp hơn LSTM, sao lại dùng nó?**
 
-**3. "93% cú vuốt trái" nghĩa là hệ thống nhận đúng 93% cú vuốt trái?**
+- Đề thi thử đo cách làm của người diễn IPN. Họ zoom đúng kiểu ba ngón, và ở kiểu đó LSTM giỏi hơn.
+- Thí nghiệm cho thấy zoom của LSTM gãy khi nhẫn và út duỗi ra, và nó còn báo zoom khi tay đứng yên.
+- Phát lại phiên webcam: báo zoom 24 lần (LSTM) → 45 lần (ghép), số lần báo vuốt giữ nguyên.
+- *(sâu)* Trong 205 cửa sổ "trông như zoom" của phiên đó (cái–trỏ đổi rõ, cổ tay chậm), LSTM trả
+  "không có cử chỉ" 57%, mô hình ghép báo zoom 66%.
+- Đây vẫn là bằng chứng sơ bộ; lần thử có cấu trúc sẽ xác nhận hoặc bác bỏ.
 
-- Chưa. Đó là tỉ lệ cử chỉ có ít nhất một cửa sổ được nhận đúng.
-- Một cử chỉ vẫn có thể có thêm cửa sổ sai, hoặc sinh nhiều lệnh. Mức sự kiện đầy đủ (lệnh đúng,
-  lệnh thừa, cử chỉ bị bỏ sót, số lệnh trên một cử chỉ) cần máy trạng thái, là việc của Phase 8–9.
+**3. Macro-F1 0,556 nghe thấp, vậy có dùng được không?**
 
-**4. Thí nghiệm phản thực tế có đáng tin? Cử chỉ bị sửa có còn giống tay thật?**
+- Đề thi thử giữ tỉ lệ ngoài đời: 96,5% không có cử chỉ, mỗi cử chỉ chỉ khoảng 100 cửa sổ. Vài phần
+  trăm báo nhầm trên lớp đông nhất cũng kéo tỉ lệ báo đúng xuống mạnh.
+- Đếm theo cử chỉ thì 80–93% cử chỉ được nhận ra ít nhất một lần.
+- Phần còn thiếu là báo nhầm, việc của máy trạng thái.
 
-- Mỗi phép sửa chỉ đổi đúng một khía cạnh, trên cử chỉ thật, có cộng rung, và đi qua đúng đường
-  ống chạy thật.
-- Bản tổng hợp được so với tay thật trước khi tin: bàn tay cứng hoàn toàn có biên độ độ xòe 0,06,
-  tay chỉ trỏ thật 0,2–0,8, nên phần "lợi" đo trên bản đó bị gạt đi.
-- Sửa ngón làm trong hệ toạ độ lòng bàn tay của từng bước; độ dài ngón duỗi lấy trung vị đo trên
-  bàn tay mở của IPN, không tự đặt.
-- Kết luận của thăm dò khớp với triệu chứng trên webcam ở cả hai lần.
+**4. "93% cú vuốt trái" nghĩa là nhận đúng 93% cú vuốt?**
 
-**5. Sao không thu dữ liệu tự quay ngay cho xong?**
+- Chưa hẳn. Đó là tỉ lệ cử chỉ có ít nhất một cửa sổ được nhận đúng.
+- Một cử chỉ vẫn có thể có thêm câu trả lời sai, hoặc sinh nhiều lệnh. Đếm đầy đủ cần máy trạng thái
+  (Phase 8–9).
 
-- Kế hoạch là IPN trước. Dữ liệu tự quay chỉ bật khi có bằng chứng, ví dụ một lớp đúng dưới 7/10
-  lần dù đã làm đúng hướng dẫn, hoặc báo nhầm khi làm việc bình thường hơn 0,5 lần mỗi phút.
-- Bằng chứng đó đến từ phép thử trực tiếp có cấu trúc, đang chờ làm.
-- Nếu bật, dữ liệu tự quay phải được chia thành phần điều chỉnh và phần đánh giá, theo người hoặc
-  theo buổi quay, trước khi nhìn vào.
+**5. Thí nghiệm "đổi đúng một thứ" có đáng tin? Cử chỉ bị sửa có còn giống tay thật?**
 
-**6. Có rò rỉ dữ liệu không? Tập test đã dùng chưa?**
+- Làm trên cử chỉ thật của IPN, chỉ đổi đúng một khía cạnh, có cộng độ rung như tay thật, và đi qua
+  đúng các bước xử lý như lúc chạy thật.
+- Bản sửa được so với tay thật trước khi tin: bàn tay "cứng hoàn toàn" có độ mở 0,06, tay chỉ trỏ thật
+  0,2–0,8, nên bản đó bị coi là giả tạo.
+- Kết luận của thí nghiệm khớp với triệu chứng trên webcam ở cả hai lần.
 
-- Chia theo người; script kiểm rằng không người nào, clip nào có mặt ở cả train và val.
-- Tăng cường chỉ trên train, sau khi chia; ngưỡng luật chỉ chọn trên train.
-- Macro-F1 dưới 0,97, ngưỡng nghi rò rỉ của kế hoạch.
-- Test chưa dùng lần nào: script từ chối nếu thiếu cờ "lần cuối", và ghi nhật ký trước khi đọc dữ
-  liệu. File nhật ký đó chưa tồn tại.
+**6. Sao không quay luôn dữ liệu của chính bạn?**
 
-**7. Vì sao không dùng LSTM hai chiều, hay làm mượt hai phía cho nhãn ổn định hơn?**
+- Kế hoạch là dùng IPN trước, chỉ quay dữ liệu riêng (Phase 11) khi có bằng chứng là cần.
+- Bằng chứng đến từ lần thử có cấu trúc: mỗi cử chỉ 10 lần, cộng 5 phút làm việc bình thường. Lần thử
+  này đang chờ làm.
+- *(sâu)* Theo `docs/SPEC.md`, dấu hiệu cần bật: một lớp đúng dưới 7/10 lần dù làm đúng hướng dẫn, hoặc
+  báo nhầm khi làm việc bình thường hơn 0,5 lần mỗi phút.
 
-- Cả hai đều đọc tương lai. Số trên val đẹp hơn nhưng không đạt được khi chạy thật.
-- Làm ổn định nhãn là việc của máy trạng thái, chỉ dùng quá khứ.
+**7. Có "ăn gian" đề thi không? Đề thi thật đã mở chưa?**
 
-**8. Lần huấn luyện đầu đạt 0,60, sao chỉ báo 0,556?**
+- Chia theo người: không ai có mặt ở cả bài tập về nhà lẫn đề thi.
+- Biến đổi dữ liệu chỉ áp lên bài tập về nhà.
+- Đề thi thật có khoá kỹ thuật, mỗi lần mở để lại nhật ký. Đến nay chưa mở lần nào.
 
-- 0,60 là điểm thô cao nhất, rơi vào một đỉnh nhiễu (val dao động khoảng ±0,04 giữa hai epoch).
-- Chọn theo điểm thô còn làm dừng sớm giữa chừng: hai lần chạy dừng ở epoch 40 và 48 vì đỉnh nhiễu
-  ở epoch 20 và 28.
-- Chọn theo trung bình trượt 10 epoch: checkpoint 0,556, trung bình trượt 0,534.
-- Con số không thiên lệch: năm seed ở Phase 8 và lần chạy duy nhất trên test.
+**8. Lần đầu đạt 0,601, sao chỉ báo 0,556?**
 
-**9. Tăng cường có thật sự giúp LSTM?**
+- 0,601 là đỉnh may mắn: chọn đúng epoch có điểm cao nhất, trong khi điểm dao động ±0,04 giữa hai
+  epoch.
+- Chọn theo trung bình 10 epoch: 0,556, mức thường đạt khoảng 0,53.
+- Con số không thiên lệch: dạy lại với 5 cách xáo dữ liệu (Phase 8), và lần mở đề thi thật.
 
-- Về macro-F1: chưa đủ bằng chứng (0,532 ± 0,036 so với 0,512 ± 0,020).
-- Về quá khớp thì rõ: không tăng cường, loss val quay đầu đi lên sau epoch 38; có tăng cường, loss
-  val không quay đầu trong suốt lần chạy.
+**9. Tăng cường dữ liệu có làm LSTM giỏi hơn không?**
 
-**10. Các phép tăng cường bị tắt có phải công cốc?**
+- Tác dụng rõ nhất là chống học thuộc lòng: không tăng cường thì mức sai trên đề thi thử quay đầu tăng
+  sau epoch 38; có tăng cường thì không.
+- *(sâu)* Về macro-F1, mức thường đạt có và không tăng cường là 0,532 ± 0,036 và 0,512 ± 0,020. Chênh
+  lệch nhỏ hơn độ dao động, nên chưa đủ bằng chứng để kết luận.
 
-- Không. Chúng là thí nghiệm có số đo cả lợi lẫn giá, nên quyết định "tắt" có căn cứ.
-- Chúng chỉ ra giới hạn thật của bộ đặc trưng: không đo cấu hình ngón thì không tách được bàn tay
-  mở với tay chỉ trỏ.
-- Vẫn nằm trong code. Mức tăng cường "bàn tay cứng" cho rừng là quyết định còn để ngỏ.
+**10. Sao LSTM không đọc cả hai chiều cho chính xác hơn?**
 
-**11. Báo nhầm 8,6 cụm mỗi phút thì dùng thật sao được?**
+- Đọc hai chiều là đọc cả tương lai. Khi chạy trên webcam, tương lai chưa xảy ra, nên con số đạt được
+  trên giấy sẽ không đạt được khi dùng thật.
 
-- Đó là mức cửa sổ, chưa qua máy trạng thái, đo trên lớp nền của IPN, vốn gồm cả những cử chỉ khác
-  như chỉ trỏ hay xòe tay.
-- Máy trạng thái ở Phase 9: ngưỡng tin cậy (khởi đầu 0,75), đồng thuận 3 trên 5 cửa sổ, nghỉ 1,2
-  giây sau mỗi lệnh, hạ tay để huỷ. Phase 10 chọn cấu hình cuối theo bảng đánh đổi.
-- Mốc khi làm việc bình thường: dưới 0,5 lần mỗi phút; vượt thì bật dữ liệu tự quay.
+**11. Báo nhầm khoảng 9 lần mỗi phút thì dùng thật sao được?**
 
-**12. Hệ thống chạy nhanh cỡ nào?**
+- Đó là đếm trên IPN, chưa qua máy trạng thái; lớp không cử chỉ của IPN còn chứa nhiều động tác khó như
+  chỉ trỏ.
+- Máy trạng thái (Phase 9) chỉ phát lệnh khi vài câu trả lời liền nhau đồng ý, và nghỉ sau mỗi lệnh.
+- Mục tiêu: dưới 0,5 lần mỗi phút khi làm việc bình thường. Không đạt thì quay dữ liệu riêng.
 
-- Mỗi 0,2 giây dự đoán một cửa sổ. Rừng mất 9,2 ms mỗi cửa sổ (trước đó 62,6 ms; nhanh lên nhờ gọi
-  thẳng lõi của từng cây); LSTM khoảng 1 ms.
-- Mô hình nạp xong trước khi camera chạy. Thư viện học sâu (khoảng 3 giây) chỉ nạp khi chọn LSTM
-  hoặc mô hình ghép.
-- FPS, phân rã thời gian và độ trễ sẽ đo chính thức ở Phase 10; hiện chưa có số chính thức.
+**12. Hai cách sửa bị tắt có phải công cốc?**
 
-**13. Trong mô hình ghép, vì sao vuốt được xét trước zoom? Có hại không?**
+- Không. Chúng được đo cả lợi lẫn giá, nên quyết định tắt có căn cứ.
+- Chúng chỉ ra chỗ thiếu thật: bộ 15 con số không mô tả từng ngón tay.
+- Vẫn nằm trong code. Có bật cách "chấp nhận vuốt giữ dáng" không, ở mức nào, là lựa chọn còn để ngỏ.
 
-- Theo thứ tự của mô hình luật: cú hất của IPN mở bàn tay, làm độ mở cái–trỏ cũng đổi theo.
-- Giá đã đo: trên phiên webcam, 6% cửa sổ có động tác cái–trỏ rõ bị phần vuốt giành thành vuốt.
-  Đã ghi là hạn chế.
+**13. Mô hình ghép có phải giải pháp chữa cháy?**
 
-**14. Mô hình ghép có phải giải pháp tình thế?**
+- Phần nào đúng. Nhưng nó dựa trên kết quả thí nghiệm, không theo cảm tính, và cả hai phần đều đã chạy
+  tốt trên webcam.
+- Cách sửa tận gốc: thêm con số đo độ duỗi từng ngón, hoặc dữ liệu riêng.
 
-- Phần nào đúng. Nhưng nó dựa trên bằng chứng thăm dò chứ không theo cảm tính, và cả hai phần đều
-  đã thấy tốt trên webcam.
-- Cách sửa tận gốc: thêm đặc trưng độ duỗi từng ngón, hoặc dữ liệu tự quay.
+**14. Hệ thống có chạy kịp thời gian thực không?**
 
-**15. Sao chọn LSTM mà không phải GRU hay Transformer?**
+- Mỗi 0,2 giây trả lời một lần. Rừng mất khoảng 9 mili-giây mỗi câu trả lời (trước khi tăng tốc là
+  63), LSTM khoảng 1 mili-giây.
+- Mô hình được nạp sẵn trước khi bật camera; trước đó demo đứng hình gần 3 giây lần đầu thấy tay.
+- Số khung hình mỗi giây và độ trễ sẽ được đo đầy đủ ở giai đoạn sau.
 
-- LSTM một chiều là mô hình chuỗi trong kế hoạch. Phase 8 có các hàng so GRU thay LSTM, kích thước
-  ẩn 64 với 128, và cách gộp đầu ra.
-- Train chỉ có 3 326 cửa sổ, nên ưu tiên mô hình nhỏ. Transformer chưa nằm trong kế hoạch.
+**15. Phase 6 có đạt tiêu chí đề ra không?**
 
-**16. Tay trái thì sao?**
+- Bộ kiểm tra Phase 6 có ba điều kiện. Hai điều kiện đạt: rừng cao hơn hẳn luật, và điểm không cao bất
+  thường (dấu hiệu rò rỉ dữ liệu).
+- Điều kiện thứ ba, "ba con số quan trọng nhất đúng như dự đoán", không đúng theo chữ vì chuyện "người
+  sinh đôi" (slide 8). Kết quả đó được ghi lại làm lời giải thích.
 
-- Chưa xét riêng; 133/145 clip train là tay phải. Demo dùng tay phải.
-- Phép lật ngang trong tăng cường có thể giúp, nhưng chưa đo.
+**16. Sao chọn LSTM mà không phải mô hình mới hơn?**
+
+- Bài tập về nhà chỉ có 3 326 cửa sổ, nên ưu tiên mô hình nhỏ.
+- LSTM một chiều là mô hình chuỗi trong kế hoạch. Các phương án nhỏ khác, như GRU, sẽ được so ở Phase 8.
+
+**17. Tay trái thì sao?**
+
+- Chưa xét riêng. Demo dùng tay phải.
+- *(sâu)* 133/145 clip trong bài tập về nhà là tay phải (`docs/gestures.md`).
 
 ---
 
 ## Phụ lục B — Số liệu tra nhanh
 
+### B.1. Theo bản tổng kết hiện hành (2026-10-20)
+
 | Mục | Giá trị |
 |---|---|
-| Dữ liệu | IPN Hand, 200 video, 50 người; chia train 30 · val 7 · test 13 người |
-| Cửa sổ | 1,2 s = 18 bước ở 15 Hz, trượt 0,2 s · train 3 326 (50% nền) · val 11 038 (96,5% nền) · test 23 140 |
-| Cửa sổ cử chỉ trong val | 388, tức 94–104 mỗi lớp |
-| Macro-F1 val | ngẫu nhiên 0,0796 · luôn "không cử chỉ" 0,1964 · luật 0,2305 · rừng 0,4361 · LSTM 0,5560 · ghép 0,5061 |
-| Cử chỉ có ≥ 1 cửa sổ đúng (vuốt trái/phải; zoom in/out) | rừng 70/70; 59/56 · LSTM 93/85; 89/80 · ghép 93/85; 59/56 (%) |
-| Cửa sổ nền bị báo nhầm | luật 44% · rừng 8,2% · LSTM 5,8% · ghép 6,0% |
-| Cụm báo nhầm mỗi phút nền | rừng 14,8 · LSTM 8,6 · ghép 8,9 |
-| Báo nhầm theo nguồn (rừng → LSTM) | chỉ trỏ một ngón 5,8 → 3,5% · hai ngón 9,7 → 5,9% · không cử chỉ 10,6 → 14,5% · xòe tay hai lần 13–19% tuỳ mô hình |
-| Rừng ngẫu nhiên | 300 cây · huấn luyện 1,6 s · 9,2 ms/cửa sổ (trước 62,6 ms) |
-| LSTM | một chiều, 2 lớp × 128, dropout 0,3 · 106 epoch ≈ 13 phút CPU · checkpoint epoch 86 · ≈ 1 ms/cửa sổ |
-| Độ nhiễu macro-F1 val | ±0,04 giữa hai epoch · điểm thô cao nhất 0,6014 (đỉnh nhiễu) · trung bình trượt 0,5336 |
-| Có / không tăng cường (LSTM) | 0,532 ± 0,036 / 0,512 ± 0,020 → chưa đủ bằng chứng |
-| Quá khớp, bản không tăng cường | loss val làm mượt thấp nhất ở epoch 38 (0,490), sau đó 0,56–0,67 |
-| Thăm dò vuốt, trái/phải (rừng; LSTM) | bàn tay cứng 0/0; 8/0 · đi rồi về 45/37; 96/99 · cổ tay đứng yên 0/0; 100/87 (%) |
-| Thăm dò zoom, in/out (rừng; LSTM) | nhẫn, út duỗi 63/85; 10/35 · zoom hai ngón 52/54; 7/38 · tay tĩnh vẫn báo zoom 0; 46–62 (%) |
-| Tăng cường bàn tay cứng (rừng, đang tắt) | lợi 10% → 38–56% · báo nhầm 8,2% → 12,5–21,6% |
-| Tăng cường đổi ngón phụ (LSTM, đang tắt) | precision zoom out 0,46 → 0,10 · báo nhầm chỉ trỏ 3,5/5,9 → 12,0/10,2% |
-| Phiên sau luyện tập (rừng) | 43 cửa sổ kiểu vuốt · 88% đúng độ xòe IPN · 79% nhận là vuốt |
-| Phiên chạy lại | cụm zoom: LSTM 24 → ghép 45 · 205 cửa sổ trông như zoom: LSTM bỏ 57%, ghép báo zoom 66% |
-| Kiểm chứng chạy lại | 150/150 và 316/316 dự đoán trùng |
-| Kiểm thử tự động | 152 đạt |
-| Tập test | chưa dùng |
+| Dữ liệu | IPN Hand: 200 video, 50 người, 14 loại động tác; chia 30 / 7 / 13 người |
+| Cửa sổ | 1,2 giây = 18 thời điểm; hỏi mỗi 0,2 giây (5 câu trả lời mỗi giây) |
+| Bài tập về nhà | 3 326 cửa sổ, `none` chiếm một nửa |
+| Đề thi thử | 11 038 cửa sổ, 96,5% `none`; 388 cửa sổ cử chỉ, khoảng 100 mỗi cử chỉ |
+| macro-F1 trên đề thi thử | ngẫu nhiên 0,080 · luôn `none` 0,196 · luật 0,231 · rừng 0,436 · LSTM 0,556 · ghép 0,506 |
+| Ví dụ vuốt trái (rừng → LSTM) | bắt được 54% → 89% · báo đúng 13% → 26% · rừng: 56/104 bắt được, 424 lần báo, 366 lần là `none` |
+| Theo cử chỉ (vuốt trái / phải; zoom in / out) | rừng 70 / 70; 59 / 56 · LSTM 93 / 85; 89 / 80 (%) |
+| Cửa sổ `none` bị báo nhầm | luật gần một nửa · rừng 8,2% (877 cửa sổ) · LSTM 5,8% |
+| Cụm báo nhầm mỗi phút | rừng 14,8 · LSTM 8,6 |
+| Báo nhầm khi chỉ trỏ (một / hai ngón) | rừng 5,8 / 9,7% · LSTM 3,5 / 5,9% |
+| Báo nhầm khi tay nghỉ | rừng 10,6% · LSTM 14,5% |
+| Rừng ngẫu nhiên | 300 cây · huấn luyện 1,6 giây · 9 ms mỗi câu trả lời (trước 63 ms) |
+| LSTM | khoảng 220 nghìn núm vặn · một chiều · huấn luyện 13–25 phút trên CPU · khoảng 1 ms mỗi câu trả lời · lỗi trên cử chỉ nặng gấp khoảng 4 lần |
+| Độ quan trọng | top 3: `pinch_range`, `pinch_delta`, `max_vx` · `dx` thứ 13 · cặp `dx` + `mean_vx` tương quan 0,97; xáo cả cặp → cửa sổ vuốt ngược hướng 8 → khoảng 43 |
+| Thí nghiệm vuốt, trái / phải (rừng; LSTM) | không sửa 100 / 92 · giữ dáng 0 / 0; 8 / 0 · đi rồi về 45 / 37; 96 / 99 · nửa quãng 48 / 47 · một phần tư quãng 4 / 0; 100 / 94 · cổ tay đứng yên 0 / 0; 100 / 87 (%) |
+| Thí nghiệm zoom, in / out (rừng; LSTM) | không sửa 93 / 98; 100 / 100 · nhẫn, út duỗi 63 / 85; 10 / 35 · zoom hai ngón 52 / 54; 7 / 38 · tay tĩnh vẫn báo zoom 0; 46–62 (%) |
+| Tăng cường "bàn tay cứng" (đang tắt) | độ mở bản giả 0,06, tay chỉ trỏ thật 0,2–0,8 · lợi 10% → 38–56% · báo nhầm × 1,5–2,6 |
+| Thử sửa zoom trong LSTM (đang tắt) | nhận zoom 88–98% · báo nhầm thành `zoom_out` 52 → 528 · chỉ trỏ 3,5 / 5,9 → 12,0 / 10,2% · báo đúng `zoom_out` 46% → 10% · kho hơn 58 nghìn dáng tay |
+| Phiên sau luyện tập (rừng) | 43 cửa sổ kiểu vuốt · 88% mở tay đúng kiểu IPN · 79% nhận là vuốt |
+| Đường học | mô hình chính đứng yên sau khoảng epoch 20, không quay đầu · không tăng cường: thấp nhất ở epoch 38, rồi tăng khoảng 30% |
+| Độ tin của con số | dao động ±0,04 · đỉnh may mắn 0,601 · trung bình 10 epoch: 0,556, thường đạt khoảng 0,53 · dừng quá sớm ở epoch 40 và 48 trước khi sửa |
+| Mô hình ghép | 0,506 · phát lại 1,1 phút: báo zoom 24 → 45, báo vuốt giữ nguyên |
+| Hộp đen, tái lập | phát lại khớp 316/316 · LSTM trùng từng chữ số suốt 106 epoch |
+| Đề thi thật | chưa mở |
+
+### B.2. Số liệu thêm, từ bản tổng kết trước (2026-10-19)
+
+Bản tổng kết hiện hành không còn ghi các số dưới đây. Chúng vẫn là kết quả của cùng các lần chạy;
+chỉ dùng khi bị hỏi sâu.
+
+| Mục | Giá trị |
+|---|---|
+| Có / không tăng cường (LSTM), mức thường đạt | 0,532 ± 0,036 / 0,512 ± 0,020 → chưa đủ bằng chứng để kết luận |
+| Mô hình ghép trên đề thi thử | theo cử chỉ: vuốt 93 / 85%, zoom 59 / 56% · báo nhầm 6,0% cửa sổ `none`, 8,9 cụm mỗi phút |
+| Phát lại phiên webcam, bốn mô hình (vuốt trái / phải; zoom in / out) | luật 5 / 4; 23 / 25 · rừng 5 / 2; 21 / 24 · LSTM 7 / 11; 10 / 14 · ghép 7 / 11; 21 / 24 |
+| 205 cửa sổ "trông như zoom" trong phiên đó | LSTM trả `none` 57% · ghép báo zoom 66% · 6% bị phần vuốt giành thành vuốt |
+| Phát lại trên video IPN | khớp 150/150 câu trả lời của LSTM |
+| Đường học | checkpoint LSTM ở epoch 86 (vạch dọc hình trái) · bản không tăng cường: mức sai (làm mượt) thấp nhất 0,490 ở epoch 38, sau đó 0,56–0,67 |
+| Báo nhầm với "xòe tay hai lần" | 13–19% tuỳ mô hình, chủ yếu thành zoom |
+| Đề thi thật | 44 video của 12 người (8 video bị loại vì lệch nhãn) |
+| Kiểm thử tự động | 152 đạt (ngày 2026-10-19) |
 
 ---
 
 ## Phụ lục C — Bản rút gọn và chuẩn bị
 
-### Bản rút gọn khoảng 12 phút
+### C.1. Bản rút gọn khoảng 12 phút
 
-Giữ các slide dưới đây, mỗi slide chỉ nói ý chính. Ý của slide 5, 7, 9, 10, 12, 15 lồng vào slide
-liền kề bằng một câu.
+Giữ các slide dưới đây, mỗi slide chỉ nói ý chính. Ý của các slide bị bỏ lồng vào slide liền kề bằng
+một câu.
 
 | Slide | Thời gian | Câu lồng vào |
 |---|---|---|
 | 1 Tiêu đề | 0:20 | |
-| 2 Bài toán, tiến độ | 0:45 | |
-| 3 Kết quả trong một slide | 1:00 | |
-| 4 Nền móng Phase 0–5 | 1:00 | "Mô hình luật đạt 0,23 nhưng báo nhầm 44% cửa sổ nền; demo và chế độ luyện tập đã chạy được." |
-| 6 Rừng ngẫu nhiên | 1:15 | "Báo nhầm chủ yếu đến từ tay chỉ trỏ và tay không làm cử chỉ." |
-| 8 Thử trực tiếp lần 1 | 1:30 | "Chế độ luyện tập hiện thêm độ mở bàn tay; sau khi luyện, rừng nhận 79% chuyển động kiểu vuốt." |
-| 11 LSTM: kết quả | 1:00 | "LSTM một chiều đọc thẳng chuỗi 42 toạ độ; val nhiễu khoảng ±0,04 nên checkpoint chọn theo trung bình trượt 10 epoch." |
-| 13 LSTM nhận vuốt khác rừng | 0:30 | |
-| 14 Thử trực tiếp lần 2 | 1:15 | |
-| 16 Mô hình ghép | 1:00 | "Sửa thẳng trong LSTM có thử, nhưng báo nhầm khi chỉ trỏ tăng lên 10–12%, nên phải tắt." |
-| 17 Kiểm chứng trên tay người dùng | 0:45 | |
-| 19 Hạn chế, việc tiếp theo | 1:00 | |
-| 20 Kết luận | 0:20 | |
+| 2 Bài toán | 0:45 | |
+| 3 Hệ thống nhìn bàn tay | 0:45 | |
+| 5 Ba tập dữ liệu | 0:45 | "Thay vì người viết luật như ở Phase 5, máy tự tìm quy luật từ ví dụ có đáp án: 200 video IPN của 50 người." |
+| 6 Đo tốt tới đâu | 1:15 | |
+| 7 Rừng ngẫu nhiên | 1:00 | "Mô hình dựa nhiều nhất vào động tác cái–trỏ và tốc độ cổ tay." |
+| 9 Thử trực tiếp lần 1 | 1:30 | "Cách sửa: chế độ luyện tập hiện thêm độ mở bàn tay; sau khi luyện, rừng nhận 79% chuyển động kiểu vuốt." |
+| 11 LSTM | 0:45 | |
+| 12 Kết quả LSTM | 0:45 | "Điểm 0,556 chọn theo trung bình 10 epoch, vì điểm dao động ±0,04; con số 0,601 lần đầu là đỉnh may mắn." |
+| 14 LSTM nhìn vuốt khác rừng | 0:30 | |
+| 15 Thử trực tiếp lần 2 | 1:15 | |
+| 17 Mô hình ghép | 1:00 | "Sửa thẳng trong LSTM có thử, nhưng báo nhầm thành zoom out tăng gấp 10 lần, nên phải tắt." · "Con số 24 và 45 có được nhờ ghi rồi phát lại phiên webcam, khớp 316/316 câu trả lời." |
+| 21 Hạn chế, việc tiếp theo | 1:00 | |
+| 22 Kết luận | 0:20 | |
 
-### Muốn kể kỹ Phase 0–5 hơn
-
-Chèn sau slide 4 các slide sau của `docs/kich-ban-thuyet-trinh-den-phase-5.md`:
-
-| Slide của bản trước | Nội dung | Thời gian |
-|---|---|---|
-| 7 | Chuẩn hoá cửa sổ | 1:15 |
-| 9 | Video và nhãn IPN lệch nhau | 2:00 |
-| 11 | Gán nhãn cửa sổ theo khoảnh khắc chính | 1:45 |
-| 13 | Cổng kiểm tra đặc trưng | 1:00 |
-
-### Nguồn hình có sẵn
+### C.2. Nguồn hình có sẵn
 
 | Slide | Hình |
 |---|---|
-| 2 | Đoạn mẫu bốn cử chỉ có vẽ điểm mốc: `results/phase3/examples/` (ba người mỗi cử chỉ) |
-| 3 | Bảng so sánh mô hình: `results/model_comparison.md` |
-| 6 | Ma trận nhầm lẫn của rừng: `results/phase6/train_rf/run_07/confusion.png` |
-| 7 | Độ quan trọng đặc trưng: `results/phase6/train_rf/run_07/importances.png` |
-| 11 | Ma trận nhầm lẫn của LSTM: `results/phase6/evaluate/run_06/confusion.png` |
-| 12 | Đường học: `results/phase7/train_lstm/run_07/training_curves.png` (trái) và `results/phase7/train_lstm/run_04/training_curves.png` (phải) |
-| 16 | Ma trận nhầm lẫn của mô hình ghép: `results/phase6/evaluate/run_05/confusion.png` |
+| 2, 3 | Đoạn mẫu bốn cử chỉ có vẽ điểm mốc: `results/phase3/examples/` (ba người mỗi cử chỉ). Cắt một khung làm hình que 21 điểm cho slide 3 |
+| 7 | Ma trận nhầm lẫn của rừng: `results/phase6/train_rf/run_07/confusion.png` (ô `none` → `swipe_left` = 366) |
+| 8 | Độ quan trọng đặc trưng: `results/phase6/train_rf/run_07/importances.png` |
+| 12 | Ma trận nhầm lẫn của LSTM: `results/phase6/evaluate/run_06/confusion.png` |
+| 13 | Đường học: `results/phase7/train_lstm/run_07/training_curves.png` (trái) và `results/phase7/train_lstm/run_04/training_curves.png` (phải) |
+| 17 | Ma trận nhầm lẫn của mô hình ghép: `results/phase6/evaluate/run_05/confusion.png` |
+| 19 | Bảng so sánh mô hình: `results/model_comparison.md` |
 
-Cần tự vẽ: sơ đồ đường ống (slide 2), minh hoạ phép thăm dò (slide 8 và 14), sơ đồ luật ghép
-(slide 16).
+Cần tự vẽ: hình que 21 điểm và cửa sổ 1,2 giây (slide 3), chuông báo cháy (slide 6, tuỳ chọn), minh
+hoạ thí nghiệm "đổi một thứ" (slide 9 và 15), sơ đồ hai chuyên gia (slide 17).
+
+**Slide dự phòng:** bảng thuật ngữ ở Phụ lục A của `docs/tong-ket-den-phase-7.md`, để mở ra khi người
+nghe hỏi lại một từ.
 
 **Lưu ý khi chiếu hình:**
 
-- Tên lớp trên các hình là tên trong code: `none` là "không cử chỉ", `swipe_left` là vuốt trái, …
-- Phụ đề hình đường học ghi "macro-F1 val cao nhất", dễ bị hỏi:
-  - hình trái: vạch dọc (epoch 86) là checkpoint có **trung bình trượt** 10 epoch cao nhất; vài
-    điểm thô phía sau cao hơn nó;
-  - hình phải: vạch dọc (epoch 20) là epoch có macro-F1 thô cao nhất, **không** phải điểm bắt đầu
-    quá khớp. Khi nói, chỉ vào đường loss val đi lên từ khoảng epoch 40.
+- Hình ghi tên lớp trong code (`none`, `swipe_left`, …) và "tập val", tức đề thi thử.
+- Ma trận nhầm lẫn có hai bảng: số cửa sổ (trái) và tỉ lệ theo hàng (phải). Với người không chuyên,
+  chỉ cần chỉ vào một ô.
+- Hình đường học có hai khung: Loss (mức sai) và macro-F1. Với người không chuyên, chỉ cần chỉ vào khung
+  Loss. Phụ đề "macro-F1 val cao nhất" dễ bị hỏi:
+  - hình trái: vạch dọc (epoch 86) là checkpoint chọn theo trung bình 10 epoch, nên vài điểm phía sau
+    cao hơn nó;
+  - hình phải: vạch dọc (epoch 20) là epoch có điểm cao nhất, **không** phải điểm bắt đầu quá khớp.
+    Khi nói, chỉ vào đường mức sai đi lên sau epoch 38.
 
-### Trước buổi thuyết trình
+### C.3. Trước buổi thuyết trình
 
 - **Phép thử hướng, trước khi demo vuốt.** Mở demo, vuốt sang trái *của chính mình*: phải ra
-  `swipe_left`. Nếu ra `swipe_right` thì quy ước bị ngược; cách sửa ở `docs/SPEC.md`, mục Cổng
-  chất lượng (đổi `IPN_FLIP_X`, chạy lại các phép đo, không sửa code). Chưa sửa xong thì không
-  demo vuốt. Việc này cũng đang chặn việc đóng Phase 5, nên làm sớm.
-- **Môi trường:** conda env `action-recognition`, `python --version` ra 3.10.x. Chạy thử demo một
-  lần trên đúng máy, và nếu được thì ở đúng phòng sẽ trình bày: ánh sáng khác thì điểm mốc khác.
+  `swipe_left`. Nếu ra `swipe_right` thì quy ước bị ngược; cách sửa ở `docs/SPEC.md`, mục Cổng chất
+  lượng (đổi một hằng số rồi chạy lại các phép đo, không sửa code). Chưa sửa xong thì không demo vuốt.
+- **Môi trường:** conda env `action-recognition`, `python --version` ra 3.10.x. Chạy thử demo một lần
+  trên đúng máy, và nếu được thì ở đúng phòng sẽ trình bày: ánh sáng khác thì điểm mốc khác.
 - **Tư thế khi demo** (theo `docs/gestures.md`):
   - tay phải; lòng bàn tay chiếm khoảng 1/5 chiều cao khung hình; đủ sáng;
   - zoom: ba ngón cái–trỏ–giữa, **nhẫn và út gập**;
   - vuốt: chụm đầu ngón, hất ngang một chiều, mở bàn tay trong lúc hất, rồi giữ tay ở đó;
   - giữa hai cử chỉ, để tay yên một nhịp.
 - **Luôn có video dự phòng:**
-  - quay màn hình một lượt demo mô hình ghép trên webcam. Chạy kèm `--log <file>.csv` thì phiên đó
-    còn chạy lại được bằng `scripts/replay_log.py`;
-  - bản không cần webcam: chạy mô hình ghép trên một video IPN của tập val:
+  - quay màn hình một lượt demo mô hình ghép trên webcam. Muốn phát lại được thì chạy kèm `--log` với
+    **tên file mới**, ví dụ `--log results/phase7/demo_thuyet_trinh.csv`. **Đừng** chạy lại lệnh demo
+    cuối ở mục B.2 của `docs/tong-ket-den-phase-7.md`: lệnh đó ghi vào `results/phase7/live_hybrid.csv`,
+    và demo sẽ ghi đè cả file này lẫn `live_hybrid_landmarks.npz`, tức phiên làm ra con số 24 → 45;
+  - bản không cần webcam: chạy mô hình ghép trên một video IPN của đề thi thử:
 
     ```
     python scripts/demo.py --model hybrid --source data/ipn/videos/videos/1CM42_12_R__157.avi --max-sec 132
     ```
 
-    Theo `results/phase7/notes.md`, mô hình ghép nhận được cả hai cú zoom và cú vuốt trái trong
-    video này, nhưng vẫn còn vài cụm báo vuốt nhầm lúc người diễn chỉ tay.
-- **Nếu đã làm phép thử có cấu trúc trước buổi thuyết trình:** thay bảng số cụm ở slide 17 bằng số
-  lần đúng trên 10 lần mỗi cử chỉ và số báo nhầm mỗi phút, rồi cập nhật slide 19 và câu 1 của Phụ
-  lục A.
-- **Cách nói số:** không nói "hệ thống chính xác x%"; nói macro-F1 trên val. Chưa có số trên test.
-  Nếu bị hỏi, giải thích rằng test được khoá tới lần đánh giá cuối.
+    Theo `results/phase7/notes.md`, mô hình ghép nhận được cả hai cú zoom và cú vuốt trái trong video
+    này, nhưng vẫn còn vài cụm báo vuốt nhầm lúc người diễn chỉ tay.
+- **Nếu đã làm lần thử có cấu trúc trước buổi thuyết trình:** thay bảng số lần báo ở slide 17 bằng số
+  lần đúng trên 10 lần mỗi cử chỉ và số báo nhầm mỗi phút, rồi cập nhật slide 21 và câu 2 của Phụ lục A.
+- **Cách nói số:** không nói "hệ thống chính xác x%"; nói macro-F1 trên đề thi thử. Chưa có số trên đề
+  thi thật. Nếu bị hỏi, giải thích rằng đề đó được niêm phong tới lần đánh giá cuối.
