@@ -104,10 +104,10 @@ chỗ dùng chúng sẽ dừng ngay nhờ `config.require_measured()`.
 
 | Hằng số | Giá trị | Đo ở phase | Đo bằng cách nào |
 |---|---|---|---|
-| `SWIPE_LEFT_SIGN` | *(chưa đo)* | 3 | `scripts/measure_direction.py` trên dữ liệu IPN |
-| `IPN_FLIP_X` | `1` | — | IPN là chuẩn quy ước hướng; chỉ đổi thành `-1` khi phép thử webcam ở Phase 5 chứng minh ngược |
-| `AUG_NOISE_SIGMA` | *(chưa đo)* | 1B hoặc 4 | `analyze_observations.py`, hoặc ước lượng trên IPN |
-| `RULE_S_HI`, `RULE_DX_HI`, `RULE_O_HI` | *(chưa hiệu chuẩn)* | 5 | `scripts/calibrate_rules.py` trên tập `train` của IPN |
+| `SWIPE_LEFT_SIGN` | `1` | 3 | `scripts/measure_direction.py` trên 189 clip IPN, ảnh không lật (2026-10-05): trung vị `dx` của `swipe_left` +0,456, của `swipe_right` −0,534 — trái dấu như phải có. Bằng chứng: `results/phase3/direction.md` |
+| `IPN_FLIP_X` | `1` | — | IPN là chuẩn quy ước hướng; chỉ đổi thành `-1` khi phép thử webcam (vuốt sang trái của bạn phải ra `swipe_left`) chứng minh ngược. Phép thử này **chưa được ghi lại** (`results/phase6/notes.md` mục 7.5) |
+| `AUG_NOISE_SIGMA` | `0.0159` | 4 | `scripts/estimate_sigma.py --src-label D0X` (2026-10-05): trung vị độ lệch chuẩn đầu ngón trên 18 cửa sổ tay nghỉ đứng yên của train, đơn vị lòng bàn tay. Lấy mọi cửa sổ `none` thì ra 0,054, vì phần lớn là cử động ngón có chủ ý. Bằng chứng: `results/phase4/sigma/run_02/` |
+| `RULE_VX_HI`, `RULE_DX_HI`, `RULE_P_HI` | `4.026`, `0.1025`, `0.7209` | 5 | `scripts/calibrate_rules.py` trên tập `train` của IPN (2026-10-05). `RULE_VX_HI`: trung điểm của p90 `max_vx` lớp `none` và p10 của hai lớp vuốt; `RULE_DX_HI`: p10 `\|dx\|` của hai lớp vuốt; `RULE_P_HI`: trung điểm của p90 `\|pinch_delta\|` (`none` cộng hai lớp vuốt) và p10 của hai lớp zoom. Bằng chứng: `results/phase5/thresholds.md` |
 
 Điền giá trị **và** một câu mô tả cách đo vào bảng này ngay khi đo xong.
 
@@ -125,8 +125,19 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 1 | `python scripts/observe.py --exp <tên> [--condition <đk>]` | `results/phase1/<tên>[_<đk>]/run_NN/landmarks.csv`. `--list` để xem 9 thí nghiệm; mỗi thí nghiệm ≥ 3 lần |
 | 1 | `python scripts/analyze_observations.py` | `results/phase1/analysis/run_NN/`: bảng `runs` và `summary` (.csv + .md), và dòng `AUG_NOISE_SIGMA` để dán vào `config.py` |
 | 1 | `python scripts/record_csv.py --name <tên>` | CSV điểm mốc mỗi frame một dòng, dùng tự do |
-| 4 | | |
-| 5 | | |
+| 2 | `python scripts/check_pipeline.py <landmarks.csv>` | Chạy `load_sequence` trên một CSV của Phase 1, in số frame, FPS thực, số bước lưới, độ lệch lưới lớn nhất, tỉ lệ bước `NaN` trước và sau khi vá (không ghi file) |
+| 3 | `python scripts/extract_landmarks.py --source ipn` | Điểm mốc của mọi video IPN: `data/landmarks/ipn/<clip_id>.npz`. Bỏ qua clip đã có nên chạy lại là chạy tiếp; clip lỗi ghi vào `results/phase3/failed.txt`; `--workers N` chạy song song. Chạy qua đêm |
+| 3 | `python scripts/measure_direction.py` | Đo `SWIPE_LEFT_SIGN` trên IPN: `results/phase3/direction.md` và `results/phase3/direction/run_NN/`; in dòng để dán vào `config.py` |
+| 3 | `python scripts/dataset_stats.py` | Thống kê theo lớp, người, clip và nhãn gốc — tỉ lệ frame mất tay, thời lượng trung vị từng lớp: `results/phase3/dataset_stats/run_NN/` |
+| 3 | `python scripts/export_examples.py` | Ba đoạn mẫu mỗi lớp đích, vẽ điểm mốc, không lật: `results/phase3/examples/*.mp4` — tư liệu viết `docs/gestures.md` |
+| 4 | `python scripts/make_splits.py` | `data/splits.json` theo người, từ split chính thức của IPN (val là `VAL_FRACTION` số người của train, chọn với `SEED`); in phép giao giữa các tập, phải rỗng: `results/phase4/splits/run_NN/` |
+| 4 | `python scripts/build_dataset.py` | `data/windows/windows.npz`; lớp `none` của train lấy mẫu con xuống `NONE_TRAIN_SHARE`. Bảng số cửa sổ theo tập và lớp: `results/phase4/build_dataset/run_NN/` |
+| 4 | `python scripts/estimate_sigma.py --src-label D0X` | Ước lượng `AUG_NOISE_SIGMA` trên cửa sổ tay nghỉ của train: `results/phase4/sigma/run_NN/`; in dòng để dán vào `config.py` |
+| 4 | `python scripts/plot_feature_boxplots.py` | Boxplot từng đặc trưng theo lớp trên train — cổng kiểm tra Phase 4: `results/phase4/boxplots/run_NN/`; phân vị 25/75 vào `results/phase4/ipn_feature_ranges.json`, mà `demo.py --show-features` dùng |
+| 4 | `python scripts/plot_window_examples.py` | Quỹ đạo cổ tay, độ xòe và độ mở cái–trỏ của một cửa sổ ngẫu nhiên mỗi lớp: `results/phase4/window_examples/run_NN/` |
+| 5 | `python scripts/calibrate_rules.py` | Ba ngưỡng luật trên train: `results/phase5/thresholds.md` và `results/phase5/calibrate/run_NN/`; in ba dòng để dán vào `config.py` |
+| 5 | `python scripts/eval_rules.py` | Luật trên val: ma trận nhầm lẫn, macro-F1, hai đường cơ sở: `results/phase5/eval_rules/run_NN/`; ghi hàng `rules` vào `results/model_comparison` |
+| 5 | `python scripts/demo.py --model rules [--show-features] [--log <file.csv>]` | Demo webcam v0; `--show-features` là chế độ luyện cử chỉ theo IPN |
 | 6 | `python scripts/train_rf.py` | Rừng ngẫu nhiên học trên train, đánh giá trên val: `results/phase6/train_rf/run_NN/` (ma trận nhầm lẫn, độ quan trọng, mức sự kiện, báo nhầm theo nhãn gốc); lưu `results/phase6/rf_model.joblib`; cập nhật `results/model_comparison` |
 | 6 | `python scripts/sweep_rigid.py` | Quét tăng cường "bàn tay cứng" trên val: `results/phase6/sweep_rigid/run_NN/` (bảng `sweep`: lợi và giá của từng mức; bảng `shape_spread`: độ đổi dáng của tay thật so với bản tổng hợp) |
 | 6 | `python scripts/probe_swipes.py` | Mô hình đang lưu coi gì là vuốt: `results/phase6/probe_swipes/run_NN/probe` |
@@ -163,20 +174,4 @@ conda activate action-recognition
 
 cd /d D:\Project\Python\cv-action-recognition
 
-1.
-python scripts/live_landmarks.py
-
-2. 
-python scripts/demo.py --model rules
-
-3. 
-python scripts/demo.py --model rf --log results/phase6/live_rf_work.csv
-
-4. 
-python scripts/demo.py --model rf --show-features --log results/phase6/live_rf_swipes.csv
-
-5.
-python scripts/demo.py --model lstm --show-features --log results/phase7/live_lstm.csv
-
-6.
-python scripts/demo.py --model hybrid --show-features --log results/phase7/live_hybrid.csv
+python scripts/demo.py --model hybrid

@@ -180,6 +180,14 @@ def table_experiments(table):
 # Chạy
 # --------------------------------------------------------------------------
 
+def same_values(a, b):
+    """Hai mảng trùng nhau, kể cả NaN ở đúng chỗ NaN. Bước mất tay của cửa sổ
+    là NaN (luật 4), mà NaN != NaN, nên ``np.array_equal`` trơn báo khác cả khi
+    trùng từng bit. Cột chuỗi không nhận ``equal_nan`` — cờ chỉ bật cho số thực."""
+    a, b = np.asarray(a), np.asarray(b)
+    return bool(np.array_equal(a, b, equal_nan=a.dtype.kind == b.dtype.kind == "f"))
+
+
 def check_against_windows_npz(data_fp):
     """Bộ cửa sổ dựng lại với cấu hình chính phải trùng ``windows.npz`` từng bit
     — bằng chứng các bảng khảo sát đi đúng đường ống của build_dataset.py."""
@@ -193,8 +201,8 @@ def check_against_windows_npz(data_fp):
             pick = part == name
             for key, ours in (("X", "X"), ("y", "y"), ("presence", "pres"),
                               ("subject", "subj"), ("clip", "clip"), ("t0", "t0")):
-                checks[f"{name}.{key}"] = bool(np.array_equal(npz[key][pick],
-                                                              data[f"{ours}_{suffix}"]))
+                checks[f"{name}.{key}"] = same_values(npz[key][pick],
+                                                      data[f"{ours}_{suffix}"])
     return all(checks.values()), checks
 
 

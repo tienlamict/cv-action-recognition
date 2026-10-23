@@ -310,8 +310,12 @@ CAM_FPS = 30
 CAM_INDEX = 0           # webcam mặc định của máy
 
 # --------------------------------------------------------------------------
-# Logic kích hoạt
+# Logic kích hoạt — chạy SAU mô hình
 # --------------------------------------------------------------------------
+# Bản ghi thí nghiệm Phase 8 không băm bốn hằng số dưới đây và mọi hằng số tiền
+# tố FSM_ (src/experiments.py, _IRRELEVANT; người dùng chọn 2026-10-23), nên chỉnh
+# máy trạng thái không phải học lại. Hằng số mới của Phase 9 đặt tiền tố FSM_;
+# hằng số mới không có tiền tố này làm mọi bản ghi hết hạn.
 
 CONF_FIRE = 0.75        # ngưỡng tin cậy để bắt đầu xét phát lệnh
 CONF_HOLD = 0.55        # ngưỡng trễ, thấp hơn CONF_FIRE

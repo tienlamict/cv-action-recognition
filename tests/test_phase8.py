@@ -232,6 +232,43 @@ def test_moi_thi_nghiem_doi_dung_mot_yeu_to_va_khong_cham_test():
     assert experiments.pool_subjects({"train": ["a"], "val": ["b"], "test": ["c"]}) == ["a", "b"]
 
 
+def test_so_voi_windows_npz_coi_nan_o_cung_cho_la_trung():
+    """Bước mất tay là NaN (luật 4). np.array_equal trơn coi NaN != NaN, nên
+    từng báo bộ cửa sổ dựng lại KHÁC windows.npz dù hai bộ trùng từng bit."""
+    from tests.scripts_import import load_script
+
+    same = load_script("run_experiments").same_values
+    X = np.array([[0.5, np.nan], [1.0, 2.0]], dtype=np.float32)
+    assert same(X, X.copy())
+    moved = X.copy()
+    moved[0] = [np.nan, 0.5]
+    assert not same(X, moved), "NaN ở chỗ khác là khác"
+    assert same(np.array(["p1", "p2"]), np.array(["p1", "p2"]))
+    assert not same(np.array([0, 1]), np.array([0, 2]))
+
+
+def test_chinh_tang_kich_hoat_khong_lam_ban_ghi_het_han(monkeypatch):
+    """Phase 9–10 chỉnh máy trạng thái, chạy SAU mô hình: bản ghi giữ nguyên,
+    không phải học lại. Hằng số đổi dữ liệu, hay hằng số mới không có tiền tố
+    FSM_, vẫn làm bản ghi hết hạn."""
+    spec = experiments.full_spec({"model": "lstm"})
+
+    def key():
+        return experiments.record_key(spec, "dữ liệu")
+
+    base = key()
+    with monkeypatch.context() as m:
+        m.setattr(config, "MIN_PRESENCE", 0.8)
+        assert key() != base, "MIN_PRESENCE đổi tập cửa sổ"
+    with monkeypatch.context() as m:
+        m.setattr(config, "HANG_SO_MOI", 1, raising=False)
+        assert key() != base, "hằng số lạ: cho hết hạn, không đoán"
+    for name, value in (("CONF_FIRE", 0.6), ("CONF_HOLD", 0.5), ("K_OF_N", (2, 5)),
+                        ("COOLDOWN_SEC", 1.0), ("FSM_BAT_KY", 1)):
+        monkeypatch.setattr(config, name, value, raising=False)
+    assert key() == base
+
+
 @pytest.fixture
 def tiny_project(tmp_path, monkeypatch):
     """Sáu người (bốn train, hai val, một test không bao giờ được đọc), mỗi người
