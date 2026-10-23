@@ -13,6 +13,8 @@ không chỉ quá khớp.
 
 import copy
 import random
+import time
+from collections import namedtuple
 
 import numpy as np
 import torch
@@ -154,7 +156,10 @@ def fit(model, train_loader, train_sequences, y_train, val_sequences, y_val,
 
     Args:
         train_loader: lô train (có tăng cường) để học.
-        train_sequences, y_train: tập train KHÔNG tăng cường, để đo.
+        train_sequences, y_train: tập train KHÔNG tăng cường, để đo. ``None``
+            thì không đo train — bảng khảo sát của Phase 8 chỉ cần val, và đo
+            train không đổi gì trong quá trình học (chế độ eval, không rút số
+            ngẫu nhiên).
         val_sequences, y_val: tập val, để đo và dừng sớm.
         on_epoch: hàm gọi sau mỗi epoch với ``(dòng lịch sử, EarlyStop)``.
         window: số epoch của trung bình trượt; ``1`` là theo điểm thô.
@@ -171,16 +176,99 @@ def fit(model, train_loader, train_sequences, y_train, val_sequences, y_val,
     history = []
     for epoch in range(1, max_epochs + 1):
         running = train_epoch(model, train_loader, loss_fn, optimizer)
-        train_loss, train_pred = evaluate(model, train_sequences, y_train, loss_fn)
+        row = {"epoch": epoch, "train_loss_running": running}
+        if train_sequences is not None:
+            train_loss, train_pred = evaluate(model, train_sequences, y_train, loss_fn)
+            row.update(train_loss=train_loss,
+                       train_macro_f1=macro_f1(y_train, train_pred))
         val_loss, val_pred = evaluate(model, val_sequences, y_val, loss_fn)
-        row = {"epoch": epoch, "train_loss_running": running,
-               "train_loss": train_loss, "val_loss": val_loss,
-               "train_macro_f1": macro_f1(y_train, train_pred),
-               "val_macro_f1": macro_f1(y_val, val_pred)}
-        history.append(row)
+        row.update(val_loss=val_loss, val_macro_f1=macro_f1(y_val, val_pred))
+        history.append({key: row[key] for key in HISTORY_KEYS if key in row})
         stopper.update(epoch, row["val_macro_f1"], model)
         if on_epoch is not None:
-            on_epoch(row, stopper)
+            on_epoch(history[-1], stopper)
         if stopper.should_stop:
             break
     return history, stopper
+
+
+#: Thứ tự cột của bảng lịch sử huấn luyện.
+HISTORY_KEYS = ("epoch", "train_loss_running", "train_loss", "val_loss",
+                "train_macro_f1", "val_macro_f1")
+
+LSTMTraining = namedtuple("LSTMTraining",
+                          "model history stopper dataset finger_pool weights seconds")
+LSTMTraining.__doc__ = """Kết quả của :func:`train_lstm`. ``model`` mang trọng số
+đã chọn: của epoch tốt nhất khi dừng sớm, của epoch cuối khi học số epoch cố
+định (khi đó ``stopper`` là ``None``)."""
+
+
+def train_lstm(X_tr, y_tr, X_va=None, y_va=None, seed=config.SEED, augment=True,
+               zoom_style_p=config.AUG_ZOOM_STYLE_P,
+               static_share=config.AUG_STATIC_SHARE,
+               max_epochs=config.LSTM_MAX_EPOCHS, patience=config.LSTM_PATIENCE,
+               window=config.LSTM_CURVE_SMOOTH, fixed_epochs=None,
+               measure_train=True, sequence=None, model_kwargs=None,
+               on_epoch=None):
+    """Toàn bộ quy trình huấn luyện LSTM của Phase 7, gói lại để
+    ``scripts/train_lstm.py`` và các bảng khảo sát của Phase 8 chạy ĐÚNG MỘT
+    quy trình.
+
+    Seed đặt ở ba chỗ (``set_seed``), rồi seed riêng cho tăng cường và cho thứ
+    tự lô — cùng ``seed`` thì cùng từng chữ số, không phụ thuộc số luồng torch.
+    Tăng cường mới mỗi epoch, chỉ trên train (luật 9); kho dáng ngón phụ dựng
+    từ chính ``X_tr``. Adam, ``CrossEntropyLoss`` có trọng số lớp "balanced"
+    tính trên đúng các nhãn mô hình thấy.
+
+    Args:
+        X_tr, y_tr: cửa sổ đã chuẩn hoá và nhãn của train.
+        X_va, y_va: tập val để dừng sớm; không cần khi ``fixed_epochs``.
+        fixed_epochs: học đúng bấy nhiêu epoch, không đo và không chọn gì trên
+            val — k-fold của Phase 8, nơi fold giữ lại là tập đánh giá.
+        measure_train: ``False`` thì không đo train mỗi epoch (bảng khảo sát).
+        sequence: hàm ``cửa sổ đã chuẩn hoá → chuỗi`` — biến thể biểu diễn.
+        model_kwargs: tham số cho ``LSTMClassifier`` khác mặc định.
+        on_epoch: như :func:`fit`; với ``fixed_epochs`` nhận ``(dòng, None)``.
+
+    Returns:
+        :class:`LSTMTraining`.
+    """
+    from torch import nn
+    from torch.utils.data import DataLoader
+
+    from src.augment import finger_pose_pool
+    from src.datasets import WindowDataset, window_sequences
+    from src.models import LSTMClassifier
+
+    set_seed(seed)
+    # kho dáng ngón phụ CHỈ từ train (luật 9); không tăng cường thì không cần
+    pool = finger_pose_pool(X_tr) if augment else None
+    dataset = WindowDataset(X_tr, y_tr, "train", augment=augment,
+                            rng=np.random.default_rng(seed), finger_pool=pool,
+                            zoom_style_p=zoom_style_p, static_share=static_share,
+                            sequence=sequence)
+    loader = DataLoader(dataset, batch_size=config.LSTM_BATCH, shuffle=True,
+                        generator=torch.Generator().manual_seed(seed))
+    model = LSTMClassifier(**(model_kwargs or {}))
+    weights = class_weights(dataset.labels)
+    loss_fn = nn.CrossEntropyLoss(weight=weights)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.LSTM_LR)
+
+    started = time.perf_counter()
+    if fixed_epochs:
+        history, stopper = [], None
+        for epoch in range(1, fixed_epochs + 1):
+            history.append({"epoch": epoch, "train_loss_running":
+                            train_epoch(model, loader, loss_fn, optimizer)})
+            if on_epoch is not None:
+                on_epoch(history[-1], None)
+    else:
+        seq_tr = window_sequences(X_tr, sequence) if measure_train else None
+        history, stopper = fit(model, loader, seq_tr, y_tr,
+                               window_sequences(X_va, sequence), y_va, loss_fn,
+                               optimizer, max_epochs=max_epochs, patience=patience,
+                               on_epoch=on_epoch, window=window)
+        model.load_state_dict(stopper.best_state)
+    model.eval()
+    return LSTMTraining(model, history, stopper, dataset, pool, weights,
+                        time.perf_counter() - started)

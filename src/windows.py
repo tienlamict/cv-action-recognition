@@ -12,7 +12,8 @@ Ba quyết định về cách cắt:
 2. **Cửa sổ tính bằng giây.** ``T`` và ``STRIDE`` là số bước trên lưới
    ``HZ``, suy từ ``WIN_SEC`` và ``STRIDE_SEC`` trong ``config``.
 3. **Cửa sổ trả về ở toạ độ PIXEL, chưa chuẩn hoá.** Tăng cường phải đứng
-   trước ``normalize_window``; chuẩn hoá là việc của người gọi.
+   trước ``normalize_window``; chuẩn hoá là việc của người gọi —
+   :func:`collect_windows` làm việc đó cho bộ cửa sổ.
 
 Cửa sổ bị loại khi tỉ lệ bước có tay dưới ``MIN_PRESENCE`` hoặc bước đầu không
 có tay — bước đầu là gốc toạ độ và đơn vị của ``normalize_window``.
@@ -41,7 +42,13 @@ import numpy as np
 
 from src import config
 from src.io_data import load_clip
-from src.preprocess import load_sequence
+from src.preprocess import load_sequence, normalize_window
+
+#: Các cột của bộ cửa sổ, đúng schema ``windows.npz`` (SPEC, Hợp đồng dữ liệu).
+FIELDS = ("X", "y", "presence", "subject", "clip", "t0", "src_label")
+DTYPES = {"X": np.float32, "y": np.int64, "presence": np.float32,
+          "subject": "<U16", "clip": "<U64", "t0": np.float32,
+          "src_label": "<U32"}
 
 
 def step_labels(ts, segments, src_labels, grid_ts):
@@ -108,13 +115,18 @@ def core_steps(xy, segment, segments):
     return cores
 
 
-def cut_windows(ts, xy_norm, w, h, segments, src_labels):
+def cut_windows(ts, xy_norm, w, h, segments, src_labels, steps=None, margin=None):
     """Cắt mọi cửa sổ hợp lệ của MỘT clip và gán nhãn.
+
+    Args:
+        steps: số bước một cửa sổ; ``None`` là ``T``.
+        margin: biên khoảnh khắc chính; ``None`` là ``CORE_MARGIN_STEPS``.
+            Hai tham số chỉ khác mặc định ở các bảng khảo sát của Phase 8.
 
     Returns:
         ``(windows, stats)``. ``windows`` là dict các mảng, mỗi cửa sổ một dòng:
 
-        - ``X`` float32 ``(n, T, 21, 2)`` — PIXEL, chưa chuẩn hoá
+        - ``X`` float32 ``(n, steps, 21, 2)`` — PIXEL, chưa chuẩn hoá
         - ``y`` int64 ``(n,)``
         - ``presence`` float32 ``(n,)`` — tỉ lệ bước có tay
         - ``t0`` float32 ``(n,)`` — giây, thời điểm bước đầu trong clip
@@ -124,6 +136,8 @@ def cut_windows(ts, xy_norm, w, h, segments, src_labels):
         ``stats`` đếm ``low_presence`` (bị loại vì thiếu tay) và ``ambiguous``
         (giao cử chỉ đích nhưng không chứa khoảnh khắc chính — bị bỏ).
     """
+    steps = config.T if steps is None else int(steps)
+    margin = config.CORE_MARGIN_STEPS if margin is None else int(margin)
     segments = np.asarray(segments).reshape(-1, 3)
     src_labels = np.asarray(src_labels)
     grid_ts, xy = load_sequence(ts, xy_norm, w, h)
@@ -133,17 +147,16 @@ def cut_windows(ts, xy_norm, w, h, segments, src_labels):
     is_target = segments[:, 2] != 0
     in_target = (segment >= 0) & is_target[np.maximum(segment, 0)]
 
-    margin = config.CORE_MARGIN_STEPS
     rows = {key: [] for key in ("X", "y", "presence", "t0", "src_label")}
     stats = {"low_presence": 0, "ambiguous": 0}
-    for start in range(0, xy.shape[0] - config.T + 1, config.STRIDE):
-        stop = start + config.T
+    for start in range(0, xy.shape[0] - steps + 1, config.STRIDE):
+        stop = start + steps
         presence = finite[start:stop].mean()
         if presence < config.MIN_PRESENCE or not finite[start]:
             stats["low_presence"] += 1
             continue
 
-        center = start + config.T / 2
+        center = start + steps / 2
         inside = [k for k, step in cores.items()
                   if start + margin <= step < stop - margin]
         if inside:
@@ -166,7 +179,7 @@ def cut_windows(ts, xy_norm, w, h, segments, src_labels):
 
     windows = {
         "X": np.asarray(rows["X"], dtype=np.float32).reshape(
-            -1, config.T, config.NUM_LANDMARKS, 2),
+            -1, steps, config.NUM_LANDMARKS, 2),
         "y": np.asarray(rows["y"], dtype=np.int64),
         "presence": np.asarray(rows["presence"], dtype=np.float32),
         "t0": np.asarray(rows["t0"], dtype=np.float32),
@@ -175,7 +188,7 @@ def cut_windows(ts, xy_norm, w, h, segments, src_labels):
     return windows, stats
 
 
-def windows_from_clip(path):
+def windows_from_clip(path, steps=None, margin=None):
     """:func:`cut_windows` cho một ``.npz``, kèm ``subject`` và ``clip``.
 
     Returns:
@@ -183,8 +196,52 @@ def windows_from_clip(path):
         hai cột ``subject``, ``clip``; ``meta`` là ``meta`` của clip.
     """
     ts, xy_norm, w, h, segments, src_labels, meta = load_clip(path)
-    windows, stats = cut_windows(ts, xy_norm, w, h, segments, src_labels)
+    windows, stats = cut_windows(ts, xy_norm, w, h, segments, src_labels,
+                                 steps, margin)
     n = windows["y"].size
     windows["subject"] = np.full(n, meta["subject"], dtype="<U16")
     windows["clip"] = np.full(n, meta["clip_id"], dtype="<U64")
     return windows, meta, stats
+
+
+def collect_windows(clip_paths, steps=None, margin=None):
+    """Cửa sổ ĐÃ chuẩn hoá của mọi clip dùng được, gộp lại — phần chung của
+    ``scripts/build_dataset.py`` và các bảng khảo sát của Phase 8 (luật 1).
+
+    Bỏ clip có ``length_mismatch`` (``docs/ipn_format.md`` mục 6), và cửa sổ mà
+    ``normalize_window`` từ chối (lòng bàn tay frame đầu bất thường).
+
+    Returns:
+        ``(windows, info)`` — ``windows`` là dict theo ``FIELDS``; ``info`` đếm
+        clip đã dùng, clip bỏ vì lệch nhãn, và cửa sổ bỏ vì thiếu tay
+        (``low_presence``), vì mơ hồ (``ambiguous``), vì không chuẩn hoá được.
+    """
+    steps = config.T if steps is None else int(steps)
+    parts = {k: [] for k in FIELDS}
+    info = {"n_clips": 0, "mismatched": [], "n_unnormalizable": 0,
+            "low_presence": 0, "ambiguous": 0}
+    for path in clip_paths:
+        windows, meta, stats = windows_from_clip(path, steps, margin)
+        if meta.get("length_mismatch"):
+            info["mismatched"].append(meta["clip_id"])
+            continue
+        info["n_clips"] += 1
+        for key in ("low_presence", "ambiguous"):
+            info[key] += stats[key]
+
+        keep, normalized = [], []
+        for i, win in enumerate(windows["X"]):
+            try:
+                normalized.append(normalize_window(win))
+                keep.append(i)
+            except ValueError:
+                info["n_unnormalizable"] += 1
+        windows["X"] = np.asarray(normalized, dtype=np.float32).reshape(
+            -1, steps, config.NUM_LANDMARKS, 2)
+        for k in FIELDS:
+            parts[k].append(windows[k] if k == "X" else windows[k][keep])
+
+    out = {k: (np.concatenate(v) if v else np.empty(0, dtype=DTYPES[k]))
+           for k, v in parts.items()}
+    out["X"] = out["X"].reshape(-1, steps, config.NUM_LANDMARKS, 2)
+    return {k: np.asarray(v, dtype=DTYPES[k]) for k, v in out.items()}, info

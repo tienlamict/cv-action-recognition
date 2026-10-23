@@ -43,6 +43,28 @@ def hybrid_labels(lstm_labels, rf_labels):
                     ).astype(np.int64)
 
 
+def hybrid_predict(p_lstm, p_rf):
+    """Nhãn và độ tin của mô hình ghép từ xác suất của hai mô hình, theo lô.
+
+    ``confidence`` là xác suất của mô hình đã quyết định nhãn; với ``none`` là
+    mức cao hơn trong hai xác suất ``none``.
+
+    Args:
+        p_lstm, p_rf: ``(n, n_classes)`` xác suất softmax của LSTM và của rừng.
+
+    Returns:
+        ``(labels (n,) int64, confidences (n,) float64)``.
+    """
+    p_lstm = np.atleast_2d(np.asarray(p_lstm, dtype=np.float64))
+    p_rf = np.atleast_2d(np.asarray(p_rf, dtype=np.float64))
+    labels = hybrid_labels(p_lstm.argmax(axis=1), p_rf.argmax(axis=1))
+    rows = np.arange(len(labels))
+    confidences = np.where(np.isin(labels, SWIPE_LABELS), p_lstm[rows, labels],
+                           np.where(np.isin(labels, ZOOM_LABELS), p_rf[rows, labels],
+                                    np.maximum(p_lstm[:, NONE], p_rf[:, NONE])))
+    return labels, confidences
+
+
 class HybridClassifier:
     """Mô hình ghép dạng hàm ``(cửa sổ, đặc trưng) → (label, confidence)``.
 
@@ -70,10 +92,6 @@ class HybridClassifier:
 
     def __call__(self, win_norm, features):
         self.load()
-        p_lstm, p_rf = self.lstm.proba(win_norm), self.forest.proba(features)
-        label = int(hybrid_labels([np.argmax(p_lstm)], [np.argmax(p_rf)])[0])
-        if label in SWIPE_LABELS:
-            return label, float(p_lstm[label])
-        if label in ZOOM_LABELS:
-            return label, float(p_rf[label])
-        return label, float(max(p_lstm[NONE], p_rf[NONE]))
+        labels, confidences = hybrid_predict(self.lstm.proba(win_norm),
+                                             self.forest.proba(features))
+        return int(labels[0]), float(confidences[0])

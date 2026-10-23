@@ -195,6 +195,43 @@ def plot_training_curves(history, best_epoch, out_path, title=""):
     return out_path
 
 
+def plot_per_class_f1(f1_by_model, classes, out_path, title=""):
+    """F1 từng lớp của vài mô hình: mỗi lớp một nhóm cột, mỗi mô hình một màu.
+
+    Màu đi theo mô hình (``FIG_CATEGORICAL`` theo thứ tự ``MODEL_NAMES``), nên
+    hình của các bảng khác nhau tô cùng một mô hình bằng cùng một màu. Cột mỏng,
+    cách nhau một khe màu nền; số liệu đầy đủ nằm ở bảng đi kèm.
+
+    Args:
+        f1_by_model: dict ``{tên mô hình: [F1 mỗi lớp]}`` — tên thuộc
+            ``MODEL_NAMES``.
+    """
+    models = [m for m in config.MODEL_NAMES if m in f1_by_model]
+    colors = dict(zip(config.MODEL_NAMES, config.FIG_CATEGORICAL))
+    n = len(models)
+    width = 0.8 / max(n, 1)
+    fig, ax = plt.subplots(figsize=(10, 4.2), facecolor=config.FIG_SURFACE)
+    _report_axes(ax)
+    ax.yaxis.grid(True, color=config.FIG_GRID, linewidth=0.8)
+    groups = np.arange(len(classes))
+    for k, model in enumerate(models):
+        ax.bar(groups - 0.4 + width * (k + 0.5), f1_by_model[model], width=width,
+               color=colors[model], edgecolor=config.FIG_SURFACE, linewidth=1.5,
+               label=model, zorder=3)
+    ax.axhline(0.0, color=config.FIG_AXIS, linewidth=1, zorder=4)
+    ax.set_xticks(groups, classes)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_ylabel("F1", color=config.FIG_INK_2, fontsize=9)
+    fig.legend(*ax.get_legend_handles_labels(), loc="lower center", ncol=n,
+               frameon=False, fontsize=8, labelcolor=config.FIG_INK_2)
+    if title:
+        ax.set_title(title, fontsize=10, color=config.FIG_INK)
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    fig.savefig(out_path, dpi=config.FIG_DPI, facecolor=config.FIG_SURFACE)
+    plt.close(fig)
+    return out_path
+
+
 def plot_confusion(cm, cm_row, classes, out_path, title=""):
     """Ma trận nhầm lẫn thô (trái) và chuẩn hoá theo hàng (phải).
 

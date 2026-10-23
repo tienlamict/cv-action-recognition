@@ -34,6 +34,11 @@ FEATURE_NAMES = [
     "straightness", "horiz_ratio", "presence",
 ]
 
+#: Đặc trưng góc khớp — KHÔNG thuộc vector 15 chiều. Chỉ Bảng 5 của Phase 8
+#: (dòng "thêm góc khớp") nối chúng vào sau ``FEATURE_NAMES``.
+ANGLE_NAMES = [f"angle_{stat}_{finger}" for stat in ("mean", "delta")
+               for finger in config.ANGLE_JOINTS]
+
 
 def openness(win):
     """Độ xòe của từng bước: ``(T,)``.
@@ -100,6 +105,43 @@ def window_features(win_norm, presence_ratio):
     features = np.array([_finite(v) for v in values], dtype=np.float32)
     assert features.size == len(FEATURE_NAMES)
     return features
+
+
+def joint_angles(win):
+    """Góc gập ở khớp giữa của năm ngón, từng bước: ``(T, 5)`` radian, theo
+    thứ tự ``ANGLE_JOINTS``. ``π`` là ngón duỗi thẳng, càng nhỏ càng gập.
+
+    Góc tại đỉnh ``b`` giữa hai đoạn ``b→a`` và ``b→c``. Tự nó bất biến với
+    tịnh tiến, tỉ lệ và xoay trong mặt phẳng ảnh. Hai chỗ chặn lỗi im lặng
+    (cẩm nang mục 9.c): ``cos`` kẹp vào ``[-1, 1]`` trước ``arccos``, và đoạn
+    xương dài không quá ``NORM_MIN_SCALE`` cho góc NaN thay vì chia cho 0.
+    """
+    win = np.asarray(win, dtype=np.float64)
+    out = []
+    for a, b, c in config.ANGLE_JOINTS.values():
+        u, v = win[:, a] - win[:, b], win[:, c] - win[:, b]
+        lu, lv = np.linalg.norm(u, axis=1), np.linalg.norm(v, axis=1)
+        ok = (lu > config.NORM_MIN_SCALE) & (lv > config.NORM_MIN_SCALE)
+        cos = np.full(win.shape[0], np.nan)
+        cos[ok] = np.sum(u[ok] * v[ok], axis=1) / (lu[ok] * lv[ok])
+        out.append(np.arccos(np.clip(cos, -1.0, 1.0)))
+    return np.stack(out, axis=1)
+
+
+def angle_features(win_norm):
+    """Mười đặc trưng góc khớp của một cửa sổ, theo thứ tự ``ANGLE_NAMES``:
+    góc trung bình của từng ngón (ngón đang duỗi hay co), rồi góc cuối − đầu
+    (ngón đang duỗi ra hay co lại). Không bao giờ NaN.
+
+    Chỉ dùng ở Bảng 5 của Phase 8. Bộ 15 đặc trưng không đo cấu hình ngón, nên
+    không tách được tay chỉ trỏ (ngón trỏ duỗi, các ngón kia co) với cú hất mở
+    cả bàn tay (``results/phase6/notes.md`` mục 4.1, giả thuyết A).
+    """
+    angles = joint_angles(win_norm)
+    means = [_nanmean(angles[:, j]) for j in range(angles.shape[1])]
+    deltas = [_edge_mean(angles[:, j], tail=True) - _edge_mean(angles[:, j])
+              for j in range(angles.shape[1])]
+    return np.array([_finite(v) for v in means + deltas], dtype=np.float32)
 
 
 def _edge_mean(values, tail=False):

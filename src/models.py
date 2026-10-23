@@ -24,6 +24,8 @@ from src.datasets import window_sequence
 
 #: Cách gộp chuỗi đầu ra của LSTM thành một vector trước lớp phân loại.
 POOLINGS = ("last", "mean", "max")
+#: Loại tầng hồi quy. GRU chỉ dùng ở bảng phụ của Phase 8.
+CELLS = {"lstm": nn.LSTM, "gru": nn.GRU}
 
 
 class LSTMClassifier(nn.Module):
@@ -37,20 +39,26 @@ class LSTMClassifier(nn.Module):
         pooling: ``"last"`` (đầu ra ở bước cuối — đọc hết cửa sổ rồi quyết
             định), ``"mean"`` hoặc ``"max"`` theo thời gian.
         n_classes: số lớp đầu ra.
+        cell: ``"lstm"``; ``"gru"`` cho dòng "GRU thay LSTM" của bảng phụ
+            Phase 8. Tầng hồi quy vẫn nằm ở thuộc tính ``lstm`` — checkpoint cũ
+            lưu trọng số dưới tên đó — và vẫn một chiều cố định.
     """
 
     def __init__(self, input_size=config.LSTM_INPUT_SIZE, hidden=config.LSTM_HIDDEN,
                  num_layers=config.LSTM_LAYERS, dropout=config.LSTM_DROPOUT,
-                 pooling=config.LSTM_POOLING, n_classes=len(config.CLASSES)):
+                 pooling=config.LSTM_POOLING, n_classes=len(config.CLASSES),
+                 cell="lstm"):
         super().__init__()
         if pooling not in POOLINGS:
             raise ValueError(f"pooling phải là một trong {POOLINGS}, nhận '{pooling}'")
+        if cell not in CELLS:
+            raise ValueError(f"cell phải là một trong {tuple(CELLS)}, nhận '{cell}'")
         self.hparams = {"input_size": int(input_size), "hidden": int(hidden),
                         "num_layers": int(num_layers), "dropout": float(dropout),
-                        "pooling": pooling, "n_classes": int(n_classes)}
-        self.lstm = nn.LSTM(input_size, hidden, num_layers=num_layers,
-                            batch_first=True, bidirectional=False,
-                            dropout=dropout if num_layers > 1 else 0.0)
+                        "pooling": pooling, "n_classes": int(n_classes), "cell": cell}
+        self.lstm = CELLS[cell](input_size, hidden, num_layers=num_layers,
+                                batch_first=True, bidirectional=False,
+                                dropout=dropout if num_layers > 1 else 0.0)
         self.dropout = nn.Dropout(dropout)
         self.head = nn.Linear(hidden, n_classes)
 
@@ -138,7 +146,7 @@ def predict_proba(model, sequences, batch=config.LSTM_EVAL_BATCH):
     """Xác suất softmax cho cả một lô chuỗi.
 
     Args:
-        sequences: ``(n, T, 42)`` từ ``datasets.window_sequences``.
+        sequences: ``(n, T, input_size)`` từ ``datasets.window_sequences``.
 
     Returns:
         ``(n, n_classes)`` float32.

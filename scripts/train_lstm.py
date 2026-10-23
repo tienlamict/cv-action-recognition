@@ -32,7 +32,6 @@ Ví dụ:
 """
 
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -40,24 +39,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
-from torch import nn  # noqa: E402
-from torch.utils.data import DataLoader  # noqa: E402
 
 from src import config  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
-from src.augment import finger_pose_pool  # noqa: E402
-from src.datasets import WindowDataset, window_sequences  # noqa: E402
+from src.datasets import window_sequences  # noqa: E402
 from src.evaluation import (baselines, event_rows,  # noqa: E402
                             false_alarm_rows, predict_windows, split_features,
                             summarize, upsert_comparison, write_summary)
 from src.forest import file_sha256  # noqa: E402
-from src.models import (LSTMClassifier, predict_proba,  # noqa: E402
-                        save_checkpoint)
+from src.models import predict_proba, save_checkpoint  # noqa: E402
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
 from src.splits import read_splits, split_of  # noqa: E402
 from src.tables import write_table  # noqa: E402
-from src.training import (class_weights, fit, set_seed,  # noqa: E402
-                          smoothed_minimum, tail_stats)
+from src.training import smoothed_minimum, tail_stats, train_lstm  # noqa: E402
 from src.viz import plot_confusion, plot_training_curves  # noqa: E402
 
 MODEL_LABELS = {"rules": "luật (Phase 5)", "rf": "rừng ngẫu nhiên (Phase 6)",
@@ -146,7 +140,6 @@ def main():
     labels = {**MODEL_LABELS, "lstm": "LSTM không tăng cường"} if not augment else (
         {**MODEL_LABELS, "lstm": "LSTM khảo sát"} if survey else MODEL_LABELS)
 
-    set_seed(config.SEED)
     splits = read_splits()
     with np.load(args.windows, allow_pickle=False) as data:
         data = {k: data[k] for k in data.files}
@@ -158,25 +151,9 @@ def main():
     X_va = data["X"][val]
     clip, t0, src = (data[k][val] for k in ("clip", "t0", "src_label"))
 
-    # kho dáng ngón phụ CHỈ từ train (luật 9); không tăng cường thì không cần
-    pool = finger_pose_pool(X_tr) if augment else None
-    train_set = WindowDataset(X_tr, y_tr, "train", augment=augment,
-                              rng=np.random.default_rng(config.SEED), finger_pool=pool,
-                              zoom_style_p=args.zoom_style_p,
-                              static_share=args.static_share)
-    loader = DataLoader(train_set, batch_size=config.LSTM_BATCH, shuffle=True,
-                        generator=torch.Generator().manual_seed(config.SEED))
-    seq_tr, seq_va = window_sequences(X_tr), window_sequences(X_va)
-
-    model = LSTMClassifier()
-    weights = class_weights(train_set.labels)
-    loss_fn = nn.CrossEntropyLoss(weight=weights)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.LSTM_LR)
-
     print(f"Train {len(y_tr)} cửa sổ ("
           + ("tăng cường mới mỗi epoch" if augment else "KHÔNG tăng cường — khảo sát")
-          + f"), val {len(y_va)} cửa sổ. Trọng số lớp: "
-          + ", ".join(f"{c} {w:.2f}" for c, w in zip(config.CLASSES, weights.tolist())))
+          + f"), val {len(y_va)} cửa sổ.")
     print("epoch   loss train   val   macro-F1 train   val")
 
     def report(row, stopper):
@@ -185,15 +162,20 @@ def main():
               f"   {row['train_macro_f1']:14.4f} {row['val_macro_f1']:7.4f}{mark}",
               flush=True)
 
-    started = time.perf_counter()
-    history, stopper = fit(model, loader, seq_tr, y_tr, seq_va, y_va, loss_fn,
-                           optimizer, max_epochs=args.max_epochs,
-                           patience=args.patience, on_epoch=report,
-                           window=args.stop_smooth)
-    train_sec = time.perf_counter() - started
+    # Seed (ba chỗ), tăng cường, trọng số lớp, Adam, dừng sớm: src/training.py —
+    # đúng quy trình mà các bảng khảo sát của Phase 8 dùng.
+    trained = train_lstm(X_tr, y_tr, X_va, y_va, seed=config.SEED, augment=augment,
+                         zoom_style_p=args.zoom_style_p,
+                         static_share=args.static_share,
+                         max_epochs=args.max_epochs, patience=args.patience,
+                         window=args.stop_smooth, on_epoch=report)
+    model, history, stopper = trained.model, trained.history, trained.stopper
+    train_set, pool, weights = trained.dataset, trained.finger_pool, trained.weights
+    train_sec = trained.seconds
+    print("Trọng số lớp: " + ", ".join(f"{c} {w:.2f}" for c, w in
+                                        zip(config.CLASSES, weights.tolist())))
 
-    model.load_state_dict(stopper.best_state)
-    pred = predict_proba(model, seq_va).argmax(axis=1)
+    pred = predict_proba(model, window_sequences(X_va)).argmax(axis=1)
     lstm = summarize(y_va, pred)
     if abs(lstm["macro_f1"] - stopper.best_raw) > 1e-9:
         raise SystemExit(f"Nạp lại trọng số tốt nhất ra macro-F1 {lstm['macro_f1']:.6f}, "

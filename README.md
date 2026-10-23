@@ -145,7 +145,9 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 7 | `python scripts/train_lstm.py --stop-smooth 1` | Tái tạo `run_02`: dừng sớm theo điểm thô, cách cũ (khảo sát, không thay mô hình của demo) |
 | 7 | `python scripts/evaluate.py --model hybrid --split val` | Mô hình ghép — vuốt theo LSTM, zoom theo rừng ngẫu nhiên: thêm hàng vào `results/model_comparison` |
 | 7 | `python scripts/demo.py --model hybrid --show-features --log <file.csv>` | Demo webcam bằng mô hình ghép |
-| 8 | | |
+| 8 | `python scripts/evaluate.py --model <rules\|rf\|lstm\|hybrid> --events edge` | Đánh giá hai mức trên val. Mức cửa sổ: ma trận nhầm lẫn (hình nhiệt có số), F1 từng lớp, none bị báo nhầm theo nhãn gốc. Mức sự kiện: cả hệ thống chạy trên video val liên tục (`src/events.py`) — F1 sự kiện, số lệnh trên một cử chỉ, lệnh nhầm mỗi phút, lệnh nhầm theo nhãn gốc: `results/phase8/evaluate/run_NN/`; cập nhật `results/model_comparison`. `--events raw` là khi không có tầng kích hoạt |
+| 8 | `python scripts/run_experiments.py` | Bảy bảng khảo sát và bảng phụ, trên val hoặc k-fold của người train + val: `results/phase8/experiments/run_NN/` (`table1_models` … `table7_kfold`, `table_extra`, hình nhiệt ba mô hình). Dữ liệu biến thể dựng vào `data/experiments/`; mỗi thí nghiệm một bản ghi dự đoán trong `results/phase8/records/` — chạy lại không học lại. LSTM chạy `EXP_JOBS` tiến trình song song (~2 giờ trên máy 4 nhân) |
+| 8 | `python scripts/run_experiments.py --list` | Danh sách thí nghiệm và thí nghiệm nào đã có bản ghi |
 | 10 | | |
 
 ---

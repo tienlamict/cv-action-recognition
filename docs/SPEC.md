@@ -583,13 +583,17 @@ Kiểm thử cuối là phép thử vòng huấn luyện: nếu mô hình **khô
 
 **Việc phải làm**
 
-1. `src/evaluate.py`, mức cửa sổ: macro-F1, precision/recall/F1 từng lớp, ma trận nhầm lẫn thô và chuẩn hóa theo hàng, hai đường cơ sở, hình nhiệt **có số trong từng ô**.
+1. `src/evaluate.py`, mức cửa sổ: macro-F1, precision/recall/F1 từng lớp, ma trận nhầm lẫn thô và chuẩn hóa theo hàng, hai đường cơ sở, hình nhiệt **có số trong từng ô**. *Ghi chú 2026-10-22:* phần này đã có ở `src/evaluation.py` từ Phase 6 nên không tạo file thứ hai; mức sự kiện nằm ở `src/events.py`.
 2. Mức sự kiện: chạy hệ thống hoàn chỉnh trên các **video IPN liên tục** của tập đang đánh giá, so chuỗi lệnh phát ra với chuỗi cử chỉ đã gán nhãn.
     - **TP** — một lệnh đúng loại, phát trong dung sai ±1 giây kể từ lúc cử chỉ kết thúc.
     - **FP** — một lệnh không khớp cử chỉ thật nào, **gồm cả lệnh thứ hai cho cùng một cử chỉ**.
     - **FN** — một cử chỉ thật không có lệnh nào khớp.
     - Thêm hai chỉ số: **số lệnh trên một cử chỉ** (lý tưởng 1,0) và **tỉ lệ kích hoạt nhầm mỗi phút**.
-3. `evaluate.py` nhận bộ lọc sự kiện qua tham số, để Phase 9 nối `ActivationFSM` vào mà không sửa lại file này.
+
+    *Sửa 2026-10-22 (người dùng chọn):* **TP là lệnh đúng loại phát từ lúc cử chỉ bắt đầu tới lúc kết thúc + 1 giây** (`EVENT_MATCH = "span"`). Đoạn nhãn IPN dài ~2,6 s và gồm cả lúc thu tay: đo trên val, lệnh đúng loại đầu tiên phát trung vị 1,1–1,4 s *trước* lúc đoạn kết thúc, ở khoảng giữa đoạn. Với dung sai cũ, 60–66% lệnh đúng lúc bị tính thành một FP cộng một FN. Con số theo định nghĩa cũ (`"end"`) vẫn in kèm để đối chiếu.
+
+    Đoạn video chạy qua đúng `live.WindowStream` của demo (bộ đệm theo thời gian, nhịp `STRIDE_SEC`, `normalize_window`, đặc trưng) — một cửa duy nhất cho webcam và video (luật 1).
+3. `evaluate.py` nhận bộ lọc sự kiện qua tham số, để Phase 9 nối `ActivationFSM` vào mà không sửa lại file này. *Ghi chú 2026-10-22:* `--events` nhận mọi tên trong `src/events.EVENT_FILTERS`, cùng giao diện `update(label, confidence, presence, ts)` của `ActivationFSM`. Trước khi có máy trạng thái có hai bộ lọc: `raw` — mỗi lần dự đoán ra cử chỉ là một lệnh; `edge` — mỗi chuỗi dự đoán liền nhau cùng lớp là một lệnh, cách đếm cụm của `summarize_log.py`. Các bảng dùng `edge`.
 4. Dùng `src_label` để phân tích *loại* `none` nào bị nhận nhầm, không chỉ đếm tổng.
 5. `scripts/run_experiments.py` sinh bảy bảng, mỗi bảng ra `.csv` và `.md`. Mọi khảo sát chạy trên `val` hoặc k-fold, không bao giờ trên `test`.
 
@@ -605,9 +609,15 @@ Kiểm thử cuối là phép thử vòng huấn luyện: nếu mô hình **khô
 
 Bảng 2 là bảng quan trọng nhất về mặt học thuật. Bảng 4 cho thấy con số 98–99% của phép chia ngẫu nhiên giả tới mức nào.
 
-6. Các hàng rẻ trong bảng phụ: 21 điểm so với 11 điểm rút gọn, GRU thay LSTM, `hidden` 64 so với 128, cách gộp cuối/trung bình/cực đại, có so với không tăng cường, biên khoảnh khắc chính `CORE_MARGIN_STEPS` 0/3/6 bước (thay khảo sát ngưỡng phủ nhãn 40/60/80% từ 2026-10-05, khi luật nhãn đổi). Hàng "chỉ IPN so với IPN cộng `none` tự quay" chỉ có nếu bật Phase 11.
+*Quyết định 2026-10-22 (người dùng chọn):*
+
+- **Bảng 4:** hàng "ngẫu nhiên theo cửa sổ" — phép chia mà luật 8 cấm — được làm, nhưng cô lập trong `run_experiments.py` (`experiments.leaky_split`). Nó chỉ chạy trên người của train và val, phân tầng theo lớp với đúng số cửa sổ mỗi lớp của val theo người, và không dùng để chọn gì.
+- **Bảng 7:** k-fold trên 37 người của train và val, không bao giờ test. LSTM mỗi fold học đúng `EXP_KFOLD_EPOCHS` = 86 epoch (epoch checkpoint của mô hình chính), không chọn gì trên fold giữ lại.
+- Mỗi hàng một thí nghiệm đổi đúng một yếu tố (`src/experiments.py`). Mọi dự đoán ghi vào bản ghi, nên đổi bộ lọc sự kiện ở Phase 9 không phải học lại.
+
+6. Các hàng rẻ trong bảng phụ: 21 điểm so với 11 điểm rút gọn, GRU thay LSTM, `hidden` 64 so với 128, cách gộp cuối/trung bình/cực đại, có so với không tăng cường, biên khoảnh khắc chính `CORE_MARGIN_STEPS` 0/3/6 bước (thay khảo sát ngưỡng phủ nhãn 40/60/80% từ 2026-10-05, khi luật nhãn đổi). Hàng "chỉ IPN so với IPN cộng `none` tự quay" chỉ có nếu bật Phase 11. *Thêm 2026-10-22:* ba hàng mà ghi chú Phase 6–7 để lại cho Phase 8 — đổi dáng ngón phụ và bàn tay đứng yên, đo **riêng** từng phép (`results/phase7/notes.md` mục 9.7), và quota `none` theo tỉ lệ tự nhiên để thử giả thuyết B (`results/phase6/notes.md` mục 4.1).
 7. `run_experiments.py` tự in cụm từ **"không đủ bằng chứng để kết luận"** bên cạnh mọi so sánh có chênh lệch nhỏ hơn độ lệch chuẩn.
-8. Lần chạy cuối trên `test`, bằng `evaluate.py --split test --final`, làm **đúng một lần** sau khi mọi cấu hình đã chốt.
+8. Lần chạy cuối trên `test`, bằng `evaluate.py --split test --final`, làm **đúng một lần** sau khi mọi cấu hình đã chốt. *Ghi chú 2026-10-22:* chưa chạy — cấu hình còn đổi ở Phase 9 (máy trạng thái) và Phase 10 (`final_config.md`). Người dùng quyết định lúc chạy.
 
 **Định nghĩa hoàn thành**
 

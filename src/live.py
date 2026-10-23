@@ -9,6 +9,10 @@ xử lý nào (SPEC Phase 5). Đường đi của một frame::
 
 đúng các hàm mà dữ liệu IPN đã đi qua (luật 1). Đặc trưng luôn được tính, kể
 cả với LSTM: log và chế độ luyện tập cần chúng.
+
+Phần trước mô hình nằm trong :class:`WindowStream`; đánh giá mức sự kiện của
+Phase 8 (``src/events.py``) chạy video IPN qua đúng lớp đó, nên một video được
+chấm như thể nó đang đi qua webcam.
 """
 
 import csv
@@ -57,6 +61,58 @@ Prediction.__doc__ = """Một lần dự đoán. ``label`` là ``None`` khi khô
 cửa sổ hợp lệ (chưa đủ dữ liệu, mất tay, hay đơn vị lòng bàn tay không tin
 được) — màn hình hiện ``—``."""
 
+Sample = namedtuple("Sample", "ts win_norm presence features")
+Sample.__doc__ = """Đầu vào của mô hình ở một lần dự đoán. ``win_norm`` và
+``features`` là ``None`` khi không có cửa sổ hợp lệ; ``presence`` là ``None``
+khi bộ đệm không trả cửa sổ nào (chưa đủ dữ liệu, mất tay quá nhiều)."""
+
+
+class WindowStream:
+    """Phần KHÔNG phụ thuộc mô hình của vòng dự đoán: đẩy từng frame vào, nhận
+    một :class:`Sample` mỗi ``stride_sec``.
+
+    ``TimeBuffer`` → (mỗi ``stride_sec``) ``TimeBuffer.window`` →
+    ``normalize_window`` → ``window_features``.
+
+    Args:
+        stride_sec: khoảng cách giữa hai lần dự đoán.
+        win_sec: độ dài cửa sổ; ``None`` là ``WIN_SEC``. Khác ``WIN_SEC`` chỉ
+            ở bảng khảo sát độ dài cửa sổ (Phase 8, Bảng 3).
+    """
+
+    def __init__(self, stride_sec=config.STRIDE_SEC, win_sec=None):
+        win_sec = config.WIN_SEC if win_sec is None else win_sec
+        self.stride_sec = stride_sec
+        self.buffer = TimeBuffer(keep_sec=win_sec + config.BUFFER_EXTRA_SEC,
+                                 steps=config.window_steps(win_sec))
+        self._due = None
+
+    def push(self, ts, xy_norm, w, h):
+        """Đẩy một frame — frame mất tay vẫn đẩy, ``xy_norm`` toàn NaN (luật 4).
+
+        Returns:
+            :class:`Sample` nếu đã tới lượt dự đoán, ngược lại ``None``.
+        """
+        self.buffer.push(ts, xy_norm, w, h)
+        if self._due is None:
+            self._due = ts + self.stride_sec
+            return None
+        if ts < self._due:
+            return None
+        self._due += self.stride_sec * max(1, int((ts - self._due) // self.stride_sec) + 1)
+        return self.sample(ts)
+
+    def sample(self, ts):
+        found = self.buffer.window()
+        if found is None:
+            return Sample(ts, None, None, None)
+        win, presence = found
+        try:
+            win_norm = normalize_window(win)
+        except ValueError:
+            return Sample(ts, None, presence, None)
+        return Sample(ts, win_norm, presence, window_features(win_norm, presence))
+
 
 class LivePredictor:
     """Đẩy từng frame vào, nhận một :class:`Prediction` mỗi ``STRIDE_SEC``.
@@ -68,9 +124,7 @@ class LivePredictor:
 
     def __init__(self, model, stride_sec=config.STRIDE_SEC):
         self.model = model
-        self.stride_sec = stride_sec
-        self.buffer = TimeBuffer()
-        self._due = None
+        self.stream = WindowStream(stride_sec)
         # Mô hình nạp lười (rừng ngẫu nhiên) thì nạp NGAY bây giờ, trước khi
         # camera chạy — nạp giữa vòng lặp làm demo đứng hình ~2,7 s ở lần đầu thấy tay.
         load = getattr(model, "load", None)
@@ -83,31 +137,21 @@ class LivePredictor:
         Returns:
             :class:`Prediction` nếu đã tới lượt dự đoán, ngược lại ``None``.
         """
-        self.buffer.push(ts, xy_norm, w, h)
-        if self._due is None:
-            self._due = ts + self.stride_sec
-            return None
-        if ts < self._due:
-            return None
-        self._due += self.stride_sec * max(1, int((ts - self._due) // self.stride_sec) + 1)
-        return self.predict(ts)
+        sample = self.stream.push(ts, xy_norm, w, h)
+        return None if sample is None else self.classify(sample)
 
-    def predict(self, ts):
-        found = self.buffer.window()
-        if found is None:
-            return Prediction(ts, None, None, None, None)
-        win, presence = found
-        try:
-            win_norm = normalize_window(win)
-        except ValueError:
-            return Prediction(ts, None, None, presence, None)
-        features = window_features(win_norm, presence)
+    def classify(self, sample):
+        """Chạy mô hình trên một :class:`Sample`."""
+        if sample.features is None:
+            return Prediction(sample.ts, None, None, sample.presence, None)
         kind = getattr(self.model, "input_kind", "features")
         if kind == "both":
-            label, confidence = self.model(win_norm, features)
+            label, confidence = self.model(sample.win_norm, sample.features)
         else:
-            label, confidence = self.model(win_norm if kind == "window" else features)
-        return Prediction(ts, label, confidence, presence, features)
+            label, confidence = self.model(sample.win_norm if kind == "window"
+                                           else sample.features)
+        return Prediction(sample.ts, label, confidence, sample.presence,
+                          sample.features)
 
 
 def load_feature_ranges(path=None):

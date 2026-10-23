@@ -18,10 +18,17 @@ from src.preprocess import load_sequence
 
 
 class TimeBuffer:
-    """Bộ đệm frame theo thời gian."""
+    """Bộ đệm frame theo thời gian.
 
-    def __init__(self, keep_sec=config.WIN_SEC + config.BUFFER_EXTRA_SEC):
+    Args:
+        keep_sec: giữ frame trong bấy nhiêu giây gần nhất.
+        steps: số bước của cửa sổ trả về; ``None`` là ``T``. Khác ``T`` chỉ ở
+            bảng khảo sát độ dài cửa sổ (Phase 8, Bảng 3).
+    """
+
+    def __init__(self, keep_sec=config.WIN_SEC + config.BUFFER_EXTRA_SEC, steps=None):
         self.keep_sec = keep_sec
+        self.steps = config.T if steps is None else int(steps)
         self._ts = deque()
         self._xy = deque()
         self._size = None
@@ -48,21 +55,21 @@ class TimeBuffer:
             self._xy.popleft()
 
     def window(self):
-        """Cửa sổ ``T`` bước cuối, ở toạ độ PIXEL, chưa chuẩn hoá.
+        """Cửa sổ ``steps`` bước cuối, ở toạ độ PIXEL, chưa chuẩn hoá.
 
         Returns:
-            ``(win_pixel (T, 21, 2), presence_ratio)``, hoặc ``None`` khi chưa
-            đủ ``T`` bước, tỉ lệ có tay dưới ``MIN_PRESENCE``, hay bước đầu
-            mất tay.
+            ``(win_pixel (steps, 21, 2), presence_ratio)``, hoặc ``None`` khi
+            chưa đủ ``steps`` bước, tỉ lệ có tay dưới ``MIN_PRESENCE``, hay
+            bước đầu mất tay.
         """
         if len(self._ts) < 2:
             return None
         w, h = self._size
         _, xy = load_sequence(np.array(self._ts), np.stack(self._xy), w, h)
-        if xy.shape[0] < config.T:
+        if xy.shape[0] < self.steps:
             return None
-        win = xy[-config.T:]
-        finite = np.all(np.isfinite(win.reshape(config.T, -1)), axis=1)
+        win = xy[-self.steps:]
+        finite = np.all(np.isfinite(win.reshape(self.steps, -1)), axis=1)
         presence = float(finite.mean())
         if presence < config.MIN_PRESENCE or not finite[0]:
             return None

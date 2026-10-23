@@ -66,6 +66,19 @@ def train_forest(F, y, seed=config.SEED, n_jobs=-1):
     return model.fit(np.asarray(F, dtype=np.float32), np.asarray(y))
 
 
+def class_proba(model, F):
+    """Xác suất của cả một lô theo thứ tự ``CLASSES``: ``(n, n_classes)``.
+
+    Cùng con số với :meth:`ForestClassifier.proba` của demo; cột của lớp mà
+    tập huấn luyện không có bằng 0.
+    """
+    F = np.asarray(F, dtype=np.float32)
+    out = np.zeros((len(F), len(config.CLASSES)))
+    if len(F):
+        out[:, np.asarray(model.classes_, dtype=np.int64)] = model.predict_proba(F)
+    return out
+
+
 def save_bundle(model, path=None, **meta):
     """Lưu mô hình cùng danh sách đặc trưng, danh sách lớp và ``meta``."""
     path = Path(path or config.RF_MODEL_PATH)

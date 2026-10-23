@@ -82,8 +82,15 @@ HZ = 15.0           # lưới thời gian đều sau khi resample
 WIN_SEC = 1.2       # độ dài một cửa sổ
 STRIDE_SEC = 0.2    # bước trượt giữa hai cửa sổ
 
-T = round(WIN_SEC * HZ)     # số bước trong một cửa sổ = 18
-STRIDE = round(STRIDE_SEC * HZ)     # số bước giữa hai cửa sổ liền nhau = 3
+
+
+def window_steps(seconds):
+    """Số bước của một khoảng ``seconds`` giây trên lưới ``HZ``."""
+    return round(seconds * HZ)
+
+
+T = window_steps(WIN_SEC)   # số bước trong một cửa sổ = 18
+STRIDE = window_steps(STRIDE_SEC)   # số bước giữa hai cửa sổ liền nhau = 3
 
 MAX_GAP = 3             # lỗ hổng NaN dài hơn số bước này thì GIỮ NaN
 MIN_PRESENCE = 0.7      # tỉ lệ bước có tay tối thiểu của một cửa sổ hợp lệ
@@ -212,6 +219,58 @@ AUG_ZOOM_STYLE_P = 0.0      # LSTM (thêm 2026-10-10): xác suất một cửa s
 AUG_STATIC_SHARE = 0.0      # LSTM: thêm bấy nhiêu phần (so với số cửa sổ train)
                             # cửa sổ bàn tay đứng yên, nhãn none. TẮT cùng phép trên
                             # (run_06 dùng 0,1; chưa tách được tác dụng riêng)
+
+# --------------------------------------------------------------------------
+# Đánh giá hai mức và bảy bảng khảo sát (Phase 8) — mọi khảo sát trên val
+# hoặc k-fold của người train + val, không bao giờ trên test (luật 13)
+# --------------------------------------------------------------------------
+
+PHASE8_RESULTS_DIR = RESULTS_DIR / "phase8"
+EXP_DATA_DIR = DATA_DIR / "experiments"     # bộ cửa sổ và dòng thời gian video đã
+                                            # dựng cho từng biến thể — dữ liệu sinh lại được
+EXP_RECORD_DIR = PHASE8_RESULTS_DIR / "records"     # mỗi thí nghiệm một bản ghi: mọi
+                                            # dự đoán, để dựng bảng không phải học lại
+EVENT_TOL_SEC = 1.0         # mức sự kiện: dung sai sau lúc cử chỉ kết thúc
+EVENT_MATCH = "span"        # TP = lệnh đúng loại phát từ lúc cử chỉ BẮT ĐẦU tới
+                            # lúc kết thúc + EVENT_TOL_SEC (người dùng chọn
+                            # 2026-10-22). SPEC ban đầu là ±EVENT_TOL_SEC quanh lúc
+                            # kết thúc ("end"), nhưng đoạn nhãn IPN gồm cả lúc thu
+                            # tay: trên val, lệnh đúng loại đầu tiên phát trung vị
+                            # 1,1–1,4 s trước lúc đoạn kết thúc, và 60–66% lệnh đúng
+                            # lúc thành một FP cộng một FN. "end" vẫn tính để đối chiếu
+EVENT_MATCH_MODES = ("span", "end")
+EVENT_FILTER = "edge"       # bộ lọc sự kiện của các bảng khi chưa có máy trạng
+                            # thái (Phase 9): mỗi chuỗi dự đoán liền nhau cùng một
+                            # lớp cử chỉ là MỘT lệnh — cách đếm của summarize_log.py
+SIGNED_FEATURES = ("open_delta", "open_trend", "pinch_delta", "dx", "mean_vx")
+                            # năm đặc trưng có dấu (SPEC, mục Vector đặc trưng):
+                            # Bảng 5 bỏ cả nhóm
+ANGLE_JOINTS = {"thumb": (2, 3, 4), "index": (5, 6, 7), "middle": (9, 10, 11),
+                "ring": (13, 14, 15), "pinky": (17, 18, 19)}
+                            # góc gập ở khớp giữa mỗi ngón, (điểm, ĐỈNH, điểm):
+                            # khớp IP của ngón cái, PIP của bốn ngón kia. Bảng 5,
+                            # dòng "thêm góc khớp" — không thuộc vector 15 chiều
+REDUCED_LANDMARKS = (0, 2, 4, 5, 8, 9, 12, 13, 16, 17, 20)
+                            # 11 điểm rút gọn của bảng phụ: cổ tay, gốc năm ngón
+                            # (ngón cái lấy khớp 2), đầu năm ngón
+EXP_SEEDS = (42, 43, 44, 45, 46)    # Bảng 6: năm seed, seed đầu là SEED
+EXP_FOLDS = 5               # Bảng 7: k-fold theo nhóm người train + val
+EXP_KFOLD_EPOCHS = 86       # Bảng 7: LSTM mỗi fold học đúng bấy nhiêu epoch —
+                            # epoch checkpoint của mô hình chính (train_lstm/run_07)
+                            # — không chọn gì trên fold giữ lại, nên con số không
+                            # lạc quan (người dùng chọn 2026-10-22)
+EXP_WIN_SECS = (0.8, 1.2, 1.6)      # Bảng 3: độ dài cửa sổ
+EXP_CORE_MARGINS = (0, 3, 6)        # bảng phụ: biên khoảnh khắc chính
+EXP_HIDDENS = (64, 128)             # bảng phụ: hidden 64 so với 128
+EXP_ZOOM_STYLE_P = 0.5      # bảng phụ: đo RIÊNG từng phép tăng cường của Phase 7
+EXP_STATIC_SHARE = 0.1      # (train_lstm/run_08 bật cả hai cùng lúc)
+EXP_JOBS = 4                # số tiến trình huấn luyện LSTM chạy song song
+EXP_TORCH_THREADS = 1       # luồng torch mỗi tiến trình. Đo 2026-10-22: 1, 2 hay 4
+                            # luồng cho cùng từng chữ số loss, và tăng cường (numpy,
+                            # một luồng) chiếm ~80% một epoch — nhiều tiến trình một
+                            # luồng nhanh hơn một tiến trình nhiều luồng
+EXP_LOG_EVERY = 10          # tiến trình huấn luyện in tiến độ mỗi bấy nhiêu epoch
+TIMING_WINDOWS = 300        # Bảng 1: đo thời gian suy luận trên bấy nhiêu cửa sổ
 
 # --------------------------------------------------------------------------
 # Hằng số phải ĐO hoặc HIỆU CHUẨN. Luôn đọc qua require_measured()
@@ -351,6 +410,12 @@ FIG_SEQ_RAMP = ("#fcfcfb", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5",
                 "#256abf", "#184f95", "#0d366b")
 FIG_SEQ_DARK_TEXT_BELOW = 0.45   # ô có giá trị chuẩn hoá dưới mức này viết chữ
                                  # màu mực, từ mức này trở lên viết chữ trắng
+FIG_CATEGORICAL = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100")
+                                 # bốn ô đầu của bảng màu hạng mục, thứ tự CỐ ĐỊNH
+                                 # theo MODEL_NAMES (màu đi theo mô hình, không theo
+                                 # thứ hạng). Kiểm bằng validate_palette.js 2026-10-22:
+                                 # đạt mọi ngưỡng; aqua, vàng dưới 3:1 trên nền sáng
+                                 # nên hình luôn đi kèm bảng số
 
 
 def require_measured(name):

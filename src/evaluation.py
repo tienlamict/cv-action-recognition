@@ -32,8 +32,10 @@ from src.tables import write_table
 
 LABELS = list(range(len(config.CLASSES)))
 FINAL_ONLY = ("test", "real_test")
+#: Bốn cột cuối là mức sự kiện (Phase 8) — chỉ ``evaluate.py --events`` điền.
+EVENT_COLUMNS = ["event_filter", "event_f1", "cmds_per_gesture", "false_per_min"]
 COMPARISON_COLUMNS = ["model", "split", "n_windows", "macro_f1",
-                      "baseline_random", "baseline_none", "run"]
+                      "baseline_random", "baseline_none", *EVENT_COLUMNS, "run"]
 
 
 def split_features(X, y, presence, subject, splits, split):
@@ -114,7 +116,8 @@ def event_rows(y_true, y_pred, clip, t0):
     cách nhau không quá một bước trượt) là một cử chỉ. Đếm cử chỉ có ít nhất
     một / hai cửa sổ được nhận đúng, và cử chỉ có cửa sổ bị đoán NGƯỢC chiều.
 
-    Đánh giá mức sự kiện đầy đủ (theo máy trạng thái) là việc của Phase 8.
+    Đánh giá mức sự kiện đầy đủ — chạy cả hệ thống trên video liên tục — nằm
+    ở ``src/events.py`` (Phase 8).
     """
     opposite = {"swipe_left": "swipe_right", "swipe_right": "swipe_left",
                 "zoom_in": "zoom_out", "zoom_out": "zoom_in"}
@@ -248,11 +251,12 @@ def _comparison_order(row):
 
 def _numeric(row):
     """Hàng đọc lại từ CSV: đổi các cột số về số, để bảng .md định dạng đồng
-    nhất với hàng mới thêm."""
-    out = dict(row)
+    nhất với hàng mới thêm. Cột mức sự kiện để trống thì giữ trống."""
+    out = {k: ("" if v is None else v) for k, v in row.items()}
     out["n_windows"] = int(out["n_windows"])
-    for key in ("macro_f1", "baseline_random", "baseline_none"):
-        out[key] = float(out[key])
+    for key in ("macro_f1", "baseline_random", "baseline_none", *EVENT_COLUMNS[1:]):
+        if out.get(key, "") != "":
+            out[key] = float(out[key])
     return out
 
 
@@ -309,28 +313,19 @@ def batch_predictor(model_name, lstm_path=None):
     raise ValueError(f"Không có bộ dự đoán theo lô cho '{model_name}'")
 
 
-def predict_windows(model_name, F, X=None):
-    """Dự đoán cả một tập bằng một mô hình đã có.
-
-    ``rules`` gọi luật từng cửa sổ; ``rf`` và ``lstm`` nạp mô hình đã lưu và dự
-    đoán cả lô một lần — cùng kết quả với bộ phân loại của demo (lớp có xác
-    suất cao nhất), chỉ nhanh hơn.
+def model_proba(model_name, F, X=None):
+    """Xác suất của mô hình ``rf`` hoặc ``lstm`` ĐÃ LƯU trên cả một lô.
 
     Args:
-        F: ``(n, 15)`` đặc trưng — cho ``rules`` và ``rf``.
-        X: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá — bắt buộc với ``lstm``.
+        F: ``(n, 15)`` đặc trưng — cho ``rf``.
+        X: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá — cho ``lstm``.
 
     Returns:
-        ``(pred (n,) int64, details)`` — ``details`` mô tả mô hình đã dùng, để
-        ghi vào manifest và ``TEST_USED_LOG``.
+        ``(proba (n, n_classes), details)`` — ``details`` mô tả mô hình đã
+        dùng, để ghi vào manifest và ``TEST_USED_LOG``.
     """
-    from src import forest, rules     # nạp lười: rf kéo theo scikit-learn
+    from src import forest     # nạp lười: rf kéo theo scikit-learn
 
-    if model_name == "hybrid":
-        from src.hybrid import hybrid_labels
-        lstm_pred, lstm_details = predict_windows("lstm", F, X)
-        rf_pred, rf_details = predict_windows("rf", F)
-        return hybrid_labels(lstm_pred, rf_pred), {"lstm": lstm_details, "rf": rf_details}
     if model_name == "lstm":
         from src import models        # nạp lười: torch mất ~3 giây
         from src.datasets import window_sequences
@@ -342,20 +337,58 @@ def predict_windows(model_name, F, X=None):
                    "created": checkpoint.get("created"),
                    "epoch": checkpoint.get("epoch"),
                    "val_macro_f1": checkpoint.get("val_macro_f1")}
-        proba = models.predict_proba(model, window_sequences(X))
-        return proba.argmax(axis=1).astype(np.int64), details
-
-    if model_name == "rules":
-        details = {k: getattr(config, k) for k in ("RULE_VX_HI", "RULE_DX_HI",
-                                                   "RULE_P_HI", "SWIPE_LEFT_SIGN")}
-        return np.array([rules.classify(f)[0] for f in F], dtype=np.int64), details
+        return models.predict_proba(model, window_sequences(X)), details
     if model_name == "rf":
         bundle = forest.load_bundle()
         details = {"model_file": config.RF_MODEL_PATH.name,
                    "model_sha256": forest.file_sha256(config.RF_MODEL_PATH),
                    "created": bundle.get("created")}
-        if len(F) == 0:
-            return np.empty(0, dtype=np.int64), details
-        return bundle["model"].predict(np.asarray(F, dtype=np.float32)).astype(np.int64), details
+        return forest.class_proba(bundle["model"], F), details
+    raise ValueError(f"Không có xác suất cho mô hình '{model_name}'")
+
+
+def label_confidence(model_name, F, X=None):
+    """Nhãn và độ tin của từng cửa sổ — đúng ``(label, confidence)`` mà mô hình
+    của demo trả về, chỉ tính theo lô cho nhanh.
+
+    ``rules`` gọi luật từng cửa sổ; ``rf`` và ``lstm`` lấy lớp có xác suất cao
+    nhất và xác suất đó; ``hybrid`` ghép hai xác suất bằng
+    ``hybrid.hybrid_predict`` — hàm mà demo cũng gọi.
+
+    Returns:
+        ``(labels (n,) int64, confidences (n,) float64, details)``.
+    """
+    if model_name == "rules":
+        from src import rules
+        details = {k: getattr(config, k) for k in ("RULE_VX_HI", "RULE_DX_HI",
+                                                   "RULE_P_HI", "SWIPE_LEFT_SIGN")}
+        pairs = [rules.classify(f) for f in F]
+        return (np.array([p[0] for p in pairs], dtype=np.int64),
+                np.array([p[1] for p in pairs], dtype=np.float64), details)
+    if model_name in ("rf", "lstm"):
+        proba, details = model_proba(model_name, F, X)
+        return proba.argmax(axis=1).astype(np.int64), proba.max(axis=1, initial=0.0), details
+    if model_name == "hybrid":
+        from src.hybrid import hybrid_predict
+        p_lstm, lstm_details = model_proba("lstm", F, X)
+        p_rf, rf_details = model_proba("rf", F)
+        labels, confidences = hybrid_predict(p_lstm, p_rf)
+        return labels, confidences, {"lstm": lstm_details, "rf": rf_details}
     raise ValueError(f"Không biết mô hình '{model_name}' — có: "
                      f"{', '.join(config.MODEL_NAMES)}")
+
+
+def predict_windows(model_name, F, X=None):
+    """Dự đoán cả một tập bằng một mô hình đã có — nhãn của
+    :func:`label_confidence`.
+
+    Args:
+        F: ``(n, 15)`` đặc trưng — cho ``rules`` và ``rf``.
+        X: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá — bắt buộc với ``lstm``.
+
+    Returns:
+        ``(pred (n,) int64, details)`` — ``details`` mô tả mô hình đã dùng, để
+        ghi vào manifest và ``TEST_USED_LOG``.
+    """
+    labels, _, details = label_confidence(model_name, F, X)
+    return labels, details

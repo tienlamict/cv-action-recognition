@@ -29,104 +29,15 @@ import numpy as np  # noqa: E402
 
 from src import config  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
-from src.preprocess import normalize_window  # noqa: E402
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
-from src.splits import read_splits, split_of  # noqa: E402
+from src.splits import (equal_quota, read_splits, split_of,  # noqa: E402,F401
+                        subsample_none)
 from src.tables import write_table  # noqa: E402
-from src.windows import windows_from_clip  # noqa: E402
+from src.windows import FIELDS  # noqa: E402
+from src.windows import collect_windows as collect  # noqa: E402
 
-FIELDS = ("X", "y", "presence", "subject", "clip", "t0", "src_label")
-DTYPES = {"X": np.float32, "y": np.int64, "presence": np.float32,
-          "subject": "<U16", "clip": "<U64", "t0": np.float32,
-          "src_label": "<U32"}
-
-
-def collect(clip_paths):
-    """Cửa sổ ĐÃ chuẩn hoá của mọi clip dùng được, gộp lại.
-
-    Returns:
-        ``(windows, info)`` — ``windows`` là dict theo ``FIELDS``; ``info`` đếm
-        clip đã dùng, clip bỏ vì lệch nhãn, và cửa sổ bỏ vì thiếu tay
-        (``low_presence``), vì mơ hồ (``ambiguous``), vì không chuẩn hoá được.
-    """
-    parts = {k: [] for k in FIELDS}
-    info = {"n_clips": 0, "mismatched": [], "n_unnormalizable": 0,
-            "low_presence": 0, "ambiguous": 0}
-    for path in clip_paths:
-        windows, meta, stats = windows_from_clip(path)
-        if meta.get("length_mismatch"):
-            info["mismatched"].append(meta["clip_id"])
-            continue
-        info["n_clips"] += 1
-        for key in ("low_presence", "ambiguous"):
-            info[key] += stats[key]
-
-        keep, normalized = [], []
-        for i, win in enumerate(windows["X"]):
-            try:
-                normalized.append(normalize_window(win))
-                keep.append(i)
-            except ValueError:
-                info["n_unnormalizable"] += 1
-        windows["X"] = np.asarray(normalized, dtype=np.float32).reshape(
-            -1, config.T, config.NUM_LANDMARKS, 2)
-        for k in FIELDS:
-            parts[k].append(windows[k] if k == "X" else windows[k][keep])
-
-    out = {k: (np.concatenate(v) if v else np.empty(0, dtype=DTYPES[k]))
-           for k, v in parts.items()}
-    out["X"] = out["X"].reshape(-1, config.T, config.NUM_LANDMARKS, 2)
-    return {k: np.asarray(v, dtype=DTYPES[k]) for k, v in out.items()}, info
-
-
-def equal_quota(available, budget):
-    """Chia ``budget`` đều cho các nhóm, không nhóm nào vượt số nó có.
-
-    Nhóm nhỏ hơn phần chia thì lấy hết; phần dư dồn đều cho các nhóm còn lại.
-    Phần lẻ cuối cùng đi cho các nhóm lớn nhất. Tổng quota bằng
-    ``min(budget, tổng số có)``.
-    """
-    quota = {k: 0 for k in available}
-    remaining = min(int(budget), sum(available.values()))
-    open_groups = sorted(available, key=lambda k: (available[k], k))
-    while open_groups and remaining > 0:
-        share = remaining // len(open_groups)
-        smallest = open_groups[0]
-        if available[smallest] <= share:
-            quota[smallest] = available[smallest]
-            remaining -= available[smallest]
-            open_groups.pop(0)
-            continue
-        for k in open_groups:
-            quota[k] = share
-        remaining -= share * len(open_groups)
-        for k in reversed(open_groups[-remaining:] if remaining else []):
-            quota[k] += 1
-        remaining = 0
-    return quota
-
-
-def subsample_none(y, src_label, split, rng, share=config.NONE_TRAIN_SHARE):
-    """Mặt nạ giữ lại: mọi cửa sổ dương, mọi cửa sổ ngoài train, và một phần
-    lớp none của train theo :func:`equal_quota` trên ``src_label``.
-
-    Returns:
-        ``(keep (N,) bool, quota dict)``.
-    """
-    keep = np.ones(y.size, dtype=bool)
-    in_train = split == "train"
-    n_pos = int(np.sum((y != 0) & in_train))
-    budget = int(np.floor(n_pos * share / (1.0 - share)))
-
-    none_idx = np.flatnonzero((y == 0) & in_train)
-    groups = {str(k): none_idx[src_label[none_idx] == k]
-              for k in np.unique(src_label[none_idx])}
-    quota = equal_quota({k: v.size for k, v in groups.items()}, budget)
-
-    keep[none_idx] = False
-    for k, idx in groups.items():
-        keep[rng.choice(idx, size=quota[k], replace=False)] = True
-    return keep, quota
+# collect, equal_quota, subsample_none nằm trong src/ từ Phase 8: các bảng khảo
+# sát dựng bộ cửa sổ bằng đúng các hàm này (luật 1).
 
 
 def count_rows(y, split, keep):

@@ -56,13 +56,20 @@ def window_sequence(win_norm):
     return seq
 
 
-def window_sequences(X):
-    """:func:`window_sequence` cho cả một lô: ``(N, T, 21, 2)`` → ``(N, T, 42)``."""
+def window_sequences(X, sequence=None):
+    """:func:`window_sequence` cho cả một lô: ``(N, T, 21, 2)`` → ``(N, T, 42)``.
+
+    Args:
+        sequence: hàm ``cửa sổ đã chuẩn hoá → chuỗi`` thay cho
+            :func:`window_sequence` — chỉ các biến thể của bảng khảo sát Phase 8
+            (``src/variants.py``) dùng.
+    """
     X = np.asarray(X)
-    if len(X) == 0:
+    if len(X) == 0 and sequence is None:
         return np.empty((0, X.shape[1] if X.ndim > 1 else config.T,
                          config.LSTM_INPUT_SIZE), dtype=np.float32)
-    return np.stack([window_sequence(win) for win in X])
+    sequence = sequence or window_sequence
+    return np.stack([sequence(win) for win in X])
 
 
 class WindowDataset(Dataset):
@@ -91,6 +98,9 @@ class WindowDataset(Dataset):
         sigma: nhiễu của tăng cường; ``None`` thì đọc ``AUG_NOISE_SIGMA``.
         finger_pool: kho dáng ngón phụ ``augment.finger_pose_pool``, dựng từ train.
         zoom_style_p, static_share: như trên; chỉ có tác dụng khi ``augment``.
+        sequence: hàm ``cửa sổ đã chuẩn hoá → chuỗi``; ``None`` là
+            :func:`window_sequence`. Biến thể của bảng khảo sát Phase 8 chạy SAU
+            tăng cường, đúng thứ tự của luật 5.
 
     Raises:
         ValueError: bật tăng cường cho tập khác ``"train"`` (luật 9); đổi dáng
@@ -98,7 +108,8 @@ class WindowDataset(Dataset):
     """
 
     def __init__(self, X, y, split, augment=False, rng=None, sigma=None,
-                 finger_pool=None, zoom_style_p=0.0, static_share=0.0):
+                 finger_pool=None, zoom_style_p=0.0, static_share=0.0,
+                 sequence=None):
         if augment and split != "train":
             raise ValueError(
                 f"Tăng cường chỉ cho tập train, không cho '{split}' (luật 9).")
@@ -114,8 +125,9 @@ class WindowDataset(Dataset):
         self.zoom_style_p = zoom_style_p if augment else 0.0
         self.n_static = int(round(static_share * len(self.y))) if augment else 0
         self.n_fallback = 0
+        self.sequence = sequence or window_sequence
         # không tăng cường thì chuỗi không bao giờ đổi: tính một lần
-        self._fixed = None if augment else window_sequences(self.X)
+        self._fixed = None if augment else window_sequences(self.X, sequence)
 
     def __len__(self):
         return len(self.y) + self.n_static
@@ -148,4 +160,4 @@ class WindowDataset(Dataset):
             win, label = augment_window(win, label, self.rng, self.sigma)
         except ValueError:
             self.n_fallback += 1
-        return torch.from_numpy(window_sequence(win)), int(label)
+        return torch.from_numpy(self.sequence(win)), int(label)
