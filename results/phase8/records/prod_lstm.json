@@ -1,0 +1,20 @@
+{
+  "name": "prod_lstm",
+  "key": "b4e5bb4de75464a7",
+  "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
+  "model": "lstm",
+  "details": {
+    "model_file": "lstm_model.pt",
+    "model_sha256": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824",
+    "created": "2026-10-10T10:10:55",
+    "epoch": 86,
+    "val_macro_f1": 0.5559584616872411
+  },
+  "inference_ms": 1.4940500259399414,
+  "files": {
+    "lstm_model.pt": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824"
+  },
+  "spec": {
+    "model": "lstm"
+  }
+}

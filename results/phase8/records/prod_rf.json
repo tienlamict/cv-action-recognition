@@ -1,0 +1,18 @@
+{
+  "name": "prod_rf",
+  "key": "0efb9572725520ee",
+  "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
+  "model": "rf",
+  "details": {
+    "model_file": "rf_model.joblib",
+    "model_sha256": "902384afa1d4095a848913cbda1cd95ab6aecdde262e36642356ea424eedd68a",
+    "created": "2026-10-09T15:31:54"
+  },
+  "inference_ms": 2.96544999582693,
+  "files": {
+    "rf_model.joblib": "902384afa1d4095a848913cbda1cd95ab6aecdde262e36642356ea424eedd68a"
+  },
+  "spec": {
+    "model": "rf"
+  }
+}

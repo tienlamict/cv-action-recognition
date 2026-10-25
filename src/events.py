@@ -16,7 +16,7 @@ cho dòng thời gian và các cửa sổ của một video; mô hình chấm m�
 
 **Bộ lọc sự kiện** chọn bằng tên trong ``EVENT_FILTERS``. Mỗi bộ lọc có
 ``update(label, confidence, presence, ts) → lệnh | None`` — đúng giao diện
-``ActivationFSM`` của Phase 9, nên Phase 9 chỉ thêm máy trạng thái vào bảng này;
+``ActivationFSM``, nên Phase 9 chỉ thêm máy trạng thái (``"fsm"``) vào bảng này;
 ``scripts/evaluate.py`` không phải sửa. Mỗi video dùng một bộ lọc MỚI: không
 trạng thái nào lọt từ video này sang video kia.
 
@@ -43,6 +43,7 @@ from collections import namedtuple
 import numpy as np
 
 from src import config
+from src.activation import ActivationFSM
 from src.features import FEATURE_NAMES
 
 NONE = 0
@@ -72,13 +73,20 @@ class EdgeFilter:
         return command
 
 
-#: Tên → lớp bộ lọc; ``evaluate.py --events`` nhận các tên này. Phase 9 thêm
-#: ``"fsm"`` (``ActivationFSM``) vào đây.
-EVENT_FILTERS = {"raw": RawFilter, "edge": EdgeFilter}
+#: Tên → lớp bộ lọc; ``evaluate.py --events`` nhận các tên này. ``"fsm"`` là máy
+#: trạng thái kích hoạt của Phase 9 với tham số trong ``config.py``.
+EVENT_FILTERS = {"raw": RawFilter, "edge": EdgeFilter, "fsm": ActivationFSM}
 
 
 def make_filter(name):
-    """Một bộ lọc MỚI — gọi một lần cho mỗi video."""
+    """Một bộ lọc MỚI — gọi một lần cho mỗi video.
+
+    Args:
+        name: tên trong ``EVENT_FILTERS``, hoặc một hàm không đối số trả về bộ
+            lọc — để quét tham số máy trạng thái (``scripts/sweep_activation.py``).
+    """
+    if callable(name):
+        return name()
     if name not in EVENT_FILTERS:
         raise ValueError(f"Không có bộ lọc sự kiện '{name}' — có: "
                          f"{', '.join(EVENT_FILTERS)}")
@@ -143,12 +151,14 @@ def clip_segments(ts, segments, src_labels):
     return gestures, spans
 
 
-def clip_stream(path, win_sec=None):
+def clip_stream(path, win_sec=None, min_presence=None):
     """Chạy một video qua ``live.WindowStream`` — đúng như frame từ webcam.
 
     Args:
         win_sec: độ dài cửa sổ; ``None`` là ``WIN_SEC`` (Bảng 3 của Phase 8
             dùng giá trị khác).
+        min_presence: ngưỡng tỉ lệ có tay của bộ đệm; ``None`` là
+            ``MIN_PRESENCE`` (bảng đánh đổi của Phase 9 dùng giá trị khác).
 
     Returns:
         ``(timeline, X, F)`` — ``X`` ``(k, T, 21, 2)`` float32 và ``F``
@@ -159,7 +169,7 @@ def clip_stream(path, win_sec=None):
     from src.live import WindowStream
 
     ts, xy, w, h, segments, src_labels, meta = load_clip(path)
-    stream = WindowStream(win_sec=win_sec)
+    stream = WindowStream(win_sec=win_sec, min_presence=min_presence)
     times, presence, valid, X, F = [], [], [], [], []
     for t, frame in zip(ts, xy):
         sample = stream.push(float(t), frame, w, h)
@@ -183,7 +193,7 @@ def clip_stream(path, win_sec=None):
     return timeline, X, F
 
 
-def clip_streams(paths, win_sec=None):
+def clip_streams(paths, win_sec=None, min_presence=None):
     """:func:`clip_stream` cho nhiều video; cửa sổ và đặc trưng nối liền theo
     thứ tự video.
 
@@ -192,7 +202,7 @@ def clip_streams(paths, win_sec=None):
     """
     timelines, Xs, Fs = [], [], []
     for path in paths:
-        timeline, X, F = clip_stream(path, win_sec)
+        timeline, X, F = clip_stream(path, win_sec, min_presence)
         timelines.append(timeline)
         Xs.append(X)
         Fs.append(F)
@@ -268,6 +278,32 @@ def scatter(timelines, labels, confidences):
         out_conf.append(conf)
         k += n
     return out_labels, out_conf
+
+
+def gate_presence(timelines, labels, confidences, min_presence):
+    """Như thể bộ đệm chạy với ``MIN_PRESENCE = min_presence``: lần dự đoán có
+    tỉ lệ có tay thấp hơn thành "không có cửa sổ" — mất tay, với máy trạng thái.
+
+    Chỉ NÂNG được ngưỡng so với lúc dựng ``timelines``: cửa sổ bộ đệm đã từ chối
+    thì không lấy lại được. Bộ đệm chỉ dùng ngưỡng để chặn, không đổi nội dung
+    cửa sổ hay nhịp dự đoán, nên kết quả trùng việc chạy lại video với ngưỡng
+    mới (``tests/test_activation.py`` kiểm tra).
+
+    Args:
+        labels, confidences: mỗi video một mảng ``(m,)`` như :func:`scatter`.
+
+    Returns:
+        ``(timelines, labels, confidences)`` mới, cùng dạng.
+    """
+    out_t, out_l, out_c = [], [], []
+    for timeline, lab, conf in zip(timelines, labels, confidences):
+        keep = np.nan_to_num(timeline.presence, nan=-1.0) >= min_presence
+        valid = timeline.valid & keep
+        out_t.append(timeline._replace(presence=np.where(keep, timeline.presence, np.nan),
+                                       valid=valid))
+        out_l.append(np.where(valid, lab, -1))
+        out_c.append(np.where(valid, conf, np.nan))
+    return out_t, out_l, out_c
 
 
 def commands(timeline, labels, confidences, filter_name=config.EVENT_FILTER):

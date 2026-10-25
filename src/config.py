@@ -239,9 +239,10 @@ EVENT_MATCH = "span"        # TP = lệnh đúng loại phát từ lúc cử ch�
                             # 1,1–1,4 s trước lúc đoạn kết thúc, và 60–66% lệnh đúng
                             # lúc thành một FP cộng một FN. "end" vẫn tính để đối chiếu
 EVENT_MATCH_MODES = ("span", "end")
-EVENT_FILTER = "edge"       # bộ lọc sự kiện của các bảng khi chưa có máy trạng
-                            # thái (Phase 9): mỗi chuỗi dự đoán liền nhau cùng một
-                            # lớp cử chỉ là MỘT lệnh — cách đếm của summarize_log.py
+EVENT_FILTER = "fsm"        # bộ lọc sự kiện của các bảng: máy trạng thái của Phase
+                            # 9 (src/activation.py). Bảng Phase 8 run_01 dùng
+                            # "edge" — mỗi chuỗi dự đoán liền nhau cùng một lớp cử
+                            # chỉ là MỘT lệnh, cách đếm của summarize_log.py
 SIGNED_FEATURES = ("open_delta", "open_trend", "pinch_delta", "dx", "mean_vx")
                             # năm đặc trưng có dấu (SPEC, mục Vector đặc trưng):
                             # Bảng 5 bỏ cả nhóm
@@ -317,10 +318,44 @@ CAM_INDEX = 0           # webcam mặc định của máy
 # máy trạng thái không phải học lại. Hằng số mới của Phase 9 đặt tiền tố FSM_;
 # hằng số mới không có tiền tố này làm mọi bản ghi hết hạn.
 
-CONF_FIRE = 0.75        # ngưỡng tin cậy để bắt đầu xét phát lệnh
-CONF_HOLD = 0.55        # ngưỡng trễ, thấp hơn CONF_FIRE
-K_OF_N = (3, 5)         # đồng thuận: k cửa sổ đồng ý trên n cửa sổ gần nhất
+CONF_FIRE = 0.75        # ngưỡng tin cậy để mở một ứng viên lệnh
+CONF_HOLD = 0.55        # ngưỡng trễ, thấp hơn CONF_FIRE: cửa sổ đồng ý chỉ cần mức này
+K_OF_N = (3, 5)         # đồng thuận: k cửa sổ đồng ý trong n cửa sổ kể từ lúc mở
+                        # ứng viên; một cửa sổ phản đối tự tin làm hỏng đồng thuận
+                        # ngay (src/activation.py)
 COOLDOWN_SEC = 1.2      # thời gian câm lặng sau khi phát một lệnh
+
+PHASE9_RESULTS_DIR = RESULTS_DIR / "phase9"
+FSM_CMDS_RANGE = (0.9, 1.1)     # SPEC Phase 9: số lệnh trên một cử chỉ, trên video val
+FSM_FIRE_SWEEP = (0.6, 0.75, 0.85)  # sweep_activation.py: lưới CONF_FIRE (ba mức của
+FSM_K_SWEEP = (2, 3, 4)             # bảng đánh đổi Phase 10) và k của K_OF_N, n giữ nguyên
+FSM_PRESENCE_SWEEP = (0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+                                # MIN_PRESENCE lúc CHẠY cho results/phase9/tradeoff.md;
+                                # mô hình giữ nguyên, học với MIN_PRESENCE
+FSM_TRADEOFF = ((0.60, 2), (0.75, 3), (0.85, 4))
+                                # bảng đánh đổi chính của Phase 10: (CONF_FIRE, k),
+                                # n = K_OF_N[1]
+
+# --------------------------------------------------------------------------
+# Demo hoàn chỉnh và đo đạc (Phase 10). Bản ghi Phase 8 không băm các tiền tố
+# CTRL_ và BENCH_ (src/experiments.py, _IRRELEVANT)
+# --------------------------------------------------------------------------
+
+PHASE10_RESULTS_DIR = RESULTS_DIR / "phase10"
+BENCH_SESSIONS_DIR = PHASE10_RESULTS_DIR / "sessions"    # phiên ghi của bench.py record
+CTRL_HOTKEYS = {"swipe_left": ("left",), "swipe_right": ("right",),
+                "zoom_in": ("ctrl", "+"), "zoom_out": ("ctrl", "-")}
+                        # SPEC: swipe_left → slide trước, swipe_right → slide sau
+                        # (mũi tên của trình chiếu); zoom → Ctrl + / Ctrl −
+CTRL_TOGGLE_KEY = ord("c")      # bật/tắt điều khiển trong cửa sổ demo; mặc định TẮT
+BENCH_SPEED_SEC = 30.0          # đo FPS bấy nhiêu giây, sau FPS_WARMUP_SEC (cẩm nang 20)
+BENCH_SCENARIOS = ("reading", "typing", "talking")
+                                # ba kịch bản kích hoạt nhầm, dễ → khó: ngồi yên đọc
+                                # tài liệu; gõ phím và dùng chuột; nói chuyện có khua tay
+BENCH_SCENARIO_MIN = 10.0       # mỗi kịch bản bấy nhiêu phút (cẩm nang 20.4)
+BENCH_GESTURES_PER_CLASS = 5    # phiên "gestures": 5 × 4 lớp = 20 cử chỉ đã đếm
+BENCH_PROMPT_SEC = 4.0          # mỗi lời nhắc hiện bấy nhiêu giây — làm cử chỉ trong lúc đó
+BENCH_REST_SEC = 3.0            # nghỉ giữa hai lời nhắc, tay để yên trong khung
 
 # --------------------------------------------------------------------------
 # Tái lập
@@ -365,6 +400,8 @@ OBS_MIN_RUNS = 3                    # cẩm nang bước 6: lặp ít nhất ba 
 
 DISPLAY_FLIP_CODE = 1       # cv2.flip: 1 = lật ngang như gương
 DISPLAY_WAIT_MS = 1
+DISPLAY_COMMAND_SEC = 1.0   # lệnh vừa phát hiện trên màn hình demo bấy nhiêu giây
+DISPLAY_HELP_KEYS = (ord("?"), ord("h"))    # hiện/ẩn tóm tắt docs/gestures.md
 QUIT_KEYS = (ord("q"), 27)  # q hoặc Esc
 
 COLOR_POINT = (0, 0, 255)       # BGR

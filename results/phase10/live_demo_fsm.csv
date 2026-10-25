@@ -1,0 +1,16 @@
+ts,from,to,reason
+11.401,IDLE,READY,có tay
+11.401,READY,CANDIDATE,mở swipe_left 1.00
+11.825,CANDIDATE,READY,none phản đối swipe_left
+13.642,READY,IDLE,mất tay
+27.400,IDLE,READY,có tay
+28.276,READY,IDLE,mất tay
+29.615,IDLE,READY,có tay
+30.410,READY,IDLE,mất tay
+35.619,IDLE,READY,có tay
+38.802,READY,CANDIDATE,mở swipe_right 0.80
+39.203,CANDIDATE,COOLDOWN,PHÁT swipe_right
+40.436,COOLDOWN,READY,hết cooldown
+44.003,READY,IDLE,mất tay
+48.813,IDLE,READY,có tay
+51.620,READY,IDLE,mất tay

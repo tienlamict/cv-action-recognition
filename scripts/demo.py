@@ -1,7 +1,16 @@
-"""Demo thời gian thực: webcam → 21 điểm → cửa sổ 1,2 giây → đặc trưng → mô hình.
+"""Demo thời gian thực: webcam → 21 điểm → cửa sổ 1,2 giây → đặc trưng → mô hình
+→ máy trạng thái kích hoạt → lệnh.
 
 Mỗi STRIDE_SEC giây ra một nhãn mới, nên nhãn nhấp nháy khi làm cử chỉ — đó là
-hành vi ĐÚNG ở Phase 5; dẹp nó là việc của Phase 9.
+chuyện bình thường của mô hình. Máy trạng thái (src/activation.py, Phase 9) biến
+chuỗi nhãn thành lệnh rời rạc: màn hình hiện trạng thái của nó và lệnh vừa phát
+(">> COMMAND"). Hạ tay ra khỏi khung hình là huỷ.
+
+Phím c bật/tắt ĐIỀU KHIỂN — gửi phím tắt thật qua pyautogui (CTRL_HOTKEYS: vuốt
+trái → slide trước, vuốt phải → slide sau, zoom → Ctrl +/−). Mặc định TẮT. Phím
+tắt đi vào cửa sổ đang có focus: bấm c trong cửa sổ demo, rồi bấm chuột vào ứng
+dụng trình chiếu (PowerPoint: đang chạy trình chiếu, F5). Cửa sổ demo luôn nằm
+trên cùng nên vẫn nhìn thấy. Phím ? (hoặc h) hiện tóm tắt docs/gestures.md.
 
 Màn hình là bản LẬT GƯƠNG cho người xem; ảnh vào mô hình không lật. "-" nghĩa là
 không có cửa sổ hợp lệ (chưa đủ 1,2 giây, mất tay, hay tay nghiêng cạnh ở đầu
@@ -13,9 +22,10 @@ cộng độ xòe open_range — tô xanh nếu nằm trong hộp 25–75 của 
 đỏ nếu nằm ngoài. Với vuốt, open_range xanh nghĩa là bàn tay có mở ra trong lúc
 hất như IPN. Log của --log ghi đúng các đặc trưng này.
 
---log FILE: ghi mỗi lần dự đoán vào FILE (CSV), và điểm mốc thô của cả phiên vào
-FILE_landmarks.npz — chạy lại phiên đó qua mô hình bất kỳ bằng
-scripts/replay_log.py.
+--log FILE: ghi mỗi lần dự đoán vào FILE (CSV, kèm trạng thái máy kích hoạt, lệnh
+vừa phát và phím đã gửi), MỌI lần chuyển trạng thái vào FILE_fsm.csv, và điểm mốc
+thô của cả phiên vào FILE_landmarks.npz — chạy lại phiên đó qua mô hình bất kỳ
+bằng scripts/replay_log.py.
 
 Bấm q hoặc Esc để thoát. Mọi xử lý nằm trong src/live.py — file này chỉ nối
 webcam, màn hình và log.
@@ -37,15 +47,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import cv2  # noqa: E402
 
 from src import config  # noqa: E402
+from src.activation import ActivationFSM  # noqa: E402
 from src.cli import add_source_arg, make_parser, setup_console  # noqa: E402
-from src.display import make_display, read_key  # noqa: E402
+from src.control import Controller  # noqa: E402
+from src.display import keep_on_top, make_display, read_key  # noqa: E402
 from src.fps import FpsMeter  # noqa: E402
 from src.hands import HandTracker  # noqa: E402
 from src.io_video import iter_frames  # noqa: E402
 from src.live import (PRACTICE_CLASSES, LandmarkRecorder,  # noqa: E402
-                      LivePredictor, PredictionLog, count_episodes, label_name,
-                      landmarks_path, load_feature_ranges, make_model,
-                      screen_lines)
+                      LivePredictor, PredictionLog, TransitionLog, count_episodes,
+                      fsm_log_path, help_screen, label_name, landmarks_path,
+                      load_feature_ranges, make_model, recent_command, screen_lines)
 from src.recording import track  # noqa: E402
 
 WINDOW = "demo (q = quit)"
@@ -69,9 +81,12 @@ def main():
     ranges = load_feature_ranges() if args.show_features else None
     practice = PRACTICE_CLASSES[0] if args.show_features else None
     log = PredictionLog(args.log) if args.log else None
+    transitions = TransitionLog(fsm_log_path(args.log)) if args.log else None
     recorder = LandmarkRecorder() if args.log else None
+    fsm = ActivationFSM(on_transition=transitions.write if transitions else None)
+    controller = Controller()
     fps_meter = FpsMeter()
-    last, labels = None, []
+    last, labels, commands, show_help, on_top = None, [], [], False, False
 
     with HandTracker() as tracker:
         try:
@@ -84,22 +99,43 @@ def main():
                 if prediction is not None:
                     last = prediction
                     labels.append(prediction.label)
+                    command = fsm.update(prediction.label, prediction.confidence,
+                                         prediction.presence, prediction.ts)
+                    if command is not None:
+                        commands.append((prediction.ts, command))
+                    sent = controller.handle(command)
                     if log:
-                        log.write(prediction)
+                        log.write(prediction, fsm.state, command, sent)
                     if args.no_display and prediction.label not in (None, 0):
                         print(f"{prediction.ts:7.2f}s  {label_name(prediction.label):<12}"
-                              f"{prediction.confidence:.2f}")
+                              f"{prediction.confidence:.2f}"
+                              + ("" if command is None else
+                                 f"  >> LỆNH {label_name(command)}"))
 
                 if not args.no_display:
-                    lines, colors, big = screen_lines(last, fps_meter.rolling_fps,
-                                                      ranges, practice)
+                    lines, colors, big = help_screen() if show_help else screen_lines(
+                        last, fps_meter.rolling_fps, ranges, practice, state=fsm.state,
+                        command=recent_command(commands, tracked.ts),
+                        control=controller.enabled)
                     cv2.imshow(WINDOW, make_display(tracked.frame_bgr,
                                                     tracked.xy_norm, lines,
                                                     big_text=big,
                                                     line_colors=colors))
+                    if not on_top:
+                        keep_on_top(WINDOW)
+                        on_top = True
                     key = read_key()
                     if key in config.QUIT_KEYS:
                         break
+                    if key in config.DISPLAY_HELP_KEYS:
+                        show_help = not show_help
+                    if key == config.CTRL_TOGGLE_KEY:
+                        try:
+                            print("Điều khiển: BẬT — bấm chuột vào cửa sổ trình chiếu để "
+                                  "phím tắt đi vào đó" if controller.toggle()
+                                  else "Điều khiển: tắt")
+                        except RuntimeError as error:
+                            print(error)
                     if practice and ord("1") <= key < ord("1") + len(PRACTICE_CLASSES):
                         practice = PRACTICE_CLASSES[key - ord("1")]
                 if args.max_sec is not None and tracked.ts >= args.max_sec:
@@ -108,6 +144,8 @@ def main():
             cv2.destroyAllWindows()
             if log:
                 log.close()
+            if transitions:
+                transitions.close()
             if recorder and recorder.ts:
                 recorder.save(landmarks_path(args.log), model=args.model)
 
@@ -115,12 +153,16 @@ def main():
     print(f"\n{len(labels)} lần dự đoán, {n_valid} có cửa sổ hợp lệ.")
     print("Số đợt báo (chuỗi dự đoán liền nhau cùng lớp):",
           count_episodes(labels))
+    print(f"Máy trạng thái phát {len(commands)} lệnh:",
+          {name: sum(label_name(c) == name for _, c in commands)
+           for name in PRACTICE_CLASSES})
     summary = fps_meter.summary()
     if summary:
         print(f"FPS trung bình {summary['mean_fps']:.1f}, "
               f"phân vị {config.FPS_LOW_PERCENTILE:g}% thấp {summary['low_fps']:.1f}")
     if log:
         print(f"Log: {log.path}")
+        print(f"Chuyển trạng thái: {transitions.path}")
         print(f"Điểm mốc (chạy lại bằng scripts/replay_log.py): {landmarks_path(args.log)}")
 
 

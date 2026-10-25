@@ -105,7 +105,7 @@ chỗ dùng chúng sẽ dừng ngay nhờ `config.require_measured()`.
 | Hằng số | Giá trị | Đo ở phase | Đo bằng cách nào |
 |---|---|---|---|
 | `SWIPE_LEFT_SIGN` | `1` | 3 | `scripts/measure_direction.py` trên 189 clip IPN, ảnh không lật (2026-10-05): trung vị `dx` của `swipe_left` +0,456, của `swipe_right` −0,534 — trái dấu như phải có. Bằng chứng: `results/phase3/direction.md` |
-| `IPN_FLIP_X` | `1` | — | IPN là chuẩn quy ước hướng; chỉ đổi thành `-1` khi phép thử webcam (vuốt sang trái của bạn phải ra `swipe_left`) chứng minh ngược. Phép thử này **chưa được ghi lại** (`results/phase6/notes.md` mục 7.5) |
+| `IPN_FLIP_X` | `1` | 5 | IPN là chuẩn quy ước hướng; chỉ đổi thành `-1` khi phép thử webcam chứng minh ngược. Thử 2026-10-25 (người dùng, `demo.py --model hybrid`): vuốt sang trái của người dùng ra `swipe_left`, đúng chiều — giữ `1` |
 | `AUG_NOISE_SIGMA` | `0.0159` | 4 | `scripts/estimate_sigma.py --src-label D0X` (2026-10-05): trung vị độ lệch chuẩn đầu ngón trên 18 cửa sổ tay nghỉ đứng yên của train, đơn vị lòng bàn tay. Lấy mọi cửa sổ `none` thì ra 0,054, vì phần lớn là cử động ngón có chủ ý. Bằng chứng: `results/phase4/sigma/run_02/` |
 | `RULE_VX_HI`, `RULE_DX_HI`, `RULE_P_HI` | `4.026`, `0.1025`, `0.7209` | 5 | `scripts/calibrate_rules.py` trên tập `train` của IPN (2026-10-05). `RULE_VX_HI`: trung điểm của p90 `max_vx` lớp `none` và p10 của hai lớp vuốt; `RULE_DX_HI`: p10 `\|dx\|` của hai lớp vuốt; `RULE_P_HI`: trung điểm của p90 `\|pinch_delta\|` (`none` cộng hai lớp vuốt) và p10 của hai lớp zoom. Bằng chứng: `results/phase5/thresholds.md` |
 
@@ -157,9 +157,18 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 7 | `python scripts/evaluate.py --model hybrid --split val` | Mô hình ghép — vuốt theo LSTM, zoom theo rừng ngẫu nhiên: thêm hàng vào `results/model_comparison` |
 | 7 | `python scripts/demo.py --model hybrid --show-features --log <file.csv>` | Demo webcam bằng mô hình ghép |
 | 8 | `python scripts/evaluate.py --model <rules\|rf\|lstm\|hybrid> --events edge` | Đánh giá hai mức trên val. Mức cửa sổ: ma trận nhầm lẫn (hình nhiệt có số), F1 từng lớp, none bị báo nhầm theo nhãn gốc. Mức sự kiện: cả hệ thống chạy trên video val liên tục (`src/events.py`) — F1 sự kiện, số lệnh trên một cử chỉ, lệnh nhầm mỗi phút, lệnh nhầm theo nhãn gốc: `results/phase8/evaluate/run_NN/`; cập nhật `results/model_comparison`. `--events raw` là khi không có tầng kích hoạt |
-| 8 | `python scripts/run_experiments.py` | Bảy bảng khảo sát và bảng phụ, trên val hoặc k-fold của người train + val: `results/phase8/experiments/run_NN/` (`table1_models` … `table7_kfold`, `table_extra`, hình nhiệt ba mô hình). Dữ liệu biến thể dựng vào `data/experiments/`; mỗi thí nghiệm một bản ghi dự đoán trong `results/phase8/records/` — chạy lại không học lại. LSTM chạy `EXP_JOBS` tiến trình song song (~2 giờ trên máy 4 nhân) |
+| 8 | `python scripts/run_experiments.py` | Bảy bảng khảo sát và bảng phụ, trên val hoặc k-fold của người train + val: `results/phase8/experiments/run_NN/` (`table1_models` … `table7_kfold`, `table_extra`, hình nhiệt ba mô hình). Dữ liệu biến thể dựng vào `data/experiments/`; mỗi thí nghiệm một bản ghi dự đoán trong `results/phase8/records/` — chạy lại không học lại. LSTM chạy `EXP_JOBS` tiến trình song song (170 phút trên máy 8 luồng logic, kể cả dựng lại dữ liệu — đo 2026-10-25). Diễn giải các bảng: `results/phase8/notes.md` |
 | 8 | `python scripts/run_experiments.py --list` | Danh sách thí nghiệm và thí nghiệm nào đã có bản ghi |
-| 10 | | |
+| 9 | `python scripts/evaluate.py --model <rules\|rf\|lstm\|hybrid> --events fsm` | Mức sự kiện với máy trạng thái kích hoạt (`src/activation.py`, tham số trong `config.py`): `results/phase8/evaluate/run_NN/`; cập nhật `results/model_comparison` |
+| 9 | `python scripts/run_experiments.py` | Khi đã có bản ghi: dựng lại bảy bảng Phase 8 với `EVENT_FILTER = "fsm"`, không học lại (vài phút): `results/phase8/experiments/run_NN/` |
+| 9 | `python scripts/sweep_activation.py` | Hai bảng đánh đổi trên video val, không học lại — `MIN_PRESENCE` lúc chạy (số liệu của `results/phase9/tradeoff.md`) và lưới `CONF_FIRE` × `K_OF_N`: `results/phase9/sweep_activation/run_NN/` |
+| 9 | `python scripts/demo.py --model hybrid --log <file.csv>` | Demo có máy trạng thái: màn hình hiện trạng thái và lệnh vừa phát; log ghi trạng thái, lệnh, và mọi lần chuyển trạng thái vào `<file>_fsm.csv` |
+| 10 | `pip install pyautogui` | Một lần: `demo.py` gửi phím tắt thật qua `pyautogui`, chỉ nạp khi bật điều khiển |
+| 10 | `python scripts/demo.py --model hybrid --log <file.csv>` | Demo hoàn chỉnh. Phím `c` bật/tắt điều khiển (mặc định **tắt**; `swipe_left` → mũi tên trái = slide trước, `swipe_right` → mũi tên phải = slide sau, zoom → Ctrl + / Ctrl −); `?` hiện tóm tắt `docs/gestures.md`; log ghi thêm phím đã gửi |
+| 10 | `python scripts/bench.py speed --light bright` rồi `--light dim` | FPS (bỏ 3 s đầu, đo 30 s) và phân rã thời gian từng khâu cho bốn mô hình, mỗi mức ánh sáng một lần: `results/phase10/speed/run_NN/` (`speed`, `breakdown`, kèm cấu hình máy) |
+| 10 | `python scripts/bench.py record <reading\|typing\|talking>` | Ghi 10 phút làm việc bình thường, KHÔNG làm cử chỉ: ngồi yên đọc tài liệu; gõ phím và dùng chuột; nói chuyện có khua tay. Phiên ở `results/phase10/sessions/`; không gửi phím nào |
+| 10 | `python scripts/bench.py record gestures` | Ghi 20 cử chỉ theo lời nhắc trên màn hình, 5 mỗi lớp (~2,5 phút); lời nhắc lưu thành đoạn có nhãn |
+| 10 | `python scripts/bench.py analyze` | Chạy lại mọi phiên đã ghi và video val qua bốn mô hình × ba cấu hình của bảng đánh đổi (`FSM_TRADEOFF`): kích hoạt nhầm mỗi phút theo kịch bản, số lệnh trên một cử chỉ, độ trễ, bảng đánh đổi — `results/phase10/analyze/run_NN/` |
 
 ---
 

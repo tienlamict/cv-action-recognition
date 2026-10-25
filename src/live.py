@@ -12,11 +12,13 @@ cả với LSTM: log và chế độ luyện tập cần chúng.
 
 Phần trước mô hình nằm trong :class:`WindowStream`; đánh giá mức sự kiện của
 Phase 8 (``src/events.py``) chạy video IPN qua đúng lớp đó, nên một video được
-chấm như thể nó đang đi qua webcam.
+chấm như thể nó đang đi qua webcam. Sau mô hình, ``activation.ActivationFSM``
+(Phase 9) biến nhãn thành lệnh — cũng là bộ lọc ``"fsm"`` của mức sự kiện.
 """
 
 import csv
 import json
+import time
 from collections import namedtuple
 from pathlib import Path
 
@@ -78,13 +80,16 @@ class WindowStream:
         stride_sec: khoảng cách giữa hai lần dự đoán.
         win_sec: độ dài cửa sổ; ``None`` là ``WIN_SEC``. Khác ``WIN_SEC`` chỉ
             ở bảng khảo sát độ dài cửa sổ (Phase 8, Bảng 3).
+        min_presence: ngưỡng tỉ lệ có tay của bộ đệm; ``None`` là
+            ``MIN_PRESENCE``. Khác chỉ ở bảng đánh đổi của Phase 9.
     """
 
-    def __init__(self, stride_sec=config.STRIDE_SEC, win_sec=None):
+    def __init__(self, stride_sec=config.STRIDE_SEC, win_sec=None, min_presence=None):
         win_sec = config.WIN_SEC if win_sec is None else win_sec
         self.stride_sec = stride_sec
         self.buffer = TimeBuffer(keep_sec=win_sec + config.BUFFER_EXTRA_SEC,
-                                 steps=config.window_steps(win_sec))
+                                 steps=config.window_steps(win_sec),
+                                 min_presence=min_presence)
         self._due = None
 
     def push(self, ts, xy_norm, w, h):
@@ -120,6 +125,10 @@ class LivePredictor:
     ``model`` là hàm ``đầu vào → (label, confidence)`` của :func:`make_model`:
     nhận vector đặc trưng; hoặc cửa sổ đã chuẩn hoá nếu nó khai báo
     ``input_kind = "window"``; hoặc ``(cửa sổ, đặc trưng)`` nếu ``"both"``.
+
+    ``last_timing`` giữ thời gian (giây) của lần ``update`` vừa rồi: ``window``
+    — bộ đệm, lưới thời gian, chuẩn hoá và đặc trưng; ``model`` — mô hình. Hai
+    phần này chỉ tốn đáng kể ở nhịp dự đoán (``scripts/bench.py`` đọc nó).
     """
 
     def __init__(self, model, stride_sec=config.STRIDE_SEC):
@@ -130,6 +139,7 @@ class LivePredictor:
         load = getattr(model, "load", None)
         if callable(load):
             load()
+        self.last_timing = {}
 
     def update(self, ts, xy_norm, w, h):
         """Đẩy một frame.
@@ -137,8 +147,13 @@ class LivePredictor:
         Returns:
             :class:`Prediction` nếu đã tới lượt dự đoán, ngược lại ``None``.
         """
+        started = time.perf_counter()
         sample = self.stream.push(ts, xy_norm, w, h)
-        return None if sample is None else self.classify(sample)
+        pushed = time.perf_counter()
+        prediction = None if sample is None else self.classify(sample)
+        self.last_timing = {"window": pushed - started,
+                            "model": time.perf_counter() - pushed}
+        return prediction
 
     def classify(self, sample):
         """Chạy mô hình trên một :class:`Sample`."""
@@ -183,13 +198,42 @@ def practice_status(features, ranges, class_name, names=config.SHOW_FEATURES):
 PRACTICE_CLASSES = [c for c in config.CLASSES if c != "none"]
 NO_LABEL = "-"      # màn hình chỉ vẽ được ASCII; "—" của SPEC thành "-"
 
+#: Phím ? của demo (SPEC Phase 10): tóm tắt docs/gestures.md cho người dùng thử.
+#: Không dấu, vì cv2.putText chỉ vẽ ASCII; mỗi dòng vừa khung CAM_W.
+HELP_LINES = (
+    "HUONG DAN (? de dong) - lam nhu nguoi dien IPN",
+    "Tay phai, truoc nguc; ban tay ~1/5 chieu cao khung",
+    "swipe_left : chum dau ngon, hat ngang sang TRAI ban,",
+    "             mo bung tay trong luc hat, roi giu yen",
+    "swipe_right: nhu tren, hat sang PHAI cua ban",
+    "zoom_in    : cai+tro+giua chum -> mo ra (hinh chu L)",
+    "zoom_out   : cai+tro+giua dang mo -> chum lai",
+    "             zoom: nhan, ut gap; co tay dung yen",
+    "Dong tac chinh ~0.3 s, dut khoat, mot chieu",
+    "KHONG: chi tro ngon, xoe ca 5 ngon, vay qua lai",
+    "Ha tay ra khoi khung = huy",
+    "c: bat/tat dieu khien   q: thoat",
+    "Bat c xong, bam chuot vao cua so trinh chieu",
+)
+
+
+def help_screen():
+    """Màn hình của phím ? — ``(lines, colors, big_text)`` như :func:`screen_lines`."""
+    return list(HELP_LINES), [None] * len(HELP_LINES), None
+
 
 def label_name(label):
     return NO_LABEL if label is None else config.CLASSES[label]
 
 
-def screen_lines(prediction, fps, ranges=None, practice=None):
+def screen_lines(prediction, fps, ranges=None, practice=None, state=None, command=None,
+                 control=None):
     """Nội dung màn hình demo, toàn ASCII.
+
+    Args:
+        state: trạng thái máy kích hoạt (Phase 9); ``None`` thì không hiện.
+        command: lệnh vừa phát (:func:`recent_command`); ``None`` thì không hiện.
+        control: cờ điều khiển đang bật hay tắt (Phase 10); ``None`` thì không hiện.
 
     Returns:
         ``(lines, colors, big_text)`` cho ``display.make_display``.
@@ -204,6 +248,16 @@ def screen_lines(prediction, fps, ranges=None, practice=None):
     else:
         lines.append("presence  -")
     colors.append(None)
+    if state is not None:
+        lines.append(f"state {state}")
+        colors.append(None)
+    if command is not None:
+        lines.append(f">> COMMAND {label_name(command)}")
+        colors.append(config.COLOR_ALERT)
+    if control is not None:
+        lines.append(f"control {'ON' if control else 'off'} ({chr(config.CTRL_TOGGLE_KEY)})"
+                     "   ? help")
+        colors.append(config.COLOR_ALERT if control else None)
 
     if ranges is not None and practice is not None:
         lines.append(f"practice [{PRACTICE_CLASSES.index(practice) + 1}] "
@@ -217,26 +271,16 @@ def screen_lines(prediction, fps, ranges=None, practice=None):
     return lines, colors, big
 
 
-class PredictionLog:
-    """Ghi mỗi lần dự đoán một dòng CSV: thời điểm, nhãn, độ tin, tỉ lệ có
-    tay, và ``SHOW_FEATURES``. Dùng cho bài đếm báo nhầm và Phase 10."""
+class CsvLog:
+    """File CSV ghi từng dòng trong lúc demo chạy, dòng đầu là ``COLUMNS``."""
 
-    COLUMNS = ["ts", "label", "confidence", "presence", *config.SHOW_FEATURES]
+    COLUMNS = []
 
     def __init__(self, path):
         self.path = path
         self._file = open(path, "w", newline="", encoding="utf-8")
         self._writer = csv.writer(self._file)
         self._writer.writerow(self.COLUMNS)
-
-    def write(self, p):
-        feats = ([float(p.features[FEATURE_NAMES.index(n)])
-                  for n in config.SHOW_FEATURES] if p.features is not None
-                 else [""] * len(config.SHOW_FEATURES))
-        self._writer.writerow([f"{p.ts:.3f}", label_name(p.label),
-                               "" if p.confidence is None else f"{p.confidence:.3f}",
-                               "" if p.presence is None else f"{p.presence:.3f}",
-                               *feats])
 
     def close(self):
         self._file.close()
@@ -246,6 +290,39 @@ class PredictionLog:
 
     def __exit__(self, *exc):
         self.close()
+
+
+class PredictionLog(CsvLog):
+    """Ghi mỗi lần dự đoán một dòng CSV: thời điểm, nhãn, độ tin, tỉ lệ có
+    tay, ``SHOW_FEATURES``, rồi trạng thái máy kích hoạt sau lần dự đoán đó và
+    lệnh nó vừa phát (Phase 9). Dùng cho bài đếm báo nhầm và Phase 10."""
+
+    COLUMNS = ["ts", "label", "confidence", "presence", *config.SHOW_FEATURES,
+               "state", "command", "sent"]
+
+    def write(self, p, state=None, command=None, sent=None):
+        """Một dòng; ``sent`` là tổ hợp phím đã gửi cho ``command`` (Phase 10),
+        trống khi điều khiển đang tắt."""
+        feats = ([float(p.features[FEATURE_NAMES.index(n)])
+                  for n in config.SHOW_FEATURES] if p.features is not None
+                 else [""] * len(config.SHOW_FEATURES))
+        self._writer.writerow([f"{p.ts:.3f}", label_name(p.label),
+                               "" if p.confidence is None else f"{p.confidence:.3f}",
+                               "" if p.presence is None else f"{p.presence:.3f}",
+                               *feats, state or "",
+                               "" if command is None else label_name(command),
+                               "+".join(sent or ())])
+
+
+class TransitionLog(CsvLog):
+    """Ghi MỌI lần chuyển trạng thái của ``ActivationFSM`` (SPEC Phase 9) — công
+    cụ gỡ lỗi khi hệ thống "thỉnh thoảng phát lệnh lạ" (cẩm nang 18.4). Truyền
+    :meth:`write` vào ``ActivationFSM(on_transition=...)``."""
+
+    COLUMNS = ["ts", "from", "to", "reason"]
+
+    def write(self, ts, previous, state, reason):
+        self._writer.writerow([f"{ts:.3f}", previous, state, reason])
 
 
 class LandmarkRecorder:
@@ -268,8 +345,14 @@ class LandmarkRecorder:
         self.present.append(bool(present))
         self.w, self.h = w, h
 
-    def save(self, path, **meta):
-        """Ghi ra ``path`` (.npz). ``ts`` dời về 0 ở frame đầu như mọi clip."""
+    def save(self, path, segments=None, src_labels=None, **meta):
+        """Ghi ra ``path`` (.npz). ``ts`` dời về 0 ở frame đầu như mọi clip.
+
+        Args:
+            segments, src_labels: đoạn có nhãn ``[frame đầu, frame cuối + 1,
+                lớp]`` — lời nhắc của ``bench.py record gestures``; mặc định
+                không có đoạn nào.
+        """
         from src.io_data import save_clip
 
         ts = np.asarray(self.ts, dtype=np.float64)
@@ -277,14 +360,30 @@ class LandmarkRecorder:
                 "clip_id": Path(path).stem,
                 "fps": float((len(ts) - 1) / (ts[-1] - ts[0])) if len(ts) > 1 else 0.0,
                 **meta}
+        segments = (np.empty((0, 3), dtype=np.int64) if segments is None
+                    else np.asarray(segments, dtype=np.int64).reshape(-1, 3))
         return save_clip(path, ts - ts[0], np.stack(self.xy), self.present,
-                         np.empty((0, 3), dtype=np.int64), [], info)
+                         segments, list(src_labels or []), info)
 
 
 def landmarks_path(log_path):
     """File điểm mốc đi kèm một log dự đoán: ``live.csv`` → ``live_landmarks.npz``."""
     log_path = Path(log_path)
     return log_path.with_name(f"{log_path.stem}_landmarks.npz")
+
+
+def fsm_log_path(log_path):
+    """File chuyển trạng thái đi kèm một log dự đoán: ``live.csv`` → ``live_fsm.csv``."""
+    log_path = Path(log_path)
+    return log_path.with_name(f"{log_path.stem}_fsm.csv")
+
+
+def recent_command(commands, ts, keep_sec=config.DISPLAY_COMMAND_SEC):
+    """Lệnh mới nhất trong ``commands`` (list ``(giây, lớp)``) nếu nó phát chưa
+    quá ``keep_sec`` giây trước ``ts`` — màn hình demo hiện lệnh vừa phát."""
+    if commands and ts - commands[-1][0] < keep_sec:
+        return commands[-1][1]
+    return None
 
 
 def count_episodes(labels):

@@ -13,6 +13,7 @@ Ba quy ước của file này, mỗi quy ước chặn một lỗi im lặng:
 Chỉ lấy ``x``, ``y``. Không đọc ``z`` và không dùng ``hand_world_landmarks``.
 """
 
+import time
 from pathlib import Path
 
 import cv2
@@ -41,6 +42,10 @@ class HandTracker:
 
         with HandTracker() as tracker:
             xy, present, score = tracker.process(frame_bgr, ts_ms)
+
+    ``last_timing`` giữ thời gian (giây) của frame vừa xử lý: ``color`` — chuyển
+    BGR → RGB thành ảnh MediaPipe; ``mediapipe`` — chạy mô hình. Phân rã thời
+    gian của ``scripts/bench.py`` đọc nó.
     """
 
     def __init__(self, model_path=config.HAND_LANDMARKER_TASK):
@@ -61,6 +66,7 @@ class HandTracker:
         )
         self._landmarker = vision.HandLandmarker.create_from_options(options)
         self._last_ts_ms = None
+        self.last_timing = {}
 
     def process(self, frame_bgr, ts_ms):
         """Chạy mô hình trên một frame.
@@ -86,9 +92,13 @@ class HandTracker:
             ts_ms = self._last_ts_ms + 1
         self._last_ts_ms = ts_ms
 
+        started = time.perf_counter()
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+        converted = time.perf_counter()
         result = self._landmarker.detect_for_video(image, ts_ms)
+        self.last_timing = {"color": converted - started,
+                            "mediapipe": time.perf_counter() - converted}
 
         if not result.hand_landmarks:
             return empty_landmarks(), False, float("nan")

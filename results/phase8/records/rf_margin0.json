@@ -1,0 +1,51 @@
+{
+  "name": "rf_margin0",
+  "spec": {
+    "model": "rf",
+    "seed": 42,
+    "win_sec": 1.2,
+    "margin": 0,
+    "split": "official",
+    "fold": null,
+    "quota": "equal",
+    "origin": "first",
+    "landmarks": "all",
+    "features": "full",
+    "cell": "lstm",
+    "hidden": 128,
+    "pooling": "last",
+    "augment": true,
+    "zoom_style_p": 0.0,
+    "static_share": 0.0,
+    "epochs": null,
+    "max_epochs": 150
+  },
+  "key": "b7a74975b7e8229f",
+  "data_fingerprint": "0eec7d697bfe2934",
+  "set": "set_official_w1.2_m0_equal_95172f7f34b1a710.npz",
+  "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
+  "n_stream_windows": 12377,
+  "set_info": {
+    "n_train": 4842,
+    "n_val": 11222,
+    "quota": {
+      "B0A": 243,
+      "B0B": 242,
+      "D0X": 242,
+      "G01": 242,
+      "G02": 242,
+      "G03": 242,
+      "G04": 242,
+      "G07": 242,
+      "G08": 242,
+      "G09": 242
+    },
+    "pool_clips": 145
+  },
+  "train": {
+    "n_train": 4842,
+    "n_features": 15
+  },
+  "seconds": 42.057121800025925,
+  "created": "2026-10-25T09:05:03"
+}

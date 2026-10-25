@@ -24,11 +24,15 @@ class TimeBuffer:
         keep_sec: giữ frame trong bấy nhiêu giây gần nhất.
         steps: số bước của cửa sổ trả về; ``None`` là ``T``. Khác ``T`` chỉ ở
             bảng khảo sát độ dài cửa sổ (Phase 8, Bảng 3).
+        min_presence: tỉ lệ bước có tay tối thiểu; ``None`` là ``MIN_PRESENCE``,
+            đọc lúc gọi. Khác ``None`` chỉ ở bảng đánh đổi của Phase 9.
     """
 
-    def __init__(self, keep_sec=config.WIN_SEC + config.BUFFER_EXTRA_SEC, steps=None):
+    def __init__(self, keep_sec=config.WIN_SEC + config.BUFFER_EXTRA_SEC, steps=None,
+                 min_presence=None):
         self.keep_sec = keep_sec
         self.steps = config.T if steps is None else int(steps)
+        self.min_presence = min_presence
         self._ts = deque()
         self._xy = deque()
         self._size = None
@@ -59,9 +63,11 @@ class TimeBuffer:
 
         Returns:
             ``(win_pixel (steps, 21, 2), presence_ratio)``, hoặc ``None`` khi
-            chưa đủ ``steps`` bước, tỉ lệ có tay dưới ``MIN_PRESENCE``, hay
-            bước đầu mất tay.
+            chưa đủ ``steps`` bước, tỉ lệ có tay dưới ngưỡng, hay bước đầu mất
+            tay.
         """
+        min_presence = (config.MIN_PRESENCE if self.min_presence is None
+                        else self.min_presence)
         if len(self._ts) < 2:
             return None
         w, h = self._size
@@ -71,6 +77,6 @@ class TimeBuffer:
         win = xy[-self.steps:]
         finite = np.all(np.isfinite(win.reshape(self.steps, -1)), axis=1)
         presence = float(finite.mean())
-        if presence < config.MIN_PRESENCE or not finite[0]:
+        if presence < min_presence or not finite[0]:
             return None
         return win, presence

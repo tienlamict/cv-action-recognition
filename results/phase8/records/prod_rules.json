@@ -1,0 +1,17 @@
+{
+  "name": "prod_rules",
+  "key": "fd22f4aa305da64e",
+  "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
+  "model": "rules",
+  "details": {
+    "RULE_VX_HI": 4.026,
+    "RULE_DX_HI": 0.1025,
+    "RULE_P_HI": 0.7209,
+    "SWIPE_LEFT_SIGN": 1
+  },
+  "inference_ms": 0.006950052920728922,
+  "files": {},
+  "spec": {
+    "model": "rules"
+  }
+}

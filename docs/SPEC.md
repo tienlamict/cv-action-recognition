@@ -640,8 +640,15 @@ Bốn vấn đề mà tầng này giải — một cử chỉ sinh nhiều cửa
 
 1. `src/activation.py` — lớp `ActivationFSM` với một phương thức duy nhất: `update(label, confidence, presence, ts) -> command | None`.
 2. Năm cơ chế, tham số lấy từ `config.py`: ngưỡng tin cậy `CONF_FIRE`; đồng thuận `K_OF_N`; `COOLDOWN_SEC` sau khi phát lệnh; trễ với `CONF_HOLD < CONF_FIRE`; và hạ tay xuống xóa sạch trạng thái.
+
+    *Ghi chú 2026-10-25 — cách hiểu đồng thuận* (`src/activation.py`). Hiểu "k trong n cửa sổ gần nhất" theo nghĩa đen, tức đếm phiếu trên cửa sổ trượt, thì chuỗi `swipe, none, swipe, none, swipe` có 3/5 phiếu và phát lệnh — đúng điều `test_nhan_nhay_khong_phat` cấm. Cách dùng:
+    - một cửa sổ cử chỉ có độ tin ≥ `CONF_FIRE` mở ứng viên;
+    - mỗi cửa sổ sau đó là *đồng ý* (cùng lớp, độ tin ≥ `CONF_HOLD`), *phản đối* (lớp khác, kể cả `none`, độ tin ≥ `CONF_HOLD`: đồng thuận thất bại ngay, và cửa sổ đó được xét lại như ở `READY`), hoặc *do dự* (không có dự đoán, hay độ tin < `CONF_HOLD`: không là phiếu, nhưng chiếm một chỗ trong `n`);
+    - lệnh phát khi đủ `k` phiếu đồng ý trong `n` cửa sổ kể từ lúc mở, tính cả cửa sổ mở.
+
+    "Mất tay" là khi bộ đệm không trả cửa sổ nào (`presence` là `None`): tay vắng quá `1 − MIN_PRESENCE` số bước của cửa sổ, hoặc mới đưa vào chưa đủ `WIN_SEC`. Nhờ vậy cửa sổ chuyển tiếp lúc đưa tay vào tự bị chặn.
 3. Toàn bộ trạng thái nằm **bên trong** lớp, không biến toàn cục — Phase 8 cần khởi tạo lại một bản sạch cho mỗi video đánh giá.
-4. Nối FSM vào `demo.py` cho cả ba mô hình, ghi mọi chuyển trạng thái ra file log.
+4. Nối FSM vào `demo.py` cho cả ba mô hình, ghi mọi chuyển trạng thái ra file log. *Ghi chú 2026-10-25:* `demo.py --log FILE` ghi trạng thái và lệnh vào từng dòng của `FILE`, và mọi lần chuyển trạng thái vào `FILE_fsm.csv`. Màn hình hiện trạng thái và lệnh vừa phát. Gửi phím tắt vẫn là việc của Phase 10.
 
 ```mermaid
 stateDiagram-v2
@@ -675,6 +682,8 @@ test_nguong_tin_cay           # 5 cửa sổ conf 0,6 với CONF_FIRE 0,75 → 0
 - [ ] Số lệnh trên một cử chỉ trên video IPN của tập `val` nằm trong khoảng 0,9–1,1
 - [ ] Bảng 1 của Phase 8 đã có cột F1 mức sự kiện cho cả ba mô hình
 
+*Ghi chú 2026-10-25:* với tham số khởi đầu (`CONF_FIRE` 0,75, `K_OF_N` 3/5), số lệnh trên một cử chỉ trên video val là LSTM 0,77, ghép 0,61 — **chưa đạt**. Nguyên nhân là bỏ sót, không phải lệnh thừa. Chỉ LSTM với `K_OF_N` 2/5 vào được khoảng này (0,93–0,96), và phải trả 2,6–2,9 lệnh nhầm mỗi phút. Chọn điểm làm việc là quyết định của người dùng (`results/phase9/notes.md` mục 5 và 8). **Người dùng chọn 2026-10-25:** giữ 0,75 với 3/5, coi Phase 9 xong với mục này còn mở; cấu hình cuối chọn ở Phase 10 bằng bảng đánh đổi có đo trên webcam.
+
 **Đánh đổi phải ghi lại.** Nâng `MIN_PRESENCE` để chống kích hoạt nhầm đồng thời làm **bỏ sót đúng những cú vuốt nhanh**, vì cửa sổ vuốt nhanh chính là cửa sổ hay mất tay nhất. Ghi số liệu của đánh đổi này vào `results/phase9/tradeoff.md` — một trong những đoạn hay nhất của phần thảo luận.
 
 ## Phase 10 — Demo hoàn chỉnh và đo đạc
@@ -684,7 +693,7 @@ test_nguong_tin_cay           # 5 cửa sổ conf 0,6 với CONF_FIRE 0,75 → 0
 **Việc phải làm**
 
 1. `scripts/demo.py --model {rules,rf,lstm}` có đủ `ActivationFSM`. Giao diện hiển thị: nhãn hiện tại, độ tin cậy, trạng thái FSM, `presence_ratio`, FPS, và cờ điều khiển đang bật hay tắt.
-2. Ánh xạ lệnh qua `pyautogui`: `swipe_left` → slide trước, `swipe_right` → slide sau, `zoom_in` → phóng to, `zoom_out` → thu nhỏ. Có phím bật/tắt điều khiển, **mặc định tắt**.
+2. Ánh xạ lệnh qua `pyautogui`: `swipe_left` → slide trước, `swipe_right` → slide sau, `zoom_in` → phóng to, `zoom_out` → thu nhỏ. Có phím bật/tắt điều khiển, **mặc định tắt**. *Ghi chú 2026-10-25:* phím trong `CTRL_HOTKEYS` — mũi tên trái, mũi tên phải, Ctrl +, Ctrl −. Phím `c` bật/tắt điều khiển (`src/control.py`). `pyautogui` chỉ nạp khi bật lần đầu, nên kiểm thử không cần nó.
 3. Phím `?` hiện tóm tắt `docs/gestures.md` ngay trên màn hình, để người khác dùng thử biết phải làm cử chỉ theo cách của IPN.
 4. `scripts/bench.py` sinh năm nhóm số liệu:
     - **FPS** — bỏ 3 giây đầu, đo ít nhất 30 giây, báo trung bình và phân vị thấp, cho cả ba mô hình và hai mức ánh sáng.
@@ -692,6 +701,15 @@ test_nguong_tin_cay           # 5 cửa sổ conf 0,6 với CONF_FIRE 0,75 → 0
     - **Độ trễ bốn thành phần** — cửa sổ, dự đoán, đồng thuận, xử lý.
     - **Kích hoạt nhầm mỗi phút** ở ba kịch bản: ngồi yên đọc tài liệu; gõ phím và dùng chuột; **nói chuyện có khua tay**. Hai kịch bản sau chính là những chuyển động lớp `none` của IPN thiếu.
     - **Số lệnh trên một cử chỉ** — làm 20 cử chỉ đã đếm, chia số lệnh cho 20.
+
+    *Ghi chú 2026-10-25 — cách đo.*
+    - **Ghi một lần, chấm cho mọi cấu hình.** Mỗi kịch bản chỉ cần ghi một lần (`bench.py record`: điểm mốc thô, không gửi phím). `bench.py analyze` chạy lại phiên qua đúng đường ống của demo — Phase 7 đã kiểm chứng chạy lại trùng 316/316 câu trả lời lúc chạy thật. Vì vậy một lần ghi cho số liệu của mọi mô hình và cả ba hàng của bảng đánh đổi.
+    - **20 cử chỉ đã đếm.** Phiên `gestures` hiện 20 lời nhắc (5 mỗi lớp, thứ tự xáo với `SEED`) và lưu chúng thành đoạn có nhãn. Số lệnh trên một cử chỉ được chấm bằng đúng `src/events.py` như video IPN, và luôn báo kèm recall. Con số gần 1,0 mà recall thấp nghĩa là cử chỉ bị sót và cử chỉ bị phát trùng bù cho nhau: lần chấm đầu (2026-10-25) cho 1,00 lệnh mỗi cử chỉ với recall chỉ 0,55.
+    - **Độ trễ.**
+      - Phần cửa sổ + dự đoán + đồng thuận: đo từ khoảnh khắc chính của cử chỉ (`windows.core_times`, đúng hàm gán nhãn) tới lúc phát lệnh, trên video val. Trên webcam không đo được cách này: khung lời nhắc 4 giây chứa cả động tác chuẩn bị và lúc thu tay, và chuyển động lớn nhất trong đó nhiều khi là lúc thu tay.
+      - Phần đồng thuận: đo riêng, từ lúc mở ứng viên tới lúc phát.
+      - Phần xử lý: lấy từ `bench.py speed`.
+      - Độ trễ đầu-cuối thật vẫn đo thủ công.
 5. Bảng đánh đổi chính, ba hàng: `CONF_FIRE` 0,60 với k/n 2/5; 0,75 với 3/5; 0,85 với 4/5. Mỗi hàng ba cột: F1 mức sự kiện, kích hoạt nhầm mỗi phút, độ trễ.
 6. Chọn cấu hình cuối **dựa trên bảng đó**, ghi lý do vào `results/phase10/final_config.md`. Ghi cấu hình máy vào chú thích mọi bảng tốc độ.
 

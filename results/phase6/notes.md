@@ -322,6 +322,8 @@ Cú vuốt thì ngược lại. Nó phụ thuộc đồng thời vào:
   vuốt sẽ đổi chỗ cho nhau, còn zoom thì không bị ảnh hưởng (lật không đổi khoảng cách). Log
   không cho biết bạn định vuốt hướng nào, nên phải làm phép thử của Phase 5: vuốt sang
   **trái của bạn** mà màn hình hiện `swipe_right` thì đặt `IPN_FLIP_X = -1`.
+- **Đã kiểm 2026-10-25:** người dùng thử `demo.py --model hybrid`, vuốt sang trái ra
+  `swipe_left` — camera không lật, giữ `IPN_FLIP_X = 1`.
 
 ### 7.6. Hướng xử lý (cần người dùng chọn)
 

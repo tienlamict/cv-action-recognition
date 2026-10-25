@@ -1,0 +1,51 @@
+{
+  "name": "rf_seed44",
+  "spec": {
+    "model": "rf",
+    "seed": 44,
+    "win_sec": 1.2,
+    "margin": 3,
+    "split": "official",
+    "fold": null,
+    "quota": "equal",
+    "origin": "first",
+    "landmarks": "all",
+    "features": "full",
+    "cell": "lstm",
+    "hidden": 128,
+    "pooling": "last",
+    "augment": true,
+    "zoom_style_p": 0.0,
+    "static_share": 0.0,
+    "epochs": null,
+    "max_epochs": 150
+  },
+  "key": "1c0c4f76eac045a2",
+  "data_fingerprint": "0eec7d697bfe2934",
+  "set": "set_official_w1.2_m3_equal_04eaef6325b0c1ef.npz",
+  "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
+  "n_stream_windows": 12377,
+  "set_info": {
+    "n_train": 3326,
+    "n_val": 11038,
+    "quota": {
+      "B0A": 167,
+      "B0B": 167,
+      "D0X": 167,
+      "G01": 166,
+      "G02": 166,
+      "G03": 166,
+      "G04": 166,
+      "G07": 166,
+      "G08": 166,
+      "G09": 166
+    },
+    "pool_clips": 145
+  },
+  "train": {
+    "n_train": 3326,
+    "n_features": 15
+  },
+  "seconds": 46.884938600007445,
+  "created": "2026-10-25T08:57:22"
+}

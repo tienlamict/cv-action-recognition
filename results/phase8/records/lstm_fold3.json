@@ -1,0 +1,57 @@
+{
+  "name": "lstm_fold3",
+  "spec": {
+    "model": "lstm",
+    "seed": 42,
+    "win_sec": 1.2,
+    "margin": 3,
+    "split": "fold",
+    "fold": 3,
+    "quota": "equal",
+    "origin": "first",
+    "landmarks": "all",
+    "features": "full",
+    "cell": "lstm",
+    "hidden": 128,
+    "pooling": "last",
+    "augment": true,
+    "zoom_style_p": 0.0,
+    "static_share": 0.0,
+    "epochs": 86,
+    "max_epochs": 150
+  },
+  "key": "7c6a688874a35e14",
+  "data_fingerprint": "0eec7d697bfe2934",
+  "set": "set_fold3_w1.2_m3_equal_3d254ab9afc5d8f4.npz",
+  "stream": "stream_fold3_w1.2_e12b899d332dd821.npz",
+  "n_stream_windows": 13679,
+  "set_info": {
+    "n_train": 3328,
+    "n_val": 12518,
+    "quota": {
+      "B0A": 167,
+      "B0B": 167,
+      "D0X": 167,
+      "G01": 166,
+      "G02": 166,
+      "G03": 166,
+      "G04": 166,
+      "G07": 167,
+      "G08": 166,
+      "G09": 166
+    },
+    "pool_clips": 145
+  },
+  "train": {
+    "n_train": 3328,
+    "epochs_run": 86,
+    "best_epoch": null,
+    "best_raw": null,
+    "best_smoothed": null,
+    "train_seconds": 887.3387501999969,
+    "augment_fallbacks": 550,
+    "torch_threads": 1
+  },
+  "seconds": 906.0341040000785,
+  "created": "2026-10-25T10:17:54"
+}

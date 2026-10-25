@@ -11,4 +11,7 @@ torch
 pandas
 matplotlib
 
+# Phase 10: demo.py gửi phím tắt thật; chỉ nạp khi bật điều khiển (phím c)
+pyautogui
+
 pytest

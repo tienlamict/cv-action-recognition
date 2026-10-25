@@ -1,0 +1,6 @@
+true \ pred,none,swipe_left,swipe_right,zoom_in,zoom_out
+none,5961,1952,1798,450,489
+swipe_left,36,60,2,5,1
+swipe_right,26,9,42,12,7
+zoom_in,19,9,4,51,11
+zoom_out,17,1,8,10,58

@@ -1,0 +1,28 @@
+{
+  "name": "prod_hybrid",
+  "key": "b9a80041753afc5d",
+  "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
+  "model": "hybrid",
+  "details": {
+    "lstm": {
+      "model_file": "lstm_model.pt",
+      "model_sha256": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824",
+      "created": "2026-10-10T10:10:55",
+      "epoch": 86,
+      "val_macro_f1": 0.5559584616872411
+    },
+    "rf": {
+      "model_file": "rf_model.joblib",
+      "model_sha256": "902384afa1d4095a848913cbda1cd95ab6aecdde262e36642356ea424eedd68a",
+      "created": "2026-10-09T15:31:54"
+    }
+  },
+  "inference_ms": 6.435649993363768,
+  "files": {
+    "lstm_model.pt": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824",
+    "rf_model.joblib": "902384afa1d4095a848913cbda1cd95ab6aecdde262e36642356ea424eedd68a"
+  },
+  "spec": {
+    "model": "hybrid"
+  }
+}

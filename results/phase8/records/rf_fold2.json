@@ -1,0 +1,51 @@
+{
+  "name": "rf_fold2",
+  "spec": {
+    "model": "rf",
+    "seed": 42,
+    "win_sec": 1.2,
+    "margin": 3,
+    "split": "fold",
+    "fold": 2,
+    "quota": "equal",
+    "origin": "first",
+    "landmarks": "all",
+    "features": "full",
+    "cell": "lstm",
+    "hidden": 128,
+    "pooling": "last",
+    "augment": true,
+    "zoom_style_p": 0.0,
+    "static_share": 0.0,
+    "epochs": null,
+    "max_epochs": 150
+  },
+  "key": "1f809cfb824c3334",
+  "data_fingerprint": "0eec7d697bfe2934",
+  "set": "set_fold2_w1.2_m3_equal_3044e3b26798de21.npz",
+  "stream": "stream_fold2_w1.2_b4fc2934aa15bc70.npz",
+  "n_stream_windows": 13792,
+  "set_info": {
+    "n_train": 3204,
+    "n_val": 12732,
+    "quota": {
+      "B0A": 161,
+      "B0B": 161,
+      "D0X": 160,
+      "G01": 160,
+      "G02": 160,
+      "G03": 160,
+      "G04": 160,
+      "G07": 160,
+      "G08": 160,
+      "G09": 160
+    },
+    "pool_clips": 145
+  },
+  "train": {
+    "n_train": 3204,
+    "n_features": 15
+  },
+  "seconds": 66.18700049992185,
+  "created": "2026-10-25T09:01:57"
+}

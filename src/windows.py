@@ -76,6 +76,8 @@ def step_labels(ts, segments, src_labels, grid_ts):
                    ts.size - 1)
     segment = row_segment[rows]
     classes = np.asarray(segments).reshape(-1, 3)[:, 2]
+    if classes.size == 0:       # clip không có đoạn nào (phiên webcam tự do): mọi bước none
+        return np.zeros(segment.size, dtype=np.int64), segment
     class_id = np.where(segment >= 0, classes[np.maximum(segment, 0)], 0)
     return class_id.astype(np.int64), segment
 
@@ -113,6 +115,20 @@ def core_steps(xy, segment, segments):
                              kernel, mode="same")
         cores[k] = int(steps[int(np.argmax(change))])
     return cores
+
+
+def core_times(ts, xy_norm, w, h, segments, src_labels):
+    """Thời điểm (giây, trên lưới) khoảnh khắc chính của từng đoạn cử chỉ đích —
+    đúng hàm :func:`core_steps` mà việc gán nhãn cửa sổ dùng. Phase 10 đo độ trễ
+    từ đây tới lúc phát lệnh.
+
+    Returns:
+        dict ``{chỉ số đoạn: giây}``; đoạn không đo được không có mặt.
+    """
+    segments = np.asarray(segments).reshape(-1, 3)
+    grid_ts, xy = load_sequence(ts, xy_norm, w, h)
+    _, segment = step_labels(ts, segments, src_labels, grid_ts)
+    return {k: float(grid_ts[step]) for k, step in core_steps(xy, segment, segments).items()}
 
 
 def cut_windows(ts, xy_norm, w, h, segments, src_labels, steps=None, margin=None):

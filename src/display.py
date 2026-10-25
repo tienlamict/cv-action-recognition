@@ -88,6 +88,16 @@ def _put_text(image, text, origin, scale, color):
                 config.TEXT_THICKNESS, cv2.LINE_AA)
 
 
+def keep_on_top(window):
+    """Giữ cửa sổ ``window`` nằm trên mọi cửa sổ khác (Phase 10): người dùng bấm
+    vào ứng dụng bị điều khiển để nó nhận phím tắt, mà vẫn thấy demo.
+
+    Gọi MỘT lần, sau ``imshow`` đầu tiên: trên Windows, mỗi lần gọi lại kéo
+    focus về cửa sổ này, và phím tắt sẽ đi vào nó thay vì vào ứng dụng.
+    """
+    cv2.setWindowProperty(window, cv2.WND_PROP_TOPMOST, 1)
+
+
 def quit_pressed():
     """Vẽ cửa sổ và báo người dùng có bấm phím thoát không.
 
