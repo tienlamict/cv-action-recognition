@@ -490,6 +490,12 @@ def table1(results, run_dir):
     notes = [f"Mức sự kiện: bộ lọc '{config.EVENT_FILTER}', vùng khớp "
              f"'{config.EVENT_MATCH}'; event_f1_end theo vùng khớp ban đầu của SPEC "
              "(±1 s quanh lúc kết thúc); raw_* là khi không có tầng kích hoạt nào.",
+             f"Máy trạng thái: CONF_FIRE {config.CONF_FIRE:g}, K_OF_N "
+             f"{config.K_OF_N[0]}/{config.K_OF_N[1]}, CONF_HOLD {config.CONF_HOLD:g}, "
+             f"COOLDOWN_SEC {config.COOLDOWN_SEC:g} — áp cho cột mức sự kiện của mọi bảng.",
+             "Bảng này chấm mô hình ĐÃ LƯU của demo; LSTM và mô hình ghép dùng "
+             f"{relative_to_root(config.LSTM_MODEL_PATH)}. Bảng 2–7 học lại theo công "
+             "thức chính của config, không dùng file đó.",
              "inference_ms: trung vị một lần gọi mô hình của demo trên một cửa sổ "
              f"({platform.processor() or platform.machine()}, "
              f"{os.cpu_count()} luồng logic)."]

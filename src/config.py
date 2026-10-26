@@ -71,6 +71,8 @@ TIPS = [4, 8, 12, 16, 20]   # đầu 5 ngón: cái, trỏ, giữa, nhẫn, út
 THUMB_TIP = 4       # đầu ngón cái — cùng INDEX_TIP đo độ mở cái–trỏ (zoom IPN)
 INDEX_TIP = 8       # đầu ngón trỏ — dùng đo độ rung ở Phase 1
 FINGER_MCPS = {"index": 5, "middle": 9, "ring": 13, "pinky": 17}
+FINGER_TIPS = dict(zip(FINGER_MCPS, TIPS[1:]))      # đầu bốn ngón đó, theo tên. Suy
+                            # ra từ hai hằng số trên nên không băm vào bản ghi Phase 8
                     # gốc bốn ngón; ba khớp kế tiếp của mỗi ngón là +1, +2, +3
 NUM_LANDMARKS = 21
 
@@ -129,6 +131,12 @@ SHOW_FEATURES = GATE_FEATURES + ("open_range",)
                             # (thêm 2026-10-09). Với vuốt, rừng ngẫu nhiên đòi bàn
                             # tay mở ra trong lúc hất mà ba đặc trưng kia không
                             # cho thấy (results/phase6/notes.md mục 7)
+SHOW_FINGERS = {"zoom_in": ("ring", "pinky"), "zoom_out": ("ring", "pinky")}
+                            # --show-features, thêm độ duỗi các ngón này (thêm
+                            # 2026-10-26). IPN gập nhẫn, út suốt cú zoom (≈ 0,5);
+                            # người dùng để chúng duỗi (≈ 1,6), kiểu zoom mà LSTM
+                            # run_07 bỏ qua phần lớn (docs/gestures.md). Chỉ đổi màn
+                            # hình, nên không băm vào bản ghi Phase 8
 
 # --------------------------------------------------------------------------
 # Rừng ngẫu nhiên và đánh giá (Phase 6)
@@ -168,7 +176,15 @@ MODEL_NAMES = ("rules", "rf", "lstm", "hybrid")
 # --------------------------------------------------------------------------
 
 PHASE7_RESULTS_DIR = RESULTS_DIR / "phase7"
-LSTM_MODEL_PATH = PHASE7_RESULTS_DIR / "lstm_model.pt"   # demo.py --model lstm nạp file này
+PHASE7_LSTM_PATH = PHASE7_RESULTS_DIR / "lstm_model.pt"  # train_lstm.py với tham số của
+                            # config ghi mô hình chính vào đây (train_lstm/run_07)
+LSTM_MODEL_PATH = PHASE7_RESULTS_DIR / "train_lstm" / "run_08" / "lstm_model.pt"
+                            # LSTM của demo, evaluate.py, mô hình ghép và bench.py:
+                            # lần khảo sát run_08 (--zoom-style-p 0.5 --static-share
+                            # 0.1). Người dùng chọn 2026-10-26 (Phase 10): trên bàn
+                            # tay của họ, nó nhận nhiều zoom hơn và không báo vuốt
+                            # khi tay chụm đứng yên. train_lstm.py không bao giờ ghi
+                            # vào đây (results/phase10/notes.md)
 LSTM_INPUT_SIZE = NUM_LANDMARKS * 2     # 42: (21, 2) mỗi bước được reshape — không z
 LSTM_HIDDEN = 128           # SPEC Phase 7; Phase 8 so với 64
 LSTM_LAYERS = 2
@@ -318,11 +334,16 @@ CAM_INDEX = 0           # webcam mặc định của máy
 # máy trạng thái không phải học lại. Hằng số mới của Phase 9 đặt tiền tố FSM_;
 # hằng số mới không có tiền tố này làm mọi bản ghi hết hạn.
 
-CONF_FIRE = 0.75        # ngưỡng tin cậy để mở một ứng viên lệnh
+CONF_FIRE = 0.85        # ngưỡng tin cậy để mở một ứng viên lệnh
 CONF_HOLD = 0.55        # ngưỡng trễ, thấp hơn CONF_FIRE: cửa sổ đồng ý chỉ cần mức này
-K_OF_N = (3, 5)         # đồng thuận: k cửa sổ đồng ý trong n cửa sổ kể từ lúc mở
+K_OF_N = (4, 5)         # đồng thuận: k cửa sổ đồng ý trong n cửa sổ kể từ lúc mở
                         # ứng viên; một cửa sổ phản đối tự tin làm hỏng đồng thuận
                         # ngay (src/activation.py)
+                        # CONF_FIRE và K_OF_N là cấu hình cuối, người dùng chọn
+                        # 2026-10-26 từ bảng đánh đổi Phase 10 (SPEC khởi đầu ở
+                        # 0,75 với 3/5): ít lệnh ngược chiều và ít nhầm khi nói
+                        # chuyện hơn, đổi lấy recall zoom thấp hơn
+                        # (results/phase10/final_config.md)
 COOLDOWN_SEC = 1.2      # thời gian câm lặng sau khi phát một lệnh
 
 PHASE9_RESULTS_DIR = RESULTS_DIR / "phase9"

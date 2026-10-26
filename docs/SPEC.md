@@ -710,8 +710,24 @@ test_nguong_tin_cay           # 5 cửa sổ conf 0,6 với CONF_FIRE 0,75 → 0
       - Phần đồng thuận: đo riêng, từ lúc mở ứng viên tới lúc phát.
       - Phần xử lý: lấy từ `bench.py speed`.
       - Độ trễ đầu-cuối thật vẫn đo thủ công.
+    *Ghi chú 2026-10-26 — gộp và chuẩn hoá.*
+    - **Gộp theo thời lượng.** Nhầm/phút của một kịch bản là tổng lệnh nhầm chia tổng số phút của mọi phiên kịch bản đó, không phải trung bình các phiên. Chỉ số của các phiên `gestures` cũng cộng dồn.
+    - **Thêm nhầm mỗi phút có tay.** Mô hình chỉ phát lệnh khi thấy tay, và người dùng giơ tay lâu ngắn khác nhau: phiên talking 10 phút thấy tay 17%, phiên 0,9 phút thấy 89%.
+    - **`reading` và `typing`** mỗi kịch bản chỉ có 0,5 phút và không thấy tay lần nào. Người dùng quyết định không ghi lại: lúc đọc và gõ, camera không thấy tay. Hai con số 0 nghĩa là chưa đo với tay trong khung.
+    - Chi tiết: `results/phase10/notes.md` mục 3.
+
+    *Ghi chú 2026-10-26 — LSTM của demo.* **Người dùng chọn** đổi LSTM của demo sang `train_lstm/run_08`: bản học thêm zoom với dáng ngón phụ khác, và bàn tay đứng yên là `none`.
+    - Lý do: trên bàn tay người dùng, nhẫn và út duỗi lúc zoom. `run_07` nhận 0/10 zoom, `run_08` nhận 4/10 ở 0,75 với 3/5.
+    - Cái giá: thêm `zoom_out` nhầm khi nói chuyện.
+    - Cùng lúc, người dùng luyện gập nhẫn và út theo IPN: `demo.py --show-features` hiện thêm độ duỗi hai ngón đó cho hai lớp zoom.
+    - `LSTM_MODEL_PATH` trỏ vào checkpoint của `run_08`. `train_lstm.py` ghi mô hình chính vào `PHASE7_LSTM_PATH` và không bao giờ ghi vào `LSTM_MODEL_PATH`.
+    - Chi tiết: `results/phase10/notes.md` mục 1, 2 và 4.
 5. Bảng đánh đổi chính, ba hàng: `CONF_FIRE` 0,60 với k/n 2/5; 0,75 với 3/5; 0,85 với 4/5. Mỗi hàng ba cột: F1 mức sự kiện, kích hoạt nhầm mỗi phút, độ trễ.
-6. Chọn cấu hình cuối **dựa trên bảng đó**, ghi lý do vào `results/phase10/final_config.md`. Ghi cấu hình máy vào chú thích mọi bảng tốc độ.
+6. Chọn cấu hình cuối **dựa trên bảng đó**, ghi lý do vào `results/phase10/final_config.md`. Ghi cấu hình máy vào chú thích mọi bảng tốc độ. *Ghi chú 2026-10-26:* **người dùng chọn** LSTM `run_08` với `CONF_FIRE` 0,85 và `K_OF_N` 4/5.
+    - Lý do: so với 0,75 · 3/5, lệnh vuốt ngược chiều giảm từ 5/20 xuống 2/20, và lệnh nhầm khi nói chuyện giảm khoảng 3,5 lần. Recall vuốt gần như giữ nguyên (0,55 so với 0,60).
+    - Cái giá: recall zoom trên tay người dùng còn 0,20, trễ thêm 0,15 s.
+    - Số lệnh trên một lời nhắc là 0,62, **không đạt** khoảng 0,9–1,1. Báo đúng như vậy, không nới điều kiện.
+    - Lệnh vuốt ngược chiều đến từ việc lấy đà; màn hình `?` và `docs/gestures.md` giờ nói rõ "không lấy đà ngược chiều".
 
 **Kiểm thử bắt buộc**
 

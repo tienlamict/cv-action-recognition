@@ -69,7 +69,8 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
   trái — phía vừa hất tới. Sau đó tay thường thả lỏng lại.
 - **Dễ sai:** vẫy tay qua lại (hai chiều) — mô hình cần một chiều dứt khoát;
   hất chéo lên hoặc xuống quá nhiều thì giống `G03`/`G04` (hất lên/xuống, thuộc
-  lớp `none`).
+  lớp `none`). **Lấy đà** — kéo tay sang phải trước khi hất sang trái — xem
+  `swipe_right`.
 
 > **Điều kiện để hệ thống nhận ra cú vuốt** (đo ngày 2026-10-09 bằng
 > `scripts/probe_swipes.py` trên cú vuốt thật của IPN, chi tiết ở
@@ -116,7 +117,14 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
   ≈ 0,3 s.
 - **Ngón tay:** từ chụm → mở duỗi giữa cú hất, bàn tay nằm ngang (thường úp
   xuống), các ngón chỉ về phía phải; sau đó thả lỏng lại.
-- **Dễ sai:** như `swipe_left`.
+- **Dễ sai:** như `swipe_left`. Thêm một lỗi rất hay gặp: **lấy đà**.
+  - Với tay phải, hất ra ngoài thì tự nhiên muốn kéo tay sang trái trước.
+  - Đoạn kéo đó chính là một cú `swipe_left` ngắn, và mô hình gọi đúng chiều của nó với độ
+    tin 1,00. Hệ thống phát `swipe_left` trước, rồi cú hất thật rơi vào thời gian nghỉ sau
+    lệnh nên bị bỏ.
+  - Trên webcam (2026-10-26), 4/10 lời nhắc `swipe_right` bị như vậy ở 0,75 với 3/5, và
+    2/10 ở cấu hình cuối 0,85 với 4/5 (`results/phase10/notes.md` mục 5).
+  - Hãy đặt tay sẵn ở điểm bắt đầu, gần giữa thân, rồi hất **một lần**, không kéo ngược trước.
 
 ## `zoom_in` — G10 *Zoom in*
 
@@ -149,6 +157,14 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
 >
 > LSTM còn báo zoom khi bàn tay **đứng yên** ở dáng cái–trỏ đang mở; rừng thì không bao giờ.
 > Vì vậy demo nên dùng `--model hybrid`. Dù vậy, gập nhẫn và út vẫn là cách chắc chắn nhất.
+>
+> **Cập nhật 2026-10-26 (Phase 10).** Trên webcam, người dùng làm zoom với nhẫn và út duỗi.
+> LSTM `run_07` không nhận cú nào (0/10), và độ tin của rừng hiếm khi đủ để phát lệnh (1/10).
+> LSTM của demo giờ là `train_lstm/run_08`, học thêm zoom với dáng ngón phụ khác và bàn tay
+> đứng yên là `none`. Với nhẫn và út duỗi thẳng nó còn nhận 95% cú zoom của IPN, và không báo
+> zoom khi tay đứng yên. Cái giá: lúc nói chuyện có khua tay, nó đôi khi phát `zoom_out` nhầm.
+> Gập nhẫn và út vẫn là cách chắc chắn nhất: trong `demo.py --show-features`, phím 3 và 4 hiện
+> độ duỗi nhẫn, út của bạn cạnh hộp IPN (`results/phase10/notes.md`).
 
 ## `zoom_out` — G11 *Zoom out*
 
@@ -231,6 +247,8 @@ Mô tả tư thế ngón tay đối chiếu thêm bằng mắt trên ảnh cắt
 - **Chưa thử trên webcam của bạn.** Ở Phase 5, `demo.py --show-features` sẽ
   kiểm bằng số: giá trị đặc trưng khi bạn làm cử chỉ phải nằm trong khoảng
   phân vị 25–75 của lớp đó trên IPN (`results/phase4/ipn_feature_ranges.json`).
+  Từ 2026-10-26, hai lớp zoom hiện thêm độ duỗi nhẫn và út (định nghĩa "Duỗi
+  ngón" ở trên).
   Báo đỏ liên tục nghĩa là bạn làm khác IPN — sửa tài liệu này và luyện lại.
 - **Từng đoạn IPN khá nhiễu:** chỉ 78–81% đoạn vuốt có `dx` cùng dấu với lớp
   của mình, và 74–80% đoạn zoom có độ xòe đổi đúng chiều. Mô tả ở đây là cách

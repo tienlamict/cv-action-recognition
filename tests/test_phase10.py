@@ -200,3 +200,104 @@ def test_khoanh_khac_chinh_cua_phien_nam_trong_cu_vuot(tmp_path):
     (core,) = bench.gesture_cores(path, timeline)
     start, end = timeline.gestures[0][1], timeline.gestures[0][2]
     assert start <= core <= end
+
+
+def test_huan_luyen_khong_bao_gio_ghi_de_mo_hinh_cua_demo():
+    """Demo nạp LSTM_MODEL_PATH; train_lstm.py không đụng tới hằng số đó, và
+    save_checkpoint không có đường dẫn mặc định để lỡ tay ghi vào."""
+    import inspect
+
+    from src import models
+
+    assert config.LSTM_MODEL_PATH != config.PHASE7_LSTM_PATH
+    tree = ast.parse((config.SCRIPTS_DIR / "train_lstm.py").read_text(encoding="utf-8"))
+    used = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+    assert "PHASE7_LSTM_PATH" in used and "LSTM_MODEL_PATH" not in used
+    path = inspect.signature(models.save_checkpoint).parameters["path"]
+    assert path.default is inspect.Parameter.empty
+
+
+def test_do_duoi_ngon_dung_dinh_nghia_bat_bien_ty_le_va_bo_buoc_mat_tay():
+    """Đầu ngón → cổ tay chia gốc ngón → cổ tay (docs/gestures.md); cửa sổ
+    pixel hay đã chuẩn hoá cho cùng số; trung vị bỏ bước mất tay."""
+    from src.features import EXTENSION_NAMES, finger_extension, finger_extensions
+
+    win = np.zeros((config.T, config.NUM_LANDMARKS, 2))
+    tip = config.FINGER_TIPS["ring"]
+    win[:, config.FINGER_MCPS["ring"]] = (0.0, -1.0)
+    win[:, tip] = (0.3, -0.4)               # cách cổ tay 0,5: gập như IPN
+    win[1] = np.nan
+    ext = finger_extension(win, "ring")
+    assert np.isnan(ext[1]) and np.allclose(np.delete(ext, 1), 0.5)
+    name = EXTENSION_NAMES["ring"]
+    assert finger_extensions(win * PALM_PX + 200.0, ("ring",)) == {name: pytest.approx(0.5)}
+    win[:, tip] = (0.0, -1.5)               # duỗi thẳng
+    assert finger_extensions(win, ("ring",))[name] == pytest.approx(1.5)
+    assert np.isnan(finger_extensions(np.full_like(win, np.nan), ("ring",))[name])
+
+
+def test_luyen_zoom_hien_do_duoi_nhan_ut_va_bao_file_phan_vi_cu(tmp_path):
+    """Luyện zoom: thêm hai dòng nhẫn, út so với hộp IPN; luyện vuốt thì không.
+    File phân vị cũ thiếu độ duỗi ngón: báo chạy lại script ngay khi nạp."""
+    import json
+
+    from src.features import EXTENSION_NAMES, FEATURE_NAMES
+    from src.live import Prediction, load_feature_ranges
+    from src.preprocess import normalize_window
+
+    box = {"p25": 0.4, "p75": 0.7}
+    ranges = {c: dict.fromkeys([*config.SHOW_FEATURES, *EXTENSION_NAMES.values()], box)
+              for c in config.CLASSES}
+    features = np.zeros(len(FEATURE_NAMES), dtype=np.float32)
+    pred = Prediction(1.0, 3, 0.8, 0.9, features, normalize_window(make_static()))
+    zoom, colors, _ = screen_lines(pred, 30.0, ranges, "zoom_in")
+    swipe, _, _ = screen_lines(pred, 30.0, ranges, "swipe_left")
+    shown = [EXTENSION_NAMES[f] for f in config.SHOW_FINGERS["zoom_in"]]
+    fingers = [k for k, line in enumerate(zoom) if line.split()[0] in shown]
+    assert len(fingers) == len(shown) == 2 and all(line.isascii() for line in zoom)
+    assert not any(line.split()[0] in shown for line in swipe if line)
+    # bàn tay xòe của fixture: nhẫn, út duỗi, nằm ngoài hộp của zoom IPN
+    assert all(colors[k] == config.COLOR_OUT_RANGE for k in fingers)
+    # Prediction năm trường (log cũ, replay) vẫn dựng được, chỉ không có dòng ngón
+    old, _, _ = screen_lines(Prediction(1.0, 3, 0.8, 0.9, features), 30.0, ranges, "zoom_in")
+    assert len(old) == len(zoom) - len(shown)
+
+    path = tmp_path / "ranges.json"
+    stale = {c: dict.fromkeys(config.SHOW_FEATURES, box) for c in config.CLASSES}
+    path.write_text(json.dumps({"quartiles": stale}), encoding="utf-8")
+    with pytest.raises(ValueError, match="plot_feature_boxplots"):
+        load_feature_ranges(path)
+    path.write_text(json.dumps({"quartiles": ranges}), encoding="utf-8")
+    assert load_feature_ranges(path) == ranges
+
+
+def test_gop_phien_theo_thoi_luong_khong_theo_trung_binh_phien():
+    """Phiên 1 phút có 2 lệnh nhầm, phiên 9 phút không có lệnh nào: gộp là
+    2 lệnh / 10 phút = 0,2 lệnh/phút — không phải trung bình hai phiên (1,0)."""
+    step = config.STRIDE_SEC
+    timelines, predictions = {}, {}
+    for name, minutes, bursts in (("short", 1, (10.0, 40.0)), ("long", 9, ())):
+        ts = np.round(np.arange(0, minutes * 60, step), 6)
+        labels = np.zeros(ts.size, dtype=np.int64)
+        for start in bursts:
+            labels[(ts >= start) & (ts <= start + 0.6)] = LEFT
+        valid = np.ones(ts.size, bool)
+        valid[: ts.size // 2] = name == "short"     # phiên dài: nửa đầu không thấy tay
+        timelines[name] = events.Timeline(name, "live", ts, np.ones(ts.size), valid,
+                                          minutes * 60.0, [], [])
+        predictions[name] = ([labels], [np.full(ts.size, 0.9)])
+    alone = [bench.score([timelines[p]], *predictions[p], 0.75, 3)["false_per_min"]
+             for p in timelines]
+    assert alone == [pytest.approx(2.0), pytest.approx(0.0)]
+    pooled = bench.pooled_score(list(timelines), timelines, predictions, 0.75, 3)
+    assert pooled["false_per_min"] == pytest.approx(0.2)
+    assert bench.pooled_score([], timelines, predictions, 0.75, 3) is None
+    n_short, n_long = timelines["short"].ts.size, timelines["long"].ts.size
+    assert bench.valid_share(list(timelines.values())) == pytest.approx(
+        (n_short + n_long // 2) / (n_short + n_long))
+    assert np.isnan(bench.valid_share([]))
+    # 2 lệnh nhầm trong 1 + 9/2 = 5,5 phút thấy tay
+    hand = bench.per_hand_minute(pooled, list(timelines.values()))
+    assert hand == pytest.approx(2 / (1 + 9 * (n_long - n_long // 2) / n_long))
+    blind = timelines["long"]._replace(valid=np.zeros(n_long, bool))
+    assert np.isnan(bench.per_hand_minute({"false_per_min": 0.0, "minutes": 9.0}, [blind]))

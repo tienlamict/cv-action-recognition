@@ -371,6 +371,36 @@ def score(timelines, labels, confidences, conf_fire, k, cores=None):
     return {**summarize_events(results), "latency": latency, "consensus": log.delays}
 
 
+def pooled_score(paths, timelines, predictions, conf_fire, k):
+    """:func:`score` cho cả một nhóm phiên: lệnh, cử chỉ cộng dồn; nhầm/phút
+    chia TỔNG thời lượng — phiên 10 phút nặng gấp mười phiên 1 phút.
+
+    Args:
+        timelines: ``phiên → Timeline``; predictions: ``phiên → events.scatter``.
+
+    Returns:
+        dict của :func:`score`, hoặc ``None`` khi nhóm không có phiên nào.
+    """
+    if not paths:
+        return None
+    return score([timelines[p] for p in paths], [predictions[p][0][0] for p in paths],
+                 [predictions[p][1][0] for p in paths], conf_fire, k)
+
+
+def valid_share(timelines):
+    """Tỉ lệ lần dự đoán có cửa sổ hợp lệ — có tay trong khung để mô hình chạy."""
+    n = sum(t.valid.size for t in timelines)
+    return sum(int(t.valid.sum()) for t in timelines) / n if n else float("nan")
+
+
+def per_hand_minute(s, timelines):
+    """Lệnh nhầm mỗi phút CÓ TAY: lệnh nhầm chỉ phát được khi mô hình chạy, nên
+    phiên ít thấy tay cho nhầm/phút thấp mà không nói gì về mô hình. NaN khi
+    không có phút nào thấy tay — chưa đo, không phải 0."""
+    hand = sum(t.duration * valid_share([t]) for t in timelines if t.valid.size) / 60
+    return s["false_per_min"] * s["minutes"] / hand if s and hand else float("nan")
+
+
 def median(values):
     return float(np.median(values)) if len(values) else float("nan")
 
@@ -439,6 +469,13 @@ def run_analyze(args):
     print(f"{len(sessions)} phiên webcam, {len(val_paths)} video val "
           f"({time.perf_counter() - started:.0f} s).", flush=True)
 
+    timelines = {p: t for p, _, t, _, _ in sessions}
+    groups = {sc: [p for p, scenario, *_ in sessions if scenario == sc] for sc in SCENARIOS}
+    members = {**groups, "live": [p for sc in config.BENCH_SCENARIOS for p in groups[sc]]}
+    coverage = {sc: (sum(timelines[p].duration for p in groups[sc]) / 60,
+                     valid_share([timelines[p] for p in groups[sc]]))
+                for sc in SCENARIOS if groups[sc]}
+
     session_rows, tradeoff_rows, latency_rows = [], [], []
     for model in args.models:
         val_per = scatter(val_timelines, *predict(model, val_X, val_F))
@@ -446,28 +483,26 @@ def run_analyze(args):
         for conf_fire, k in config.FSM_TRADEOFF:
             key = {"model": model, "conf_fire": conf_fire, "k_of_n": f"{k}/{n}"}
             val = score(val_timelines, *val_per, conf_fire, k, val_cores)
-            false_by_scenario, gesture_rows = {}, []
             for path, scenario, timeline, _, _ in sessions:
                 s = score([timeline], *per_session[path], conf_fire, k)
-                gestures = gesture_metrics(s)
                 session_rows.append({
                     "session": path.stem, "scenario": scenario, **key,
-                    "minutes": s["minutes"], "n_commands": s["n_commands"],
-                    "false_per_min": s["false_per_min"], "n_gestures": s["n_gestures"],
-                    **gestures})
-                false_by_scenario.setdefault(scenario, []).append(s["false_per_min"])
-                if s["n_gestures"]:
-                    gesture_rows.append(gestures)
-            live_false = [float(np.mean(false_by_scenario[sc]))
-                          for sc in config.BENCH_SCENARIOS if sc in false_by_scenario]
+                    "minutes": s["minutes"], "valid_share": valid_share([timeline]),
+                    "n_commands": s["n_commands"], "false_per_min": s["false_per_min"],
+                    "n_gestures": s["n_gestures"], **gesture_metrics(s)})
+            pooled = {sc: pooled_score(paths, timelines, per_session, conf_fire, k)
+                      for sc, paths in members.items()}
+            gestures = (gesture_metrics(pooled["gestures"]) if pooled["gestures"]
+                        else dict.fromkeys(GESTURE_COLUMNS, np.nan))
             tradeoff_rows.append({
                 **key, "event_f1_val": val["f1"], "recall_val": val["recall"],
                 "false_per_min_val": val["false_per_min"],
-                **{f"false_per_min_{sc}": float(np.mean(false_by_scenario[sc]))
-                   if sc in false_by_scenario else np.nan for sc in config.BENCH_SCENARIOS},
-                "false_per_min_live": float(np.mean(live_false)) if live_false else np.nan,
-                **{f"{c}_live": float(np.nanmean([g[c] for g in gesture_rows]))
-                   if gesture_rows else np.nan for c in GESTURE_COLUMNS},
+                **{f"false_per_min_{sc}": pooled[sc]["false_per_min"] if pooled[sc]
+                   else np.nan for sc in (*config.BENCH_SCENARIOS, "live")},
+                **{f"false_per_hand_min_{sc}": per_hand_minute(
+                    pooled[sc], [timelines[p] for p in members[sc]])
+                   for sc in (*config.BENCH_SCENARIOS, "live")},
+                **{f"{c}_live": v for c, v in gestures.items()},
                 "latency_val": median(val["latency"]),
                 "processing_ms": speed.get(model, np.nan)})
             total, consensus = median(val["latency"]), median(val["consensus"])
@@ -482,6 +517,15 @@ def run_analyze(args):
     notes = [f"Ba cấu hình của FSM_TRADEOFF; CONF_HOLD = min({config.CONF_HOLD:g}, CONF_FIRE), "
              f"COOLDOWN_SEC {config.COOLDOWN_SEC:g}, MIN_PRESENCE {config.MIN_PRESENCE:g}.",
              "Phiên webcam chạy lại qua đúng đường ống của demo; *_val là 27 video val của IPN.",
+             "Nhầm/phút của từng kịch bản và false_per_min_live (cả ba kịch bản) GỘP theo "
+             "thời lượng: tổng lệnh nhầm chia tổng số phút. Chỉ số *_live của phiên gestures "
+             "cũng gộp: cộng dồn lời nhắc và lệnh của mọi phiên.",
+             "Thời lượng và tỉ lệ lần dự đoán có tay (valid_share) theo kịch bản: "
+             + "; ".join(f"{sc} {minutes:.1f} phút, {share:.0%}"
+                         for sc, (minutes, share) in coverage.items())
+             + ". Kịch bản gần 0% tay thì nhầm/phút gần 0 vì camera không thấy tay, "
+             "không phải vì mô hình tốt. false_per_hand_min_* chia cho số phút CÓ TAY "
+             "(mô hình chỉ phát lệnh khi thấy tay); trống = chưa đo.",
              "Phiên gestures: cmds_per_gesture là lệnh đúng loại trong vùng khớp trên một cử "
              "chỉ; commands_per_prompt là MỌI lệnh chia số lời nhắc (định nghĩa của SPEC); "
              "duplicates_per_gesture = cmds_per_gesture − recall. Gần 1,0 mà recall thấp "
@@ -500,15 +544,17 @@ def run_analyze(args):
 
     print(f"\n{'mô hình':<8}{'FIRE':>6}{'k/n':>5}{'F1 val':>8}{'nhầm/ph val':>12}"
           + "".join(f"{sc[:8]:>9}" for sc in config.BENCH_SCENARIOS)
-          + f"{'R vuốt':>8}{'R zoom':>8}{'lệnh/cc':>9}{'lệnh/nhắc':>10}{'trễ val':>9}")
+          + f"{'/ph có tay':>11}{'R vuốt':>8}{'R zoom':>8}{'lệnh/cc':>9}{'lệnh/nhắc':>10}{'trễ val':>9}")
     for r in tradeoff_rows:
         print(f"{r['model']:<8}{r['conf_fire']:6.2f}{r['k_of_n']:>5}{r['event_f1_val']:8.3f}"
               f"{r['false_per_min_val']:12.2f}"
               + "".join(f"{r[f'false_per_min_{sc}']:9.2f}" for sc in config.BENCH_SCENARIOS)
-              + f"{r['recall_swipes_live']:8.2f}{r['recall_zooms_live']:8.2f}"
+              + f"{r['false_per_hand_min_live']:11.2f}{r['recall_swipes_live']:8.2f}{r['recall_zooms_live']:8.2f}"
               f"{r['cmds_per_gesture_live']:9.2f}{r['commands_per_prompt_live']:10.2f}"
               f"{r['latency_val']:9.2f}")
-    print(f"\nBảng: {relative_to_root(run_dir)}")
+    print("\nKịch bản (nhầm/phút gộp theo thời lượng): " + "; ".join(
+        f"{sc} {minutes:.1f} phút, có tay {share:.0%}" for sc, (minutes, share) in coverage.items()))
+    print(f"Bảng: {relative_to_root(run_dir)}")
 
 
 def main():

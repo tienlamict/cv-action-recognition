@@ -9,7 +9,8 @@
 - Adam (LSTM_LR), CrossEntropyLoss có trọng số lớp "balanced" tính trên train.
 - Mỗi epoch đo loss và macro-F1 của train (không tăng cường) và val theo cùng
   một cách. Dừng sớm theo macro-F1 val (LSTM_PATIENCE); checkpoint tốt nhất
-  lưu kèm epoch và macro-F1 val vào LSTM_MODEL_PATH.
+  lưu kèm epoch và macro-F1 val vào PHASE7_LSTM_PATH. Mô hình demo dùng là
+  LSTM_MODEL_PATH — chọn ở Phase 10, không bao giờ bị script này ghi đè.
 - Hình đường học; ma trận nhầm lẫn; bảng ba mô hình — luật, rừng ngẫu nhiên,
   LSTM — trên CÙNG tập val, kèm mức sự kiện xấp xỉ và báo nhầm theo nhãn gốc.
 - Seed cố định ở random, numpy, torch; ghi vào manifest.
@@ -20,7 +21,7 @@ LSTM_PATIENCE epoch cuối, và chỗ loss val (đã làm mượt) ngừng giả
 
 Lệch khỏi config ở bất kỳ tham số nào (--no-augment, --max-epochs, --patience,
 --zoom-style-p, --static-share, --stop-smooth) là một lần KHẢO SÁT: checkpoint
-lưu trong thư mục chạy, không thay mô hình của demo, không ghi vào bảng so sánh.
+lưu trong thư mục chạy, không thay PHASE7_LSTM_PATH, không ghi vào bảng so sánh.
 
 Ví dụ:
     python scripts/train_lstm.py
@@ -114,7 +115,7 @@ def main():
     parser.add_argument("--max-epochs", type=int, default=config.LSTM_MAX_EPOCHS,
                         help="mặc định %(default)s; dừng sớm vẫn áp dụng")
     parser.add_argument("--no-augment", action="store_true",
-                        help="khảo sát: không tăng cường; không thay mô hình của demo")
+                        help="khảo sát: không tăng cường; không thay mô hình chính")
     parser.add_argument("--patience", type=int, default=config.LSTM_PATIENCE,
                         help="mặc định %(default)s; đặt bằng --max-epochs để chạy "
                              "hết, xem đường học khi không dừng sớm")
@@ -128,7 +129,7 @@ def main():
     args = parser.parse_args()
     augment = not args.no_augment
     # Lệch khỏi config ở bất kỳ tham số nào là một lần KHẢO SÁT: checkpoint nằm
-    # trong thư mục chạy, mô hình của demo và bảng so sánh không đổi.
+    # trong thư mục chạy, mô hình chính và bảng so sánh không đổi.
     deviations = {name: value for name, value, default in (
         ("no_augment", args.no_augment, False),
         ("max_epochs", args.max_epochs, config.LSTM_MAX_EPOCHS),
@@ -205,9 +206,9 @@ def main():
     write_table(alarms, ["src_label", "n_windows", *(f"rate_{n}" for n in preds)],
                 run_dir / "none_false_alarms_by_src")
 
-    # Lần chạy khảo sát không bao giờ thay mô hình của demo hay bảng so sánh.
+    # Lần chạy khảo sát không bao giờ thay mô hình chính hay bảng so sánh.
     model_path = save_checkpoint(
-        model, run_dir / config.LSTM_MODEL_PATH.name if survey else None,
+        model, run_dir / config.PHASE7_LSTM_PATH.name if survey else config.PHASE7_LSTM_PATH,
         epoch=stopper.best_epoch, val_macro_f1=stopper.best_raw,
         val_macro_f1_smoothed=stopper.best_score,
         epochs_run=len(history), n_train=int(len(y_tr)), seed=config.SEED,
@@ -247,7 +248,7 @@ def main():
           f"trung bình trượt {config.LSTM_CURVE_SMOOTH} epoch thấp nhất ở epoch "
           f"{turn_epoch} ({turn_loss:.4f}) — sau đó loss val không giảm nữa.")
     if survey:
-        print(f"Lần chạy khảo sát {deviations}: mô hình của demo và bảng so sánh "
+        print(f"Lần chạy khảo sát {deviations}: mô hình chính và bảng so sánh "
               "không đổi.")
     if train_set.n_fallback:
         print(f"{train_set.n_fallback} lần tăng cường bị normalize_window từ chối — "

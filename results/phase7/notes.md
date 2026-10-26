@@ -20,6 +20,12 @@
 > - Mục 1–8 vẫn là số liệu của `run_02`. Tái tạo bằng `python scripts/train_lstm.py
 >   --stop-smooth 1`.
 > - Demo nên dùng `--model hybrid`: vuốt theo LSTM, zoom theo rừng ngẫu nhiên.
+>
+> **Cập nhật 2026-10-26 (Phase 10):** LSTM của demo (`LSTM_MODEL_PATH`) giờ là
+> `train_lstm/run_08`, bản mục 9.3 bác vì cái giá trên val. Trên webcam, người dùng làm zoom
+> với nhẫn và út duỗi: `run_07` không nhận cú nào, còn `run_08` nhận được. Người dùng chọn
+> đổi. `results/phase7/lstm_model.pt` (`PHASE7_LSTM_PATH`) vẫn là `run_07`, mô hình chính
+> của các bảng ở đây. Số liệu và cái giá đo trên webcam: `results/phase10/notes.md` mục 1.
 
 ## 1. Cấu hình
 

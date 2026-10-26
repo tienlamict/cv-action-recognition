@@ -27,7 +27,7 @@ import numpy as np
 from src import config, rules
 from src.buffer import TimeBuffer
 from src.forest import ForestClassifier
-from src.features import FEATURE_NAMES, window_features
+from src.features import FEATURE_NAMES, EXTENSION_NAMES, finger_extensions, window_features
 from src.preprocess import normalize_window
 
 def make_model(name, lstm_path=None):
@@ -58,10 +58,12 @@ def make_model(name, lstm_path=None):
         return HybridClassifier(lstm_path)
     raise ValueError(f"Không biết mô hình '{name}' — có: {', '.join(config.MODEL_NAMES)}")
 
-Prediction = namedtuple("Prediction", "ts label confidence presence features")
+Prediction = namedtuple("Prediction", "ts label confidence presence features win_norm",
+                        defaults=(None,))
 Prediction.__doc__ = """Một lần dự đoán. ``label`` là ``None`` khi không có
 cửa sổ hợp lệ (chưa đủ dữ liệu, mất tay, hay đơn vị lòng bàn tay không tin
-được) — màn hình hiện ``—``."""
+được) — màn hình hiện ``—``. ``win_norm`` là cửa sổ đã chuẩn hoá mà mô hình
+vừa nhìn; màn hình luyện tập đo độ duỗi ngón trên đó."""
 
 Sample = namedtuple("Sample", "ts win_norm presence features")
 Sample.__doc__ = """Đầu vào của mô hình ở một lần dự đoán. ``win_norm`` và
@@ -166,17 +168,24 @@ class LivePredictor:
             label, confidence = self.model(sample.win_norm if kind == "window"
                                            else sample.features)
         return Prediction(sample.ts, label, confidence, sample.presence,
-                          sample.features)
+                          sample.features, sample.win_norm)
 
 
 def load_feature_ranges(path=None):
-    """Phân vị 25/75 theo lớp của tập train IPN, từ Phase 4."""
+    """Phân vị 25/75 theo lớp của tập train IPN, từ Phase 4 — gồm cả độ duỗi
+    các ngón của ``SHOW_FINGERS``."""
     path = path or config.IPN_FEATURE_RANGES_JSON
+    rerun = "Chạy python scripts/plot_feature_boxplots.py (Phase 4)"
     if not path.is_file():
-        raise FileNotFoundError(
-            f"Chưa có {path.name}. Chạy python scripts/plot_feature_boxplots.py "
-            "(Phase 4) trước.")
-    return json.loads(path.read_text(encoding="utf-8"))["quartiles"]
+        raise FileNotFoundError(f"Chưa có {path.name}. {rerun} trước.")
+    ranges = json.loads(path.read_text(encoding="utf-8"))["quartiles"]
+    missing = [f"{name}/{EXTENSION_NAMES[finger]}"
+               for name, fingers in config.SHOW_FINGERS.items() for finger in fingers
+               if EXTENSION_NAMES[finger] not in ranges.get(name, {})]
+    if missing:
+        raise ValueError(f"{path.name} chưa có độ duỗi ngón ({', '.join(missing)}). "
+                         f"{rerun} lại.")
+    return ranges
 
 
 def practice_status(features, ranges, class_name, names=config.SHOW_FEATURES):
@@ -185,13 +194,22 @@ def practice_status(features, ranges, class_name, names=config.SHOW_FEATURES):
     Returns:
         list ``(tên, giá trị, p25, p75, nằm trong hộp?)`` theo thứ tự ``names``.
     """
-    out = []
-    for name in names:
-        value = float(features[FEATURE_NAMES.index(name)])
-        box = ranges[class_name][name]
-        out.append((name, value, box["p25"], box["p75"],
-                    box["p25"] <= value <= box["p75"]))
-    return out
+    return _in_boxes({name: float(features[FEATURE_NAMES.index(name)]) for name in names},
+                     ranges[class_name])
+
+
+def finger_status(win_norm, ranges, class_name):
+    """Như :func:`practice_status`, cho độ duỗi các ngón ``SHOW_FINGERS`` của
+    lớp đó — nhẫn và út với hai lớp zoom; lớp khác thì rỗng."""
+    return _in_boxes(finger_extensions(win_norm, config.SHOW_FINGERS.get(class_name, ())),
+                     ranges[class_name])
+
+
+def _in_boxes(values, boxes):
+    """``(tên, giá trị, p25, p75, nằm trong hộp?)`` cho từng giá trị."""
+    return [(name, value, boxes[name]["p25"], boxes[name]["p75"],
+             boxes[name]["p25"] <= value <= boxes[name]["p75"])
+            for name, value in values.items()]
 
 
 #: Bốn lớp luyện bằng phím 1–4 trong ``--show-features``.
@@ -210,6 +228,7 @@ HELP_LINES = (
     "zoom_out   : cai+tro+giua dang mo -> chum lai",
     "             zoom: nhan, ut gap; co tay dung yen",
     "Dong tac chinh ~0.3 s, dut khoat, mot chieu",
+    "KHONG lay da: dung keo tay nguoc chieu truoc khi hat",
     "KHONG: chi tro ngon, xoe ca 5 ngon, vay qua lai",
     "Ha tay ra khoi khung = huy",
     "c: bat/tat dieu khien   q: thoat",
@@ -264,8 +283,10 @@ def screen_lines(prediction, fps, ranges=None, practice=None, state=None, comman
                      f"{practice}  (keys 1-4)")
         colors.append(None)
         if prediction is not None and prediction.features is not None:
-            for name, value, lo, hi, ok in practice_status(
-                    prediction.features, ranges, practice):
+            status = practice_status(prediction.features, ranges, practice)
+            if prediction.win_norm is not None:
+                status += finger_status(prediction.win_norm, ranges, practice)
+            for name, value, lo, hi, ok in status:
                 lines.append(f"{name:<12}{value:+7.2f}  IPN [{lo:+.2f}, {hi:+.2f}]")
                 colors.append(config.COLOR_IN_RANGE if ok else config.COLOR_OUT_RANGE)
     return lines, colors, big

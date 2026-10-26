@@ -133,7 +133,7 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 4 | `python scripts/make_splits.py` | `data/splits.json` theo người, từ split chính thức của IPN (val là `VAL_FRACTION` số người của train, chọn với `SEED`); in phép giao giữa các tập, phải rỗng: `results/phase4/splits/run_NN/` |
 | 4 | `python scripts/build_dataset.py` | `data/windows/windows.npz`; lớp `none` của train lấy mẫu con xuống `NONE_TRAIN_SHARE`. Bảng số cửa sổ theo tập và lớp: `results/phase4/build_dataset/run_NN/` |
 | 4 | `python scripts/estimate_sigma.py --src-label D0X` | Ước lượng `AUG_NOISE_SIGMA` trên cửa sổ tay nghỉ của train: `results/phase4/sigma/run_NN/`; in dòng để dán vào `config.py` |
-| 4 | `python scripts/plot_feature_boxplots.py` | Boxplot từng đặc trưng theo lớp trên train — cổng kiểm tra Phase 4: `results/phase4/boxplots/run_NN/`; phân vị 25/75 vào `results/phase4/ipn_feature_ranges.json`, mà `demo.py --show-features` dùng |
+| 4 | `python scripts/plot_feature_boxplots.py` | Boxplot từng đặc trưng theo lớp trên train — cổng kiểm tra Phase 4: `results/phase4/boxplots/run_NN/`; phân vị 25/75 vào `results/phase4/ipn_feature_ranges.json`, mà `demo.py --show-features` dùng — từ 2026-10-26 gồm cả độ duỗi bốn ngón (`finger_extension.png`) |
 | 4 | `python scripts/plot_window_examples.py` | Quỹ đạo cổ tay, độ xòe và độ mở cái–trỏ của một cửa sổ ngẫu nhiên mỗi lớp: `results/phase4/window_examples/run_NN/` |
 | 5 | `python scripts/calibrate_rules.py` | Ba ngưỡng luật trên train: `results/phase5/thresholds.md` và `results/phase5/calibrate/run_NN/`; in ba dòng để dán vào `config.py` |
 | 5 | `python scripts/eval_rules.py` | Luật trên val: ma trận nhầm lẫn, macro-F1, hai đường cơ sở: `results/phase5/eval_rules/run_NN/`; ghi hàng `rules` vào `results/model_comparison` |
@@ -144,7 +144,7 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 6 | `python scripts/evaluate.py --model rf --split val` | Đánh giá mô hình đã lưu; `--split test` bắt buộc `--final` và ghi `results/TEST_USED.log` (luật 13) |
 | 6 | `python scripts/demo.py --model rf --show-features --log <file.csv>` | Demo webcam; `--show-features` là chế độ luyện tập (bốn đặc trưng so với hộp IPN) |
 | 6 | `python scripts/summarize_log.py <file.csv>` | Số cụm nhãn khác `none` và số cụm mỗi phút của một log demo |
-| 7 | `python scripts/train_lstm.py` | LSTM học trên train (tăng cường mới mỗi epoch), dừng sớm theo macro-F1 val: `results/phase7/train_lstm/run_NN/` (đường học `training_curves.png`, lịch sử từng epoch, ma trận nhầm lẫn, bảng ba mô hình trên cùng tập val); lưu `results/phase7/lstm_model.pt`; cập nhật `results/model_comparison` |
+| 7 | `python scripts/train_lstm.py` | LSTM học trên train (tăng cường mới mỗi epoch), dừng sớm theo macro-F1 val: `results/phase7/train_lstm/run_NN/` (đường học `training_curves.png`, lịch sử từng epoch, ma trận nhầm lẫn, bảng ba mô hình trên cùng tập val); lưu `results/phase7/lstm_model.pt` (`PHASE7_LSTM_PATH`, mô hình chính); cập nhật `results/model_comparison`. LSTM của demo là `LSTM_MODEL_PATH` — từ 2026-10-26 trỏ vào `train_lstm/run_08`; script này không bao giờ ghi vào đó |
 | 7 | `python scripts/train_lstm.py --no-augment` | Khảo sát không tăng cường, dừng sớm như bản chính (`run_03`); không thay mô hình của demo, không ghi bảng so sánh |
 | 7 | `python scripts/train_lstm.py --no-augment --patience 150` | Khảo sát không tăng cường, chạy đủ 150 epoch (`run_04`): đường học cho thấy điểm bắt đầu quá khớp |
 | 7 | `python scripts/probe_swipes.py --model lstm` | LSTM coi gì là vuốt — cùng các phép thử như rừng: `results/phase7/probe_swipes/run_NN/probe` |
@@ -164,11 +164,12 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 9 | `python scripts/sweep_activation.py` | Hai bảng đánh đổi trên video val, không học lại — `MIN_PRESENCE` lúc chạy (số liệu của `results/phase9/tradeoff.md`) và lưới `CONF_FIRE` × `K_OF_N`: `results/phase9/sweep_activation/run_NN/` |
 | 9 | `python scripts/demo.py --model hybrid --log <file.csv>` | Demo có máy trạng thái: màn hình hiện trạng thái và lệnh vừa phát; log ghi trạng thái, lệnh, và mọi lần chuyển trạng thái vào `<file>_fsm.csv` |
 | 10 | `pip install pyautogui` | Một lần: `demo.py` gửi phím tắt thật qua `pyautogui`, chỉ nạp khi bật điều khiển |
-| 10 | `python scripts/demo.py --model hybrid --log <file.csv>` | Demo hoàn chỉnh. Phím `c` bật/tắt điều khiển (mặc định **tắt**; `swipe_left` → mũi tên trái = slide trước, `swipe_right` → mũi tên phải = slide sau, zoom → Ctrl + / Ctrl −); `?` hiện tóm tắt `docs/gestures.md`; log ghi thêm phím đã gửi |
+| 10 | `python scripts/demo.py --model lstm --log <file.csv>` | Demo hoàn chỉnh, cấu hình cuối (`results/phase10/final_config.md`, người dùng chọn 2026-10-26): LSTM `train_lstm/run_08` (`LSTM_MODEL_PATH`), `CONF_FIRE` 0,85, `K_OF_N` 4/5. Phím `c` bật/tắt điều khiển (mặc định **tắt**; `swipe_left` → mũi tên trái = slide trước, `swipe_right` → mũi tên phải = slide sau, zoom → Ctrl + / Ctrl −); `?` hiện tóm tắt `docs/gestures.md`; log ghi thêm phím đã gửi |
+| 10 | `python scripts/demo.py --model lstm --show-features` | Luyện zoom kiểu IPN: phím 3 (`zoom_in`) hoặc 4 (`zoom_out`) hiện thêm `ring_ext`, `pinky_ext` — độ duỗi nhẫn, út so với hộp IPN (≈ 0,4–0,7); xanh là đã gập như IPN |
 | 10 | `python scripts/bench.py speed --light bright` rồi `--light dim` | FPS (bỏ 3 s đầu, đo 30 s) và phân rã thời gian từng khâu cho bốn mô hình, mỗi mức ánh sáng một lần: `results/phase10/speed/run_NN/` (`speed`, `breakdown`, kèm cấu hình máy) |
 | 10 | `python scripts/bench.py record <reading\|typing\|talking>` | Ghi 10 phút làm việc bình thường, KHÔNG làm cử chỉ: ngồi yên đọc tài liệu; gõ phím và dùng chuột; nói chuyện có khua tay. Phiên ở `results/phase10/sessions/`; không gửi phím nào |
 | 10 | `python scripts/bench.py record gestures` | Ghi 20 cử chỉ theo lời nhắc trên màn hình, 5 mỗi lớp (~2,5 phút); lời nhắc lưu thành đoạn có nhãn |
-| 10 | `python scripts/bench.py analyze` | Chạy lại mọi phiên đã ghi và video val qua bốn mô hình × ba cấu hình của bảng đánh đổi (`FSM_TRADEOFF`): kích hoạt nhầm mỗi phút theo kịch bản, số lệnh trên một cử chỉ, độ trễ, bảng đánh đổi — `results/phase10/analyze/run_NN/` |
+| 10 | `python scripts/bench.py analyze` | Chạy lại mọi phiên đã ghi và video val qua bốn mô hình × ba cấu hình của bảng đánh đổi (`FSM_TRADEOFF`): kích hoạt nhầm mỗi phút theo kịch bản (gộp theo thời lượng, kèm nhầm mỗi phút có tay), số lệnh trên một cử chỉ, độ trễ, bảng đánh đổi — `results/phase10/analyze/run_NN/` |
 
 ---
 

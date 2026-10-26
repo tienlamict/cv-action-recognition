@@ -1,18 +1,18 @@
 {
   "name": "prod_lstm",
-  "key": "b4e5bb4de75464a7",
+  "key": "29798a61ad670d2e",
   "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
   "model": "lstm",
   "details": {
     "model_file": "lstm_model.pt",
-    "model_sha256": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824",
-    "created": "2026-10-10T10:10:55",
-    "epoch": 86,
-    "val_macro_f1": 0.5559584616872411
+    "model_sha256": "81c858110be97a041e20d294891fa07f1c9a699fa29c030d839816c1a8098d1e",
+    "created": "2026-10-10T10:26:34",
+    "epoch": 87,
+    "val_macro_f1": 0.4892768184119993
   },
-  "inference_ms": 1.4940500259399414,
+  "inference_ms": 1.0376999853178859,
   "files": {
-    "lstm_model.pt": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824"
+    "lstm_model.pt": "81c858110be97a041e20d294891fa07f1c9a699fa29c030d839816c1a8098d1e"
   },
   "spec": {
     "model": "lstm"

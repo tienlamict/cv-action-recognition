@@ -1,15 +1,15 @@
 {
   "name": "prod_hybrid",
-  "key": "b9a80041753afc5d",
+  "key": "e9a3aada78c9686b",
   "stream": "stream_val_w1.2_11a426fe26ebe107.npz",
   "model": "hybrid",
   "details": {
     "lstm": {
       "model_file": "lstm_model.pt",
-      "model_sha256": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824",
-      "created": "2026-10-10T10:10:55",
-      "epoch": 86,
-      "val_macro_f1": 0.5559584616872411
+      "model_sha256": "81c858110be97a041e20d294891fa07f1c9a699fa29c030d839816c1a8098d1e",
+      "created": "2026-10-10T10:26:34",
+      "epoch": 87,
+      "val_macro_f1": 0.4892768184119993
     },
     "rf": {
       "model_file": "rf_model.joblib",
@@ -17,9 +17,9 @@
       "created": "2026-10-09T15:31:54"
     }
   },
-  "inference_ms": 6.435649993363768,
+  "inference_ms": 14.601500006392598,
   "files": {
-    "lstm_model.pt": "68cfce86caa4b6f5cf6cf033292298755370bb84a11701ffda2bdad5c0406824",
+    "lstm_model.pt": "81c858110be97a041e20d294891fa07f1c9a699fa29c030d839816c1a8098d1e",
     "rf_model.joblib": "902384afa1d4095a848913cbda1cd95ab6aecdde262e36642356ea424eedd68a"
   },
   "spec": {

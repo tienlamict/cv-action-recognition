@@ -1,0 +1,93 @@
+ts,from,to,reason
+19.021,IDLE,READY,có tay
+19.021,READY,CANDIDATE,mở swipe_left 0.94
+19.603,CANDIDATE,READY,none phản đối swipe_left
+23.016,READY,CANDIDATE,mở swipe_left 0.87
+23.205,CANDIDATE,READY,swipe_right phản đối swipe_left
+23.205,READY,CANDIDATE,mở swipe_right 0.98
+23.400,CANDIDATE,READY,swipe_left phản đối swipe_right
+23.400,READY,CANDIDATE,mở swipe_left 1.00
+24.023,CANDIDATE,COOLDOWN,PHÁT swipe_left
+25.472,COOLDOWN,READY,hết cooldown
+25.472,READY,CANDIDATE,mở swipe_left 1.00
+26.021,CANDIDATE,COOLDOWN,PHÁT swipe_left
+27.237,COOLDOWN,READY,hết cooldown
+29.620,READY,CANDIDATE,mở zoom_in 0.86
+30.030,CANDIDATE,READY,swipe_left phản đối zoom_in
+30.030,READY,CANDIDATE,mở swipe_left 0.98
+30.617,CANDIDATE,COOLDOWN,PHÁT swipe_left
+31.831,COOLDOWN,READY,hết cooldown
+31.831,READY,CANDIDATE,mở swipe_right 0.98
+32.471,CANDIDATE,READY,swipe_left phản đối swipe_right
+32.471,READY,CANDIDATE,mở swipe_left 0.99
+33.043,CANDIDATE,COOLDOWN,PHÁT swipe_left
+34.410,COOLDOWN,READY,hết cooldown
+37.818,READY,CANDIDATE,mở swipe_left 0.92
+38.421,CANDIDATE,READY,none phản đối swipe_left
+39.615,READY,CANDIDATE,mở swipe_left 1.00
+40.232,CANDIDATE,COOLDOWN,PHÁT swipe_left
+41.629,COOLDOWN,IDLE,mất tay
+41.870,IDLE,READY,có tay
+41.870,READY,CANDIDATE,mở swipe_left 1.00
+42.439,CANDIDATE,COOLDOWN,PHÁT swipe_left
+43.678,COOLDOWN,READY,hết cooldown
+43.678,READY,CANDIDATE,mở swipe_right 1.00
+44.206,CANDIDATE,COOLDOWN,PHÁT swipe_right
+45.442,COOLDOWN,READY,hết cooldown
+45.442,READY,CANDIDATE,mở swipe_left 1.00
+46.044,CANDIDATE,READY,none phản đối swipe_left
+46.850,READY,IDLE,mất tay
+48.240,IDLE,READY,có tay
+48.240,READY,CANDIDATE,mở swipe_left 0.98
+48.830,CANDIDATE,READY,none phản đối swipe_left
+50.656,READY,CANDIDATE,mở swipe_right 1.00
+51.232,CANDIDATE,COOLDOWN,PHÁT swipe_right
+52.437,COOLDOWN,IDLE,mất tay
+52.622,IDLE,READY,có tay
+54.012,READY,IDLE,mất tay
+57.429,IDLE,READY,có tay
+57.429,READY,CANDIDATE,mở swipe_left 0.99
+57.815,CANDIDATE,READY,none phản đối swipe_left
+58.812,READY,CANDIDATE,mở swipe_right 1.00
+59.423,CANDIDATE,COOLDOWN,PHÁT swipe_right
+60.844,COOLDOWN,READY,hết cooldown
+60.844,READY,CANDIDATE,mở swipe_left 1.00
+61.049,CANDIDATE,READY,none phản đối swipe_left
+61.251,READY,IDLE,mất tay
+74.020,IDLE,READY,có tay
+74.020,READY,CANDIDATE,mở swipe_right 1.00
+74.213,CANDIDATE,READY,swipe_left phản đối swipe_right
+74.213,READY,CANDIDATE,mở swipe_left 0.96
+74.807,CANDIDATE,COOLDOWN,PHÁT swipe_left
+76.222,COOLDOWN,READY,hết cooldown
+77.432,READY,CANDIDATE,mở swipe_right 1.00
+78.005,CANDIDATE,READY,swipe_left phản đối swipe_right
+78.005,READY,CANDIDATE,mở swipe_left 0.98
+78.621,CANDIDATE,COOLDOWN,PHÁT swipe_left
+79.840,COOLDOWN,READY,hết cooldown
+79.840,READY,CANDIDATE,mở swipe_right 1.00
+80.407,CANDIDATE,IDLE,mất tay
+80.639,IDLE,READY,có tay
+80.639,READY,CANDIDATE,mở swipe_left 1.00
+81.206,CANDIDATE,COOLDOWN,PHÁT swipe_left
+82.444,COOLDOWN,READY,hết cooldown
+83.244,READY,IDLE,mất tay
+83.612,IDLE,READY,có tay
+83.820,READY,IDLE,mất tay
+84.421,IDLE,READY,có tay
+84.421,READY,CANDIDATE,mở swipe_right 1.00
+85.039,CANDIDATE,COOLDOWN,PHÁT swipe_right
+86.443,COOLDOWN,READY,hết cooldown
+86.634,READY,CANDIDATE,mở swipe_left 1.00
+87.201,CANDIDATE,COOLDOWN,PHÁT swipe_left
+88.421,COOLDOWN,READY,hết cooldown
+91.435,READY,CANDIDATE,mở zoom_out 0.98
+92.035,CANDIDATE,COOLDOWN,PHÁT zoom_out
+93.244,COOLDOWN,READY,hết cooldown
+94.022,READY,CANDIDATE,mở swipe_right 0.99
+94.620,CANDIDATE,COOLDOWN,PHÁT swipe_right
+95.832,COOLDOWN,READY,hết cooldown
+96.013,READY,CANDIDATE,mở swipe_right 1.00
+96.401,CANDIDATE,READY,swipe_left phản đối swipe_right
+96.401,READY,CANDIDATE,mở swipe_left 0.98
+96.655,CANDIDATE,IDLE,mất tay

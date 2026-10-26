@@ -39,6 +39,10 @@ FEATURE_NAMES = [
 ANGLE_NAMES = [f"angle_{stat}_{finger}" for stat in ("mean", "delta")
                for finger in config.ANGLE_JOINTS]
 
+#: Độ duỗi từng ngón — KHÔNG thuộc vector 15 chiều. Chỉ để so dáng tay của
+#: người dùng với IPN: ``ipn_feature_ranges.json`` và màn hình luyện tập.
+EXTENSION_NAMES = {finger: f"{finger}_ext" for finger in config.FINGER_MCPS}
+
 
 def openness(win):
     """Độ xòe của từng bước: ``(T,)``.
@@ -51,6 +55,34 @@ def openness(win):
     wrist = win[:, config.WRIST][:, None, :]
     tips = win[:, config.TIPS]
     return _nanmean(np.linalg.norm(tips - wrist, axis=2), axis=1)
+
+
+def finger_extension(win, finger):
+    """Độ duỗi của ngón ``finger`` ở từng bước: ``(T,)``.
+
+    Khoảng cách đầu ngón → cổ tay chia khoảng cách gốc ngón → cổ tay — đúng
+    "Duỗi ngón" của ``docs/gestures.md``: gập vào lòng bàn tay ≈ 0,5, duỗi
+    thẳng ≈ 1,3–1,5. Tỉ số hai khoảng cách trong cùng một frame, nên cửa sổ đã
+    chuẩn hoá hay còn pixel cho cùng một số. NaN ở bước mất tay.
+    """
+    win = np.asarray(win, dtype=np.float64)
+    wrist = win[:, config.WRIST]
+    base = np.linalg.norm(win[:, config.FINGER_MCPS[finger]] - wrist, axis=1)
+    tip = np.linalg.norm(win[:, config.FINGER_TIPS[finger]] - wrist, axis=1)
+    out = np.full(win.shape[0], np.nan)
+    with np.errstate(invalid="ignore"):     # NaN so với ngưỡng ra False: giữ NaN
+        ok = base > config.NORM_MIN_SCALE
+    out[ok] = tip[ok] / base[ok]
+    return out
+
+
+def finger_extensions(win, fingers=tuple(config.FINGER_MCPS)):
+    """Độ duỗi của cả cửa sổ: trung vị theo thời gian của
+    :func:`finger_extension`, ``{EXTENSION_NAMES[ngón]: float}`` theo thứ tự
+    ``fingers``. NaN nếu không bước nào đo được."""
+    return {EXTENSION_NAMES[finger]:
+            float(_reduce(np.nanmedian, finger_extension(win, finger), None))
+            for finger in fingers}
 
 
 def pinch(win):

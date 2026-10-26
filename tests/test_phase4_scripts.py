@@ -150,3 +150,14 @@ def test_cong_dung_pinch_delta_dx_max_vx_con_spec_cu_chi_tham_khao():
 
     q["none"]["max_vx"] = quart(2.0, 4.0)                # cổng mới hỏng
     assert not boxplots.gate_passed(boxplots.gate_checks(q))
+
+
+def test_phan_vi_theo_ten_cot_va_bo_qua_nan():
+    """Độ duỗi ngón của cửa sổ không bước nào đo được là NaN: không làm hỏng
+    phân vị của lớp; lớp không có cửa sổ nào thì vắng mặt."""
+    zoom_in = config.CLASSES.index("zoom_in")
+    E = np.array([[1.0], [2.0], [np.nan], [0.5], [0.5]])
+    q = boxplots.quartiles(E, np.array([0, 0, 0, zoom_in, zoom_in]), ["ring_ext"])
+    assert set(q) == {"none", "zoom_in"}
+    assert q["none"]["ring_ext"]["p50"] == pytest.approx(1.5)
+    assert q["zoom_in"]["ring_ext"] == {"p25": 0.5, "p50": 0.5, "p75": 0.5}

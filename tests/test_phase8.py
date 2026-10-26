@@ -269,6 +269,22 @@ def test_chinh_tang_kich_hoat_khong_lam_ban_ghi_het_han(monkeypatch):
     assert key() == base
 
 
+def test_man_hinh_luyen_tap_khong_lam_ban_ghi_het_han(monkeypatch):
+    """Hai hằng số của màn hình luyện tập (2026-10-26) từng làm cả 46 bản ghi hết
+    hạn. SHOW_FINGERS chỉ đổi màn hình. FINGER_TIPS suy ra từ TIPS và FINGER_MCPS,
+    hai hằng số vẫn được băm: đầu ngón thật mà đổi thì bản ghi vẫn hết hạn."""
+    spec = experiments.full_spec({"model": "lstm"})
+    relevant = experiments.relevant_config()
+    assert "SHOW_FINGERS" not in relevant and "FINGER_TIPS" not in relevant
+    assert {"TIPS", "FINGER_MCPS"} <= set(relevant)
+    assert config.FINGER_TIPS == dict(zip(config.FINGER_MCPS, config.TIPS[1:]))
+    base = experiments.record_key(spec, "dữ liệu")
+    monkeypatch.setattr(config, "SHOW_FINGERS", {"zoom_in": ("index",)})
+    assert experiments.record_key(spec, "dữ liệu") == base
+    monkeypatch.setattr(config, "TIPS", [*config.TIPS[:-1], config.TIPS[-1] - 1])
+    assert experiments.record_key(spec, "dữ liệu") != base, "đầu ngón đổi: hết hạn qua TIPS"
+
+
 @pytest.fixture
 def tiny_project(tmp_path, monkeypatch):
     """Sáu người (bốn train, hai val, một test không bao giờ được đọc), mỗi người

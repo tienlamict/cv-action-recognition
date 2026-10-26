@@ -78,16 +78,19 @@ class LSTMClassifier(nn.Module):
         return self.head(self.dropout(pooled))
 
 
-def save_checkpoint(model, path=None, **meta):
+def save_checkpoint(model, path, **meta):
     """Lưu trọng số, siêu tham số, danh sách lớp, ``T``, ``HZ`` và ``meta``,
     rồi nạp lại ngay ở chế độ an toàn ``weights_only``.
+
+    ``path`` bắt buộc: không có mặc định nào trỏ vào ``LSTM_MODEL_PATH``, nên
+    không lần lưu nào ghi đè được mô hình của demo.
 
     Chế độ đó chỉ nhận kiểu Python thuần, nên ``meta`` được đổi về kiểu thuần
     trước khi lưu: ``torch.__version__`` là một lớp con của ``str``, số numpy
     không phải số Python — lọt vào thì file vẫn ghi được nhưng không nạp được.
     Nạp lại ngay là để lỗi hiện ra lúc lưu, không phải lúc chạy demo.
     """
-    path = Path(path or config.LSTM_MODEL_PATH)
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"state_dict": model.state_dict(), "hparams": dict(model.hparams),
                 "classes": list(config.CLASSES), "T": int(config.T),
@@ -128,7 +131,8 @@ def load_checkpoint(path=None):
     path = Path(path or config.LSTM_MODEL_PATH)
     if not path.is_file():
         raise FileNotFoundError(
-            f"Chưa có mô hình {path.name}. Chạy python scripts/train_lstm.py trước.")
+            f"Chưa có mô hình {path}. Chạy python scripts/train_lstm.py trước "
+            "(checkpoint của demo: LSTM_MODEL_PATH trong config.py).")
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     expected = {"classes": list(config.CLASSES), "T": config.T, "hz": config.HZ}
     for key, value in expected.items():

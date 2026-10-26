@@ -12,6 +12,10 @@
 > Mọi khảo sát chạy trên val, hoặc k-fold trên 37 người của train và val. Tập test chưa bị chạm:
 > `results/TEST_USED.log` chưa tồn tại.
 >
+> **Cập nhật 2026-10-26:** bảy bảng được dựng lại với cấu hình cuối của Phase 10 (máy
+> trạng thái 0,85 · 4/5; LSTM của Bảng 1 là `run_08`) ở `results/phase8/experiments/run_03`.
+> Kết luận nào đứng, kết luận nào đổi: `results/phase10/notes.md` mục 7.
+>
 > **Ba phép kiểm đường ống đều đạt:**
 >
 > - bộ cửa sổ dựng lại cho các bảng trùng `windows.npz` từng giá trị (manifest:

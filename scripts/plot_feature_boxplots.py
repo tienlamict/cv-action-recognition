@@ -15,7 +15,9 @@ dưới nhóm "tham khảo" để theo dõi, nhưng không quyết định cổn
 Script in kết quả kiểm từng điều bằng phân vị 25/75, nhưng người vẫn phải nhìn
 hình. Cũng ghi phân vị 25/75 của mọi đặc trưng theo lớp vào
 results/phase4/ipn_feature_ranges.json — Phase 5 dùng file này để kiểm tra bạn
-làm cử chỉ có giống IPN không.
+làm cử chỉ có giống IPN không. Từ 2026-10-26 file có thêm độ duỗi bốn ngón
+(features.finger_extensions, ngoài vector 15 chiều): màn hình luyện tập so độ
+duỗi nhẫn, út của bạn với zoom của IPN.
 
 Ví dụ:
     python scripts/plot_feature_boxplots.py
@@ -32,7 +34,8 @@ import numpy as np  # noqa: E402
 
 from src import config  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
-from src.features import FEATURE_NAMES, window_features  # noqa: E402
+from src.features import (EXTENSION_NAMES, FEATURE_NAMES,  # noqa: E402
+                          finger_extensions, window_features)
 from src.runlog import (next_run_dir, relative_to_root,  # noqa: E402
                         write_manifest)
 from src.splits import SPLIT_NAMES, read_splits, split_of  # noqa: E402
@@ -41,16 +44,17 @@ from src.viz import plot_boxplots  # noqa: E402
 BOX_FEATURES = ("pinch_delta", "dx", "max_vx", "open_delta", "straightness")
 
 
-def quartiles(F, y):
-    """``{lớp: {đặc trưng: {p25, p50, p75}}}``."""
+def quartiles(F, y, names=FEATURE_NAMES):
+    """``{lớp: {tên cột: {p25, p50, p75}}}``; cột ``F`` theo thứ tự ``names``.
+    Bỏ qua NaN (độ duỗi ngón của cửa sổ không bước nào đo được)."""
     out = {}
     for k, cls in enumerate(config.CLASSES):
         rows = F[y == k]
         if rows.shape[0] == 0:
             continue
-        p25, p50, p75 = np.percentile(rows, [25, 50, 75], axis=0)
+        p25, p50, p75 = np.nanpercentile(rows, [25, 50, 75], axis=0)
         out[cls] = {name: {"p25": float(a), "p50": float(b), "p75": float(c)}
-                    for name, a, b, c in zip(FEATURE_NAMES, p25, p50, p75)}
+                    for name, a, b, c in zip(names, p25, p50, p75)}
     return out
 
 
@@ -128,20 +132,27 @@ def main():
         X, y, presence = data["X"][pick], data["y"][pick], data["presence"][pick]
     F = np.stack([window_features(win, ratio)
                   for win, ratio in zip(X, presence)])
+    extensions = list(EXTENSION_NAMES.values())
+    E = np.array([[ext[name] for name in extensions]
+                  for ext in map(finger_extensions, X)])
 
     out_dir = next_run_dir(config.PHASE4_RESULTS_DIR / "boxplots")
     plot_boxplots(F, y, FEATURE_NAMES, out_dir / "features.png")
     for name in BOX_FEATURES:
         column = FEATURE_NAMES.index(name)
         plot_boxplots(F[:, [column]], y, [name], out_dir / f"{name}.png")
+    plot_boxplots(E, y, extensions, out_dir / "finger_extension.png")
 
     q = quartiles(F, y)
+    for cls, boxes in quartiles(E, y, extensions).items():
+        q[cls].update(boxes)
     checks = gate_checks(q)
     if args.split == "train":
         ranges = {"split": "train", "windows": relative_to_root(path),
                   "n_windows": {c: int(np.sum(y == k))
                                 for k, c in enumerate(config.CLASSES)},
-                  "features": FEATURE_NAMES, "quartiles": q}
+                  "features": FEATURE_NAMES, "extensions": extensions,
+                  "quartiles": q}
         config.IPN_FEATURE_RANGES_JSON.parent.mkdir(parents=True, exist_ok=True)
         config.IPN_FEATURE_RANGES_JSON.write_text(
             json.dumps(ranges, indent=2, ensure_ascii=False) + "\n",
