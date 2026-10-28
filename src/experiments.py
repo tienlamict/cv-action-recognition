@@ -76,14 +76,16 @@ DROPPED = {"full": (), "angles": (), "no_signed": config.SIGNED_FEATURES,
 #: tắt và đo đạc của Phase 10 (``CTRL_``, ``BENCH_``) cũng vậy. Màn hình luyện tập
 #: của Phase 10 (2026-10-26): ``SHOW_FINGERS`` chỉ đổi màn hình; ``FINGER_TIPS``
 #: suy ra hoàn toàn từ ``TIPS`` và ``FINGER_MCPS``, hai hằng số vẫn được băm, nên
-#: bỏ nó không che được thay đổi nào. Hằng số mới ngoài danh sách này vẫn làm bản
-#: ghi hết hạn: tốn thời gian học lại, nhưng không bao giờ dùng lại một bản ghi sai.
+#: bỏ nó không che được thay đổi nào. Công thức của LSTM demo (``DEPLOY_``, thêm
+#: 2026-10-28): bản ghi của mô hình đã lưu băm thẳng file mô hình, nên công thức
+#: đổi thì file đổi. Hằng số mới ngoài danh sách này vẫn làm bản ghi hết hạn: tốn
+#: thời gian học lại, nhưng không bao giờ dùng lại một bản ghi sai.
 _IRRELEVANT = ("EXP_JOBS", "EXP_TORCH_THREADS", "EXP_LOG_EVERY", "TIMING_WINDOWS",
                "EVENT_", "COLOR_", "FIG_", "FONT_", "TEXT_", "POINT_", "LINE_",
                "DISPLAY_", "QUIT_", "FPS_", "OBS_", "MP_", "CAM_", "EXAMPLES_",
                "PROFILE_", "PROBE_", "PERM_", "LEAKAGE_", "CALIB_",
                "CONF_FIRE", "CONF_HOLD", "K_OF_N", "COOLDOWN_SEC", "FSM_",
-               "CTRL_", "BENCH_", "SHOW_FINGERS", "FINGER_TIPS")
+               "CTRL_", "BENCH_", "SHOW_FINGERS", "FINGER_TIPS", "DEPLOY_")
 
 
 def full_spec(spec):

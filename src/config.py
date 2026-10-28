@@ -178,13 +178,6 @@ MODEL_NAMES = ("rules", "rf", "lstm", "hybrid")
 PHASE7_RESULTS_DIR = RESULTS_DIR / "phase7"
 PHASE7_LSTM_PATH = PHASE7_RESULTS_DIR / "lstm_model.pt"  # train_lstm.py với tham số của
                             # config ghi mô hình chính vào đây (train_lstm/run_07)
-LSTM_MODEL_PATH = PHASE7_RESULTS_DIR / "train_lstm" / "run_08" / "lstm_model.pt"
-                            # LSTM của demo, evaluate.py, mô hình ghép và bench.py:
-                            # lần khảo sát run_08 (--zoom-style-p 0.5 --static-share
-                            # 0.1). Người dùng chọn 2026-10-26 (Phase 10): trên bàn
-                            # tay của họ, nó nhận nhiều zoom hơn và không báo vuốt
-                            # khi tay chụm đứng yên. train_lstm.py không bao giờ ghi
-                            # vào đây (results/phase10/notes.md)
 LSTM_INPUT_SIZE = NUM_LANDMARKS * 2     # 42: (21, 2) mỗi bước được reshape — không z
 LSTM_HIDDEN = 128           # SPEC Phase 7; Phase 8 so với 64
 LSTM_LAYERS = 2
@@ -359,10 +352,20 @@ FSM_TRADEOFF = ((0.60, 2), (0.75, 3), (0.85, 4))
 
 # --------------------------------------------------------------------------
 # Demo hoàn chỉnh và đo đạc (Phase 10). Bản ghi Phase 8 không băm các tiền tố
-# CTRL_ và BENCH_ (src/experiments.py, _IRRELEVANT)
+# CTRL_, BENCH_ và DEPLOY_ (src/experiments.py, _IRRELEVANT)
 # --------------------------------------------------------------------------
 
 PHASE10_RESULTS_DIR = RESULTS_DIR / "phase10"
+LSTM_MODEL_PATH = PHASE10_RESULTS_DIR / "lstm_model.pt"
+                        # LSTM của demo, evaluate.py, mô hình ghép và bench.py: công
+                        # thức chính cộng hai phép tăng cường DEPLOY_ dưới đây. Người
+                        # dùng chọn 2026-10-26 (results/phase10/final_config.md). Bản
+                        # gốc là lần khảo sát train_lstm/run_08. run_all.py dựng file
+                        # này; train_lstm.py không bao giờ ghi vào đây
+DEPLOY_ZOOM_STYLE_P = 0.5       # LSTM của demo học với AUG_ZOOM_STYLE_P này...
+DEPLOY_STATIC_SHARE = 0.1       # ...và AUG_STATIC_SHARE này (train_lstm.py --zoom-style-p,
+                                # --static-share). Không băm vào bản ghi Phase 8: bản ghi
+                                # của mô hình đã lưu băm thẳng file mô hình
 BENCH_SESSIONS_DIR = PHASE10_RESULTS_DIR / "sessions"    # phiên ghi của bench.py record
 CTRL_HOTKEYS = {"swipe_left": ("left",), "swipe_right": ("right",),
                 "zoom_in": ("ctrl", "+"), "zoom_out": ("ctrl", "-")}
@@ -377,6 +380,12 @@ BENCH_SCENARIO_MIN = 10.0       # mỗi kịch bản bấy nhiêu phút (cẩm n
 BENCH_GESTURES_PER_CLASS = 5    # phiên "gestures": 5 × 4 lớp = 20 cử chỉ đã đếm
 BENCH_PROMPT_SEC = 4.0          # mỗi lời nhắc hiện bấy nhiêu giây — làm cử chỉ trong lúc đó
 BENCH_REST_SEC = 3.0            # nghỉ giữa hai lời nhắc, tay để yên trong khung
+
+# --------------------------------------------------------------------------
+# Tái lập (Phase 12)
+# --------------------------------------------------------------------------
+
+RUN_ALL_RESULTS_DIR = RESULTS_DIR / "run_all"     # manifest mỗi lần chạy run_all.py
 
 # --------------------------------------------------------------------------
 # Tái lập

@@ -15,7 +15,7 @@
 
 | Thành phần | Giá trị | Hằng số trong `src/config.py` |
 |---|---|---|
-| Mô hình | LSTM `train_lstm/run_08`, checkpoint epoch 87 (sha256 `81c858110be97a04…`) | `LSTM_MODEL_PATH`; chạy `demo.py --model lstm` |
+| Mô hình | LSTM `results/phase10/lstm_model.pt`: bản sao từng byte của `train_lstm/run_08`, checkpoint epoch 87 (sha256 `81c858110be97a04…`). Công thức: công thức chính cộng đổi dáng ngón phụ 0,5 và bàn tay đứng yên 0,1 | `LSTM_MODEL_PATH`, `DEPLOY_ZOOM_STYLE_P`, `DEPLOY_STATIC_SHARE`; chạy `demo.py --model lstm`. `run_all.py` dựng lại file này |
 | Cửa sổ | 1,2 s = 18 bước ở 15 Hz; dự đoán mỗi 0,2 s | `WIN_SEC`, `HZ`, `STRIDE_SEC` |
 | Ngưỡng có tay | 70% số bước của cửa sổ | `MIN_PRESENCE` |
 | Mở ứng viên lệnh | độ tin ≥ **0,85** | `CONF_FIRE` |
@@ -80,7 +80,8 @@ Hai lỗi lớn nhất là lỗi cách làm, không ngưỡng nào sửa hết:
 
 - **`results/model_comparison`:** cột mức sự kiện của cả bốn mô hình được tính lại với cấu hình
   này (`evaluate.py --events fsm`). Hàng `lstm` và `hybrid` giờ dùng `run_08`.
-- **Bảng Phase 8** (`results/phase8/experiments/run_02`) vẫn ở 0,75 · 3/5. Chạy lại
-  `run_experiments.py` sẽ dựng lại chúng với cấu hình này mà không phải học lại.
+- **Bảng Phase 8** dựng lại với cấu hình này ngày 2026-10-26, không học lại:
+  `results/phase8/experiments/run_03`. Kết luận nào đứng, kết luận nào đổi:
+  `results/phase10/notes.md` mục 7.
 - **Lần chạy cuối trên tập test** (`evaluate.py --split test --final`, đúng một lần) dùng cấu
   hình này. Người dùng quyết định lúc chạy.

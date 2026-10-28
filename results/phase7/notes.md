@@ -26,6 +26,8 @@
 > với nhẫn và út duỗi: `run_07` không nhận cú nào, còn `run_08` nhận được. Người dùng chọn
 > đổi. `results/phase7/lstm_model.pt` (`PHASE7_LSTM_PATH`) vẫn là `run_07`, mô hình chính
 > của các bảng ở đây. Số liệu và cái giá đo trên webcam: `results/phase10/notes.md` mục 1.
+> Từ 2026-10-28, demo nạp bản sao từng byte của `run_08` ở `results/phase10/lstm_model.pt`, do
+> `run_all.py` dựng.
 
 ## 1. Cấu hình
 

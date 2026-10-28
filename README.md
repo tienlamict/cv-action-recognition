@@ -15,8 +15,28 @@ Năm lớp, thứ tự cố định — `none` luôn là chỉ số 0:
 
 Môi trường: Windows, Python 3.10, **CPU**. Không GPU, không CUDA, không WSL2.
 
-Quy ước bắt buộc của project nằm ở [CLAUDE.md](CLAUDE.md). Spec đầy đủ 12 phase
+> **Trước khi thử demo, đọc [docs/gestures.md](docs/gestures.md).** Mô hình học cử chỉ
+> theo cách người diễn IPN Hand làm, không theo cách bạn hình dung:
+>
+> - vuốt là cú hất có mở bàn tay, không lấy đà ngược chiều;
+> - zoom là chụm hoặc mở ba ngón cái, trỏ, giữa, với nhẫn và út gập.
+
+Quy ước bắt buộc của project nằm ở [CLAUDE.md](CLAUDE.md). Spec đầy đủ 13 phase (0–12)
 nằm ở [docs/SPEC.md](docs/SPEC.md). Lý thuyết nền nằm ở [docs/](docs/README.md).
+
+**Chiến lược dữ liệu: chỉ IPN Hand.**
+
+- Mọi mô hình học và được chấm trên IPN Hand, chia theo người, giữ đúng split chính thức.
+  Val là `VAL_FRACTION` số người của train.
+- Webcam chỉ dùng để **đo** trong điều kiện thật ở Phase 10: tốc độ, kích hoạt nhầm mỗi phút,
+  số lệnh trên một cử chỉ (`results/phase10/`). Các phiên ghi đó không bao giờ vào tập huấn
+  luyện.
+- Phase 11 (dữ liệu tự quay) chưa bật; quyết định ghi ở `results/phase6/live_check.md`.
+- Giới hạn đi kèm, phải nêu trong báo cáo:
+  - chưa có tập kiểm thử điều kiện thật ở mức cửa sổ, nên Bảng 4 của Phase 8 chỉ có hai
+    hàng;
+  - lớp `none` của IPN thiếu gõ phím, dùng chuột và khua tay khi nói;
+  - kết quả offline chỉ nói về người, camera và bối cảnh của IPN.
 
 ---
 
@@ -79,7 +99,7 @@ nhãn gốc. Dữ liệu tự quay đặt ở `data/raw/` theo quy ước tên
 cv-action-recognition/
 ├─ CLAUDE.md              quy ước bất di bất dịch của project
 ├─ README.md              file này
-├─ requirements.txt       phụ thuộc (ghim phiên bản ở Phase 11)
+├─ requirements.txt       phụ thuộc, ghim phiên bản (Phase 12)
 ├─ pytest.ini
 ├─ src/                   thư viện dùng chung — MỘT đường ống cho cả ba nguồn
 │  └─ config.py           nơi DUY NHẤT chứa hằng số
@@ -144,7 +164,7 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 6 | `python scripts/evaluate.py --model rf --split val` | Đánh giá mô hình đã lưu; `--split test` bắt buộc `--final` và ghi `results/TEST_USED.log` (luật 13) |
 | 6 | `python scripts/demo.py --model rf --show-features --log <file.csv>` | Demo webcam; `--show-features` là chế độ luyện tập (bốn đặc trưng so với hộp IPN) |
 | 6 | `python scripts/summarize_log.py <file.csv>` | Số cụm nhãn khác `none` và số cụm mỗi phút của một log demo |
-| 7 | `python scripts/train_lstm.py` | LSTM học trên train (tăng cường mới mỗi epoch), dừng sớm theo macro-F1 val: `results/phase7/train_lstm/run_NN/` (đường học `training_curves.png`, lịch sử từng epoch, ma trận nhầm lẫn, bảng ba mô hình trên cùng tập val); lưu `results/phase7/lstm_model.pt` (`PHASE7_LSTM_PATH`, mô hình chính); cập nhật `results/model_comparison`. LSTM của demo là `LSTM_MODEL_PATH` — từ 2026-10-26 trỏ vào `train_lstm/run_08`; script này không bao giờ ghi vào đó |
+| 7 | `python scripts/train_lstm.py` | LSTM học trên train (tăng cường mới mỗi epoch), dừng sớm theo macro-F1 val: `results/phase7/train_lstm/run_NN/` (đường học `training_curves.png`, lịch sử từng epoch, ma trận nhầm lẫn, bảng ba mô hình trên cùng tập val); lưu `results/phase7/lstm_model.pt` (`PHASE7_LSTM_PATH`, mô hình chính); cập nhật `results/model_comparison`. LSTM của demo là `LSTM_MODEL_PATH` (`results/phase10/lstm_model.pt`, bản sao của `train_lstm/run_08` do `run_all.py` dựng); script này không bao giờ ghi vào đó |
 | 7 | `python scripts/train_lstm.py --no-augment` | Khảo sát không tăng cường, dừng sớm như bản chính (`run_03`); không thay mô hình của demo, không ghi bảng so sánh |
 | 7 | `python scripts/train_lstm.py --no-augment --patience 150` | Khảo sát không tăng cường, chạy đủ 150 epoch (`run_04`): đường học cho thấy điểm bắt đầu quá khớp |
 | 7 | `python scripts/probe_swipes.py --model lstm` | LSTM coi gì là vuốt — cùng các phép thử như rừng: `results/phase7/probe_swipes/run_NN/probe` |
@@ -164,12 +184,13 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 9 | `python scripts/sweep_activation.py` | Hai bảng đánh đổi trên video val, không học lại — `MIN_PRESENCE` lúc chạy (số liệu của `results/phase9/tradeoff.md`) và lưới `CONF_FIRE` × `K_OF_N`: `results/phase9/sweep_activation/run_NN/` |
 | 9 | `python scripts/demo.py --model hybrid --log <file.csv>` | Demo có máy trạng thái: màn hình hiện trạng thái và lệnh vừa phát; log ghi trạng thái, lệnh, và mọi lần chuyển trạng thái vào `<file>_fsm.csv` |
 | 10 | `pip install pyautogui` | Một lần: `demo.py` gửi phím tắt thật qua `pyautogui`, chỉ nạp khi bật điều khiển |
-| 10 | `python scripts/demo.py --model lstm --log <file.csv>` | Demo hoàn chỉnh, cấu hình cuối (`results/phase10/final_config.md`, người dùng chọn 2026-10-26): LSTM `train_lstm/run_08` (`LSTM_MODEL_PATH`), `CONF_FIRE` 0,85, `K_OF_N` 4/5. Phím `c` bật/tắt điều khiển (mặc định **tắt**; `swipe_left` → mũi tên trái = slide trước, `swipe_right` → mũi tên phải = slide sau, zoom → Ctrl + / Ctrl −); `?` hiện tóm tắt `docs/gestures.md`; log ghi thêm phím đã gửi |
+| 10 | `python scripts/demo.py --model lstm --log <file.csv>` | Demo hoàn chỉnh, cấu hình cuối (`results/phase10/final_config.md`, người dùng chọn 2026-10-26): LSTM `results/phase10/lstm_model.pt` (`LSTM_MODEL_PATH`, bản sao của `train_lstm/run_08`), `CONF_FIRE` 0,85, `K_OF_N` 4/5. Phím `c` bật/tắt điều khiển (mặc định **tắt**; `swipe_left` → mũi tên trái = slide trước, `swipe_right` → mũi tên phải = slide sau, zoom → Ctrl + / Ctrl −); `?` hiện tóm tắt `docs/gestures.md`; log ghi thêm phím đã gửi |
 | 10 | `python scripts/demo.py --model lstm --show-features` | Luyện zoom kiểu IPN: phím 3 (`zoom_in`) hoặc 4 (`zoom_out`) hiện thêm `ring_ext`, `pinky_ext` — độ duỗi nhẫn, út so với hộp IPN (≈ 0,4–0,7); xanh là đã gập như IPN |
 | 10 | `python scripts/bench.py speed --light bright` rồi `--light dim` | FPS (bỏ 3 s đầu, đo 30 s) và phân rã thời gian từng khâu cho bốn mô hình, mỗi mức ánh sáng một lần: `results/phase10/speed/run_NN/` (`speed`, `breakdown`, kèm cấu hình máy) |
 | 10 | `python scripts/bench.py record <reading\|typing\|talking>` | Ghi 10 phút làm việc bình thường, KHÔNG làm cử chỉ: ngồi yên đọc tài liệu; gõ phím và dùng chuột; nói chuyện có khua tay. Phiên ở `results/phase10/sessions/`; không gửi phím nào |
 | 10 | `python scripts/bench.py record gestures` | Ghi 20 cử chỉ theo lời nhắc trên màn hình, 5 mỗi lớp (~2,5 phút); lời nhắc lưu thành đoạn có nhãn |
 | 10 | `python scripts/bench.py analyze` | Chạy lại mọi phiên đã ghi và video val qua bốn mô hình × ba cấu hình của bảng đánh đổi (`FSM_TRADEOFF`): kích hoạt nhầm mỗi phút theo kịch bản (gộp theo thời lượng, kèm nhầm mỗi phút có tay), số lệnh trên một cử chỉ, độ trễ, bảng đánh đổi — `results/phase10/analyze/run_NN/` |
+| 12 | `python scripts/run_all.py` | Dựng lại toàn bộ đường ống bằng một lệnh, bỏ qua bước đã có đầu ra: `--list` xem trạng thái từng bước, `--force <bước>` chạy lại. LSTM của demo: chép lần khảo sát đúng công thức `DEPLOY_` vào `LSTM_MODEL_PATH`, chưa có thì học. Manifest: `results/run_all/run_NN/` |
 
 ---
 
@@ -177,7 +198,20 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 
 - Seed cố định: `config.SEED = 42`, đặt cho `random`, `numpy` và `torch`.
 - Camera dùng suốt dự án: 640×480 @ 30 FPS (`CAM_W`, `CAM_H`, `CAM_FPS`).
-- Cấu hình máy đã dùng để đo tốc độ: *(điền ở Phase 10)*.
+- Cấu hình máy đã dùng để đo tốc độ:
+  - Intel64 Family 6 Model 140 Stepping 1, 8 luồng logic; Windows 11 (build 26300);
+  - Python 3.10.21, OpenCV 5.0.0, MediaPipe 1.0.1;
+  - camera 640×480 @ 30 FPS.
+
+  Mỗi bảng tốc độ ghi lại cấu hình máy trong chú thích (`results/phase10/speed/run_NN/`).
+- Phiên bản mọi gói: ghim trong `requirements.txt`, lấy đúng từ môi trường đã cho các con số.
+- **Dựng lại toàn bộ:** `python scripts/run_all.py`.
+  - Chạy điểm mốc → cửa sổ → luật, rừng, LSTM → bảng kết quả, theo đúng thứ tự bảng trên.
+  - Bước nào đã có đầu ra thì bỏ qua. `--list` xem trạng thái; `--force <bước>` chạy lại một
+    bước.
+  - Dựng từ đầu mất cả đêm cho điểm mốc, cộng khoảng 170 phút cho bảy bảng khảo sát.
+  - Lần chạy cuối trên tập test không nằm trong đó: chạy tay đúng một lần, khi mọi cấu hình
+    đã chốt.
 -----------------------------------------------------------------
 
 conda activate action-recognition

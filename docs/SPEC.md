@@ -721,6 +721,7 @@ test_nguong_tin_cay           # 5 cửa sổ conf 0,6 với CONF_FIRE 0,75 → 0
     - Cái giá: thêm `zoom_out` nhầm khi nói chuyện.
     - Cùng lúc, người dùng luyện gập nhẫn và út theo IPN: `demo.py --show-features` hiện thêm độ duỗi hai ngón đó cho hai lớp zoom.
     - `LSTM_MODEL_PATH` trỏ vào checkpoint của `run_08`. `train_lstm.py` ghi mô hình chính vào `PHASE7_LSTM_PATH` và không bao giờ ghi vào `LSTM_MODEL_PATH`.
+    - *Sửa 2026-10-28 (Phase 12):* số `run_NN` không tái lập được, nên `LSTM_MODEL_PATH` giờ là đường dẫn cố định `results/phase10/lstm_model.pt`. File đó là bản sao từng byte của `run_08`; công thức nằm trong config (`DEPLOY_ZOOM_STYLE_P`, `DEPLOY_STATIC_SHARE`), và `run_all.py` dựng lại nó.
     - Chi tiết: `results/phase10/notes.md` mục 1, 2 và 4.
 5. Bảng đánh đổi chính, ba hàng: `CONF_FIRE` 0,60 với k/n 2/5; 0,75 với 3/5; 0,85 với 4/5. Mỗi hàng ba cột: F1 mức sự kiện, kích hoạt nhầm mỗi phút, độ trễ.
 6. Chọn cấu hình cuối **dựa trên bảng đó**, ghi lý do vào `results/phase10/final_config.md`. Ghi cấu hình máy vào chú thích mọi bảng tốc độ. *Ghi chú 2026-10-26:* **người dùng chọn** LSTM `run_08` với `CONF_FIRE` 0,85 và `K_OF_N` 4/5.

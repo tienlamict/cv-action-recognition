@@ -44,8 +44,14 @@ Trên webcam, cái giá hiện ra ở kịch bản nói chuyện (mục 4): lệ
 
 **Cách đổi.**
 
-- `config.LSTM_MODEL_PATH` trỏ thẳng vào `results/phase7/train_lstm/run_08/lstm_model.pt`.
-  Không có bản sao nào phải giữ cho khớp.
+- `config.LSTM_MODEL_PATH` ban đầu trỏ thẳng vào `results/phase7/train_lstm/run_08/lstm_model.pt`.
+- **Sửa 2026-10-28 (Phase 12):** số `run_NN` không tái lập được. Dựng lại từ đầu thì cùng lần
+  học đó rơi vào số khác, và demo mất mô hình. Giờ:
+  - `LSTM_MODEL_PATH` là đường dẫn cố định `results/phase10/lstm_model.pt`;
+  - công thức nằm trong config: `DEPLOY_ZOOM_STYLE_P`, `DEPLOY_STATIC_SHARE`;
+  - `run_all.py` chép lần khảo sát mới nhất đúng công thức đó, học trên đúng bộ cửa sổ hiện
+    tại, sang `LSTM_MODEL_PATH`. Chưa có lần nào như vậy thì nó học trước.
+  - File hiện tại trùng `run_08` từng byte, nên mọi bảng và bản ghi giữ nguyên.
 - `train_lstm.py` ghi mô hình chính vào `PHASE7_LSTM_PATH` (vẫn là `run_07`).
 - `save_checkpoint` bắt buộc đường dẫn, nên không lần huấn luyện nào ghi đè được mô hình của
   demo. `test_huan_luyen_khong_bao_gio_ghi_de_mo_hinh_cua_demo` giữ điều đó.

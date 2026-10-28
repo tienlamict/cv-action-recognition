@@ -1,17 +1,20 @@
-# Phase 0 — chưa ghim phiên bản. Ghim ở Phase 11 (tái lập).
-# Cài trên CPU, Windows, Python 3.10. Không gói CUDA nào.
+# Phase 12 — ghim đúng phiên bản của môi trường đã cho mọi con số trong results/
+# (conda env action-recognition, Python 3.10.21, Windows, CPU; ghim 2026-10-28).
+# Không gói CUDA nào: torch trên PyPI cho Windows là bản CPU. Môi trường gốc cài
+# bản 2.14.0+cpu; "==2.14.0" khớp cả hai.
 
-numpy
-opencv-python
-mediapipe
+numpy==2.2.6
+opencv-python==5.0.0.93
+mediapipe==1.0.1
 
-scikit-learn
-torch
+scikit-learn==1.7.2
+scipy==1.15.3
+joblib==1.6.0
+torch==2.14.0
 
-pandas
-matplotlib
+matplotlib==3.10.9
 
 # Phase 10: demo.py gửi phím tắt thật; chỉ nạp khi bật điều khiển (phím c)
-pyautogui
+pyautogui==0.9.54
 
-pytest
+pytest==9.1.1
