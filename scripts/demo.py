@@ -7,7 +7,7 @@ chuỗi nhãn thành lệnh rời rạc: màn hình hiện trạng thái của n
 (">> COMMAND"). Hạ tay ra khỏi khung hình là huỷ.
 
 Phím c bật/tắt ĐIỀU KHIỂN — gửi phím tắt thật qua pyautogui (CTRL_HOTKEYS: vuốt
-trái → slide trước, vuốt phải → slide sau, zoom → Ctrl +/−). Mặc định TẮT. Phím
+trái → slide trước, vuốt phải → slide sau, zoom → phím +/−). Mặc định TẮT. Phím
 tắt đi vào cửa sổ đang có focus: bấm c trong cửa sổ demo, rồi bấm chuột vào ứng
 dụng trình chiếu (PowerPoint: đang chạy trình chiếu, F5). Cửa sổ demo luôn nằm
 trên cùng nên vẫn nhìn thấy. Phím ? (hoặc h) hiện tóm tắt docs/gestures.md.

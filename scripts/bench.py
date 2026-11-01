@@ -315,12 +315,19 @@ def run_record(args):
 # analyze
 # --------------------------------------------------------------------------
 
-def fsm_factory(conf_fire, k, on_transition=None):
+def fsm_factory(conf_fire, k, on_transition=None, zoom=None):
     """Máy trạng thái của một hàng bảng đánh đổi: ``CONF_FIRE`` và ``k`` đổi, mọi
-    thứ khác theo ``config.py``."""
+    thứ khác theo ``config.py``.
+
+    Args:
+        zoom: ``(ngưỡng, k)`` riêng của họ zoom; ``None`` là một ngưỡng chung cho
+            mọi lớp, đúng ba hàng của ``FSM_TRADEOFF``.
+    """
+    zoom_fire, zoom_k = zoom or (conf_fire, k)
     return partial(ActivationFSM, conf_fire=conf_fire,
                    conf_hold=min(config.CONF_HOLD, conf_fire),
-                   k_of_n=(k, config.K_OF_N[1]), on_transition=on_transition)
+                   k_of_n=(k, config.K_OF_N[1]), zoom_fire=zoom_fire, zoom_k=zoom_k,
+                   on_transition=on_transition)
 
 
 class ConsensusLog:
@@ -348,12 +355,13 @@ def gesture_cores(path, timeline):
     return [by_start.get((cls, start)) for cls, start, _, _ in timeline.gestures]
 
 
-def score(timelines, labels, confidences, conf_fire, k, cores=None):
+def score(timelines, labels, confidences, conf_fire, k, cores=None, zoom=None):
     """Một cấu hình máy trạng thái trên một nhóm video.
 
     Args:
         labels, confidences: mỗi video một mảng như ``events.scatter``.
         cores: ``clip → list giây`` của :func:`gesture_cores`.
+        zoom: như ở :func:`fsm_factory`.
 
     Returns:
         dict của ``events.summarize_events``, cộng ``latency`` (giây từ khoảnh
@@ -362,7 +370,7 @@ def score(timelines, labels, confidences, conf_fire, k, cores=None):
     """
     log = ConsensusLog()
     results = evaluate_timelines(timelines, labels, confidences,
-                                 fsm_factory(conf_fire, k, log))
+                                 fsm_factory(conf_fire, k, log, zoom))
     latency = []
     for r in results:
         core = (cores or {}).get(r["clip"], [])
@@ -371,7 +379,15 @@ def score(timelines, labels, confidences, conf_fire, k, cores=None):
     return {**summarize_events(results), "latency": latency, "consensus": log.delays}
 
 
-def pooled_score(paths, timelines, predictions, conf_fire, k):
+def tradeoff_configs():
+    """Các hàng của bảng đánh đổi, mỗi hàng ``(CONF_FIRE, k, zoom)``: ba hàng một
+    ngưỡng chung của SPEC (``FSM_TRADEOFF``), cộng cấu hình cuối — vuốt theo
+    ``CONF_FIRE``, ``K_OF_N``; zoom theo ``FSM_ZOOM_FIRE``, ``FSM_ZOOM_K``."""
+    return [*((fire, k, None) for fire, k in config.FSM_TRADEOFF),
+            (config.CONF_FIRE, config.K_OF_N[0], (config.FSM_ZOOM_FIRE, config.FSM_ZOOM_K))]
+
+
+def pooled_score(paths, timelines, predictions, conf_fire, k, zoom=None):
     """:func:`score` cho cả một nhóm phiên: lệnh, cử chỉ cộng dồn; nhầm/phút
     chia TỔNG thời lượng — phiên 10 phút nặng gấp mười phiên 1 phút.
 
@@ -384,7 +400,7 @@ def pooled_score(paths, timelines, predictions, conf_fire, k):
     if not paths:
         return None
     return score([timelines[p] for p in paths], [predictions[p][0][0] for p in paths],
-                 [predictions[p][1][0] for p in paths], conf_fire, k)
+                 [predictions[p][1][0] for p in paths], conf_fire, k, zoom=zoom)
 
 
 def valid_share(timelines):
@@ -480,17 +496,18 @@ def run_analyze(args):
     for model in args.models:
         val_per = scatter(val_timelines, *predict(model, val_X, val_F))
         per_session = {p: scatter([t], *predict(model, X, F)) for p, _, t, X, F in sessions}
-        for conf_fire, k in config.FSM_TRADEOFF:
-            key = {"model": model, "conf_fire": conf_fire, "k_of_n": f"{k}/{n}"}
-            val = score(val_timelines, *val_per, conf_fire, k, val_cores)
+        for conf_fire, k, zoom in tradeoff_configs():
+            key = {"model": model, "conf_fire": conf_fire, "k_of_n": f"{k}/{n}",
+                   "zoom": "chung" if zoom is None else f"{zoom[0]:g}·{zoom[1]}/{n}"}
+            val = score(val_timelines, *val_per, conf_fire, k, val_cores, zoom=zoom)
             for path, scenario, timeline, _, _ in sessions:
-                s = score([timeline], *per_session[path], conf_fire, k)
+                s = score([timeline], *per_session[path], conf_fire, k, zoom=zoom)
                 session_rows.append({
                     "session": path.stem, "scenario": scenario, **key,
                     "minutes": s["minutes"], "valid_share": valid_share([timeline]),
                     "n_commands": s["n_commands"], "false_per_min": s["false_per_min"],
                     "n_gestures": s["n_gestures"], **gesture_metrics(s)})
-            pooled = {sc: pooled_score(paths, timelines, per_session, conf_fire, k)
+            pooled = {sc: pooled_score(paths, timelines, per_session, conf_fire, k, zoom)
                       for sc, paths in members.items()}
             gestures = (gesture_metrics(pooled["gestures"]) if pooled["gestures"]
                         else dict.fromkeys(GESTURE_COLUMNS, np.nan))
@@ -514,7 +531,9 @@ def run_analyze(args):
         print(f"[{model}] xong ({time.perf_counter() - started:.0f} s)", flush=True)
 
     run_dir = next_run_dir(args.out)
-    notes = [f"Ba cấu hình của FSM_TRADEOFF; CONF_HOLD = min({config.CONF_HOLD:g}, CONF_FIRE), "
+    notes = [f"Ba cấu hình của FSM_TRADEOFF, một ngưỡng chung cho mọi lớp (zoom = chung), và "
+             "cấu hình cuối: CONF_FIRE, K_OF_N cho vuốt, ngưỡng riêng ở cột zoom cho zoom. "
+             f"CONF_HOLD = min({config.CONF_HOLD:g}, ngưỡng mở), "
              f"COOLDOWN_SEC {config.COOLDOWN_SEC:g}, MIN_PRESENCE {config.MIN_PRESENCE:g}.",
              "Phiên webcam chạy lại qua đúng đường ống của demo; *_val là 27 video val của IPN.",
              "Nhầm/phút của từng kịch bản và false_per_min_live (cả ba kịch bản) GỘP theo "
@@ -542,11 +561,11 @@ def run_analyze(args):
                              "val_clips": len(val_paths), "speed": speed,
                              "seconds": time.perf_counter() - started})
 
-    print(f"\n{'mô hình':<8}{'FIRE':>6}{'k/n':>5}{'F1 val':>8}{'nhầm/ph val':>12}"
+    print(f"\n{'mô hình':<8}{'FIRE':>6}{'k/n':>5}{'zoom':>10}{'F1 val':>8}{'nhầm/ph val':>12}"
           + "".join(f"{sc[:8]:>9}" for sc in config.BENCH_SCENARIOS)
           + f"{'/ph có tay':>11}{'R vuốt':>8}{'R zoom':>8}{'lệnh/cc':>9}{'lệnh/nhắc':>10}{'trễ val':>9}")
     for r in tradeoff_rows:
-        print(f"{r['model']:<8}{r['conf_fire']:6.2f}{r['k_of_n']:>5}{r['event_f1_val']:8.3f}"
+        print(f"{r['model']:<8}{r['conf_fire']:6.2f}{r['k_of_n']:>5}{r['zoom']:>10}{r['event_f1_val']:8.3f}"
               f"{r['false_per_min_val']:12.2f}"
               + "".join(f"{r[f'false_per_min_{sc}']:9.2f}" for sc in config.BENCH_SCENARIOS)
               + f"{r['false_per_hand_min_live']:11.2f}{r['recall_swipes_live']:8.2f}{r['recall_zooms_live']:8.2f}"

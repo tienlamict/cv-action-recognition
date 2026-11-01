@@ -13,8 +13,9 @@
 |---|---|---|---|
 | 2026-10-09 (Phase 6) | rừng | `results/phase6/live_rf_work.csv`, `live_rf_swipes.csv` | Zoom nhận khá tốt, vuốt kém. Người dùng vuốt "kiểu thông thường": bàn tay giữ nguyên dáng, đi ra rồi quay về. Cú hất của IPN thì khác (`results/phase6/notes.md` mục 7) |
 | 2026-10-25 (Phase 10) | ghép | thử hướng vuốt | Vuốt sang trái của người dùng ra `swipe_left`; giữ `IPN_FLIP_X = 1` |
-| 2026-10-25 và 26 (Phase 10) | LSTM `run_08`, cấu hình cuối | `gestures_01`, `gestures_02`: 40 lời nhắc, 10 mỗi lớp | Nhận đúng: `swipe_left` 6/10, `swipe_right` 5/10, `zoom_in` 4/10, `zoom_out` 0/10 |
-| 2026-10-25 và 26 (Phase 10) | LSTM `run_08`, cấu hình cuối | `talking_01`, `talking_02` (10,9 phút); `reading_01`, `typing_01` | Khi nói chuyện: 0,18 lệnh nhầm mỗi phút, 0,79 nếu tính trên phút có tay. Khi đọc và gõ phím, camera không thấy tay |
+| 2026-10-25 và 26 (Phase 10) | ghép, cấu hình cuối (chạy lại) | `gestures_01`, `gestures_02`: 40 lời nhắc, 10 mỗi lớp | Nhận đúng: `swipe_left` 6/10, `swipe_right` 5/10, `zoom_in` 5/10, `zoom_out` 5/10 |
+| 2026-10-25 và 26 (Phase 10) | ghép, cấu hình cuối (chạy lại) | `talking_01`, `talking_02` (10,9 phút); `reading_01`, `typing_01` | Khi nói chuyện: 0,18 lệnh nhầm mỗi phút, 0,79 nếu tính trên phút có tay. Khi đọc và gõ phím, camera không thấy tay |
+| 2026-11-01 (Phase 10) | LSTM `run_08`, 0,85 · 4/5 | `results/phase10/live_final.csv`: thử slide thật | 4/4 lệnh vuốt, 0/12 cú zoom. Sau khi đổi sang cấu hình cuối, chạy lại: 6/12 cú zoom, cả 6 đúng chiều; phần lớn số còn lại bị thời gian nghỉ che, vì người dùng đổi chiều mỗi khoảng 1,3 giây |
 
 ## 2. Bốn dấu hiệu của SPEC
 

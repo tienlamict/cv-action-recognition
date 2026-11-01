@@ -11,6 +11,7 @@ from tests.fixtures import make_static, save_parts_clip
 NONE = config.CLASSES.index("none")
 LEFT = config.CLASSES.index("swipe_left")
 RIGHT = config.CLASSES.index("swipe_right")
+ZOOM_IN = config.CLASSES.index("zoom_in")
 GONE = None             # một lần dự đoán không có cửa sổ nào: mất tay
 
 
@@ -22,6 +23,8 @@ def spec_params(monkeypatch):
     monkeypatch.setattr(config, "CONF_HOLD", 0.55)
     monkeypatch.setattr(config, "K_OF_N", (3, 5))
     monkeypatch.setattr(config, "COOLDOWN_SEC", 1.2)
+    monkeypatch.setattr(config, "FSM_ZOOM_FIRE", 0.75)
+    monkeypatch.setattr(config, "FSM_ZOOM_K", 3)
 
 
 def run(windows, fsm=None, ts=None):
@@ -99,6 +102,41 @@ def test_cu_chi_khac_tu_tin_mo_ngay_ung_vien_moi():
     assert [c for _, c in commands] == [RIGHT]
 
 
+def final_like():
+    """Máy kiểu cấu hình cuối: vuốt 0,85 với 4/5, zoom 0,40 với 3/5."""
+    return ActivationFSM(conf_fire=0.85, conf_hold=0.55, k_of_n=(4, 5),
+                         zoom_fire=0.40, zoom_k=3)
+
+
+def test_zoom_co_nguong_rieng_vuot_giu_nguyen():
+    """Độ tin 0,45 ba cửa sổ: zoom thành lệnh ở cửa sổ thứ ba, vuốt thì không mở
+    nổi ứng viên. Ba cửa sổ vuốt rất tự tin — đoạn lấy đà — vẫn không đủ 4/5."""
+    weak_zoom = run([(ZOOM_IN, 0.45)] * 3, final_like())
+    assert [c for _, c in weak_zoom] == [ZOOM_IN]
+    assert weak_zoom[0][0] == pytest.approx(2 * config.STRIDE_SEC)
+    assert run([(LEFT, 0.45)] * 5, final_like()) == []
+    assert run([(LEFT, 1.0)] * 3 + [(NONE, 0.9)], final_like()) == []
+    assert [c for _, c in run([(LEFT, 1.0)] * 4, final_like())] == [LEFT]
+
+
+def test_nguong_giu_theo_ho_cua_ung_vien():
+    """Ứng viên zoom giữ ở mức của zoom: none 0,45 đủ tin để phản đối, none 0,39
+    chỉ là do dự. Ứng viên vuốt giữ ở CONF_HOLD: none 0,45 chỉ là do dự."""
+    zoom = [(ZOOM_IN, 0.45), (ZOOM_IN, 0.45)]
+    assert run(zoom + [(NONE, 0.45), (NONE, 0.1)], final_like()) == []
+    assert len(run(zoom + [(NONE, 0.39), (ZOOM_IN, 0.45)], final_like())) == 1
+    swipe = [(LEFT, 0.9)] * 2 + [(NONE, 0.45), (LEFT, 0.9), (LEFT, 0.9)]
+    assert [c for _, c in run(swipe, final_like())] == [LEFT]
+
+
+def test_nguong_zoom_mac_dinh_doc_tu_config(monkeypatch):
+    monkeypatch.setattr(config, "FSM_ZOOM_FIRE", 0.33)
+    monkeypatch.setattr(config, "FSM_ZOOM_K", 2)
+    fsm = ActivationFSM()
+    assert (fsm.zoom_fire, fsm.zoom_k) == (0.33, 2)
+    assert [c for _, c in run([(ZOOM_IN, 0.34)] * 2, ActivationFSM())] == [ZOOM_IN]
+
+
 def test_ghi_moi_chuyen_trang_thai():
     log = []
     fsm = ActivationFSM(on_transition=lambda *transition: log.append(transition))
@@ -113,6 +151,8 @@ def test_tham_so_sai_bi_tu_choi():
         ActivationFSM(k_of_n=(6, 5))
     with pytest.raises(ValueError):
         ActivationFSM(conf_fire=0.5, conf_hold=0.6)
+    with pytest.raises(ValueError):
+        ActivationFSM(zoom_k=6)
 
 
 def test_may_trang_thai_la_bo_loc_fsm_cua_muc_su_kien():
@@ -120,7 +160,7 @@ def test_may_trang_thai_la_bo_loc_fsm_cua_muc_su_kien():
     một máy mới; bảng đánh đổi truyền thẳng một hàm tạo máy có tham số riêng."""
     assert isinstance(events.make_filter("fsm"), ActivationFSM)
     assert events.make_filter("fsm") is not events.make_filter("fsm")
-    assert events.make_filter(lambda: ActivationFSM(k_of_n=(1, 1))).k == 1
+    assert events.make_filter(lambda: ActivationFSM(k_of_n=(1, 1), zoom_k=1)).k == 1
 
 
 def test_nang_min_presence_tren_dong_thoi_gian_trung_chay_lai_video(tmp_path):

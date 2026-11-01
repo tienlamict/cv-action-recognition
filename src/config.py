@@ -332,12 +332,18 @@ CONF_HOLD = 0.55        # ngưỡng trễ, thấp hơn CONF_FIRE: cửa sổ đ�
 K_OF_N = (4, 5)         # đồng thuận: k cửa sổ đồng ý trong n cửa sổ kể từ lúc mở
                         # ứng viên; một cửa sổ phản đối tự tin làm hỏng đồng thuận
                         # ngay (src/activation.py)
-                        # CONF_FIRE và K_OF_N là cấu hình cuối, người dùng chọn
-                        # 2026-10-26 từ bảng đánh đổi Phase 10 (SPEC khởi đầu ở
-                        # 0,75 với 3/5): ít lệnh ngược chiều và ít nhầm khi nói
-                        # chuyện hơn, đổi lấy recall zoom thấp hơn
+                        # CONF_FIRE và K_OF_N là cấu hình cuối cho họ VUỐT, người
+                        # dùng chọn 2026-10-26 từ bảng đánh đổi Phase 10 (SPEC khởi
+                        # đầu ở 0,75 với 3/5): ít lệnh ngược chiều và ít nhầm khi
+                        # nói chuyện hơn. Họ zoom: FSM_ZOOM_ dưới đây
                         # (results/phase10/final_config.md)
 COOLDOWN_SEC = 1.2      # thời gian câm lặng sau khi phát một lệnh
+FSM_ZOOM_FIRE = 0.40    # họ zoom có ngưỡng riêng (đổi thiết kế một CONF_FIRE của
+FSM_ZOOM_K = 3          # SPEC; người dùng chọn 2026-11-01): mở ứng viên ở mức này, cần
+                        # k phiếu trong K_OF_N[1] cửa sổ. Zoom của mô hình ghép theo
+                        # rừng, mà thang độ tin của rừng thấp hơn LSTM: trên tay người
+                        # dùng rừng gán đúng 12/12 cú zoom ở 0,33–0,75, trong khi 0,85
+                        # với 4/5 không phát cú nào (results/phase10/notes.md mục 7)
 
 PHASE9_RESULTS_DIR = RESULTS_DIR / "phase9"
 FSM_CMDS_RANGE = (0.9, 1.1)     # SPEC Phase 9: số lệnh trên một cử chỉ, trên video val
@@ -368,9 +374,11 @@ DEPLOY_STATIC_SHARE = 0.1       # ...và AUG_STATIC_SHARE này (train_lstm.py --
                                 # của mô hình đã lưu băm thẳng file mô hình
 BENCH_SESSIONS_DIR = PHASE10_RESULTS_DIR / "sessions"    # phiên ghi của bench.py record
 CTRL_HOTKEYS = {"swipe_left": ("left",), "swipe_right": ("right",),
-                "zoom_in": ("ctrl", "+"), "zoom_out": ("ctrl", "-")}
+                "zoom_in": ("+",), "zoom_out": ("-",)}
                         # SPEC: swipe_left → slide trước, swipe_right → slide sau
-                        # (mũi tên của trình chiếu); zoom → Ctrl + / Ctrl −
+                        # (mũi tên của trình chiếu); zoom → phím + / − của PowerPoint
+                        # khi đang trình chiếu (người dùng chọn 2026-11-01). Google
+                        # Slides và trình đọc PDF thì dùng ("ctrl", "+"), ("ctrl", "-")
 CTRL_TOGGLE_KEY = ord("c")      # bật/tắt điều khiển trong cửa sổ demo; mặc định TẮT
 BENCH_SPEED_SEC = 30.0          # đo FPS bấy nhiêu giây, sau FPS_WARMUP_SEC (cẩm nang 20)
 BENCH_SCENARIOS = ("reading", "typing", "talking")

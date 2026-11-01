@@ -12,9 +12,10 @@
 > Mọi khảo sát chạy trên val, hoặc k-fold trên 37 người của train và val. Tập test chưa bị chạm:
 > `results/TEST_USED.log` chưa tồn tại.
 >
-> **Cập nhật 2026-10-26:** bảy bảng được dựng lại với cấu hình cuối của Phase 10 (máy
-> trạng thái 0,85 · 4/5; LSTM của Bảng 1 là `run_08`) ở `results/phase8/experiments/run_03`.
-> Kết luận nào đứng, kết luận nào đổi: `results/phase10/notes.md` mục 7.
+> **Cập nhật 2026-10-26 và 2026-11-01:** bảy bảng được dựng lại khi máy trạng thái đổi ở
+> Phase 10: `experiments/run_03` (0,85 · 4/5 chung; LSTM của Bảng 1 là `run_08`) và
+> `experiments/run_04` (cấu hình cuối: vuốt 0,85 · 4/5, zoom 0,40 · 3/5). Kết luận nào đứng, kết
+> luận nào đổi: `results/phase10/notes.md` mục 6 và 7.
 >
 > **Ba phép kiểm đường ống đều đạt:**
 >

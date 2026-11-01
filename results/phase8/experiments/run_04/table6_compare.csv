@@ -1,0 +1,7 @@
+so_sánh,metric,mean_a,mean_b,delta,std,verdict
+LSTM − rừng ngẫu nhiên,macro_f1,0.5490459929805722,0.43288429051478294,0.11616170246578927,0.027133734998045864,chênh lệch lớn hơn độ lệch chuẩn
+LSTM − rừng ngẫu nhiên,event_f1,0.6272895000053083,0.30457524016111764,0.3227142598441906,0.058286491618990285,chênh lệch lớn hơn độ lệch chuẩn
+"ghép (vuốt LSTM, zoom rừng) − LSTM",macro_f1,0.4918265222083873,0.5490459929805722,-0.05721947077218492,0.027133734998045864,chênh lệch lớn hơn độ lệch chuẩn
+"ghép (vuốt LSTM, zoom rừng) − LSTM",event_f1,0.5219478121226787,0.6272895000053083,-0.10534168788262954,0.058286491618990285,chênh lệch lớn hơn độ lệch chuẩn
+"ghép (vuốt LSTM, zoom rừng) − rừng ngẫu nhiên",macro_f1,0.4918265222083873,0.43288429051478294,0.05894223169360435,0.022352352362338884,chênh lệch lớn hơn độ lệch chuẩn
+"ghép (vuốt LSTM, zoom rừng) − rừng ngẫu nhiên",event_f1,0.5219478121226787,0.30457524016111764,0.21737257196156107,0.042962115512640446,chênh lệch lớn hơn độ lệch chuẩn

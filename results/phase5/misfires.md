@@ -29,13 +29,13 @@ của demo.
 | **Gộp** | 12,0 | 21% | **53 (4,4/phút)** | 26 (2,2/phút) | 39 (3,3/phút) |
 | Mỗi phút có tay | | | 21,0 | 10,3 | 15,4 |
 
-**Qua máy trạng thái ở cấu hình cuối** (0,85 · 4/5), cùng hai phiên talking, số lệnh nhầm mỗi
-phút (`results/phase10/analyze/run_06`):
+**Qua máy trạng thái ở cấu hình cuối** (vuốt 0,85 · 4/5, zoom 0,40 · 3/5), cùng hai phiên
+talking, số lệnh nhầm mỗi phút (`results/phase10/analyze/run_07`):
 
-- luật 0,55;
-- rừng 0,00;
-- LSTM 0,18;
-- mô hình ghép 0,00.
+- luật 1,10;
+- rừng 0,18;
+- LSTM 0,55;
+- mô hình ghép 0,18.
 
 Luật báo nhầm nhiều nhất, đúng vai trò đường cơ sở của nó.
 

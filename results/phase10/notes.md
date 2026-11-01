@@ -10,9 +10,9 @@
 > - `results/phase7/probe_zooms/run_03`, `run_04`: thăm dò zoom trên video IPN với LSTM
 >   `run_07` và `run_08`.
 >
-> Cấu hình cuối: `final_config.md` (người dùng chọn 2026-10-26); bảng Phase 8 dựng lại với
-> nó ở mục 7. Chưa xong: tốc độ đủ bốn
-> mô hình × hai mức ánh sáng, thử điều khiển slide thật, độ trễ thủ công, video demo (mục 6).
+> Cấu hình cuối: `final_config.md` (người dùng chọn 2026-10-26, sửa 2026-11-01 sau lần thử slide
+> thật, mục 7); bảng Phase 8 dựng lại ở `experiments/run_04`. Chưa xong: tốc độ đủ bốn
+> mô hình × hai mức ánh sáng, thử điều khiển slide thật, độ trễ thủ công, video demo (mục 8).
 
 ## 1. LSTM của demo đổi sang `train_lstm/run_08` — người dùng chọn 2026-10-26
 
@@ -175,7 +175,7 @@ Ba nguyên nhân, đo trên điểm mốc đã ghi:
 Nguyên nhân 1 và 2 là lỗi cách làm. Tài liệu đã nói "dứt khoát, một chiều" nhưng chưa nói rõ
 "không lấy đà".
 
-## 7. Bảng Phase 8 dựng lại với cấu hình cuối (`results/phase8/experiments/run_03`)
+## 6. Bảng Phase 8 dựng lại với 0,85 · 4/5 (`results/phase8/experiments/run_03`)
 
 **Cách dựng.**
 
@@ -243,16 +243,101 @@ lớn mới đứng qua cả hai cấu hình. Vì vậy không nên đổi quota
 - Cột này trong `run_03` vì vậy không so được giữa các hàng. Số tốc độ chính thức lấy từ
   `bench.py speed`, có ghi cấu hình máy.
 
-## 6. Bước tiếp
+## 7. Thử slide thật (2026-11-01): zoom không phát lệnh, đổi nguồn và ngưỡng của zoom
 
-1. **Đã xong 2026-10-26.**
-   - Người dùng chọn **lstm, `CONF_FIRE` 0,85, `K_OF_N` 4/5**. Lý do và cái giá:
-     `final_config.md`.
-   - `results/model_comparison` đã tính lại cả bốn mô hình với cấu hình này.
-   - Màn hình trợ giúp và `docs/gestures.md` thêm "không lấy đà ngược chiều".
+**Triệu chứng.** Người dùng chạy `demo.py --model lstm` ở 0,85 · 4/5: "nhận diện được hành động
+nhưng nhiều lúc không phát lệnh; zoom hoàn toàn không phát lệnh". Log `results/phase10/live_final.csv`
+(32 giây, chỉ giữ lần chạy cuối): 4 lệnh vuốt, cả 4 đã gửi phím; 12 cú zoom, **0 lệnh**.
+
+**Nguyên nhân**, đo trên điểm mốc của phiên đó:
+
+- **Động tác zoom sạch.** Khoảng cách cái–trỏ đi giữa 0,1 và 1,7 lòng bàn tay, chuyển trong
+  0,2–0,4 giây rồi giữ yên hơn 1 giây. `pinch_delta` ±1,4–1,8, đúng vùng zoom của IPN.
+- **Nhẫn và út vẫn duỗi:** độ duỗi 1,4–2,1, góc PIP của nhẫn 2,4–3,1 rad. IPN là ≈ 0,5 và
+  ≈ 1,7 rad.
+- **LSTM thiếu tự tin.** Với `zoom_out`, nhãn thường đúng nhưng độ tin 0,4–0,7 ở đầu chuỗi và chỉ
+  vượt 0,85 ở 1–3 cửa sổ cuối. Máy trạng thái mở ứng viên ở 0,85 rồi cần 4/5, nên không đủ cửa
+  sổ. Với `zoom_in`, nhiều cửa sổ bị đoán `none`.
+- **Rừng gán đúng lớp cả 12/12 cú, chỉ thang độ tin thấp hơn:** `zoom_in` 0,33–0,56, `zoom_out`
+  0,5–0,75. Đây chính là điều `results/phase9/notes.md` mục 8 đã nêu và để người dùng quyết.
+- **Người dùng đổi chiều mỗi khoảng 1,3 giây,** nhanh hơn khoảng 1,8 giây mỗi lệnh (đồng thuận
+  cộng thời gian nghỉ), nên cấu hình nào cũng mất một phần số cú ở phiên này.
+
+**Phương án.** Vuốt theo LSTM, giữ 0,85 · 4/5; chỉ nguồn và ngưỡng của zoom đổi. Chạy lại trên
+phiên trên, 40 lời nhắc, hai phiên talking và 27 video val:
+
+| Zoom | Live có nghỉ / bỏ nghỉ | 20 lời nhắc zoom: đúng / ngược / sót | Lệnh/lời nhắc | Nhầm/phút talking | Val: F1, nhầm/phút |
+|---|---|---|---|---|---|
+| LSTM 0,85 · 4/5 (trước đây) | 0/12, — | 4 / 1 / 15 | 0,62 | 0,18 | 0,600, 0,77 |
+| **Rừng 0,40 · 3/5 (chọn)** | 6/12, 9/12 | 10 / 4 / 6 | **1,00** | 0,18 | 0,561, 0,85 |
+| Rừng 0,40 · 2/5 | 8/12, 11/12 | 16 / 4 / 0 | 1,48 | 0,27 | 0,525, 1,33 |
+| Rừng 0,50 · 3/5 | 5/12, 5/12 | 10 / 2 / 8 | 0,90 | 0,18 | 0,581, 0,68 |
+| LSTM 0,50 · 3/5 | 6/12, — | 9 / — / — | 0,95 | 0,46 | 0,514, 1,66 |
+
+Trên phiên live, cột "bỏ nghỉ" tắt thời gian nghỉ để xem riêng khả năng nhận từng cú. Rừng
+0,50 · 3/5 cho 0/6 `zoom_in`, vì độ tin `zoom_in` trên tay người dùng chủ yếu dưới 0,50.
+
+**Người dùng chọn 2026-11-01:** mô hình ghép, zoom theo rừng ở 0,40 · 3/5, vuốt giữ 0,85 · 4/5,
+và phím `+` / `−` vì trình chiếu bằng PowerPoint. Đây là **đổi thiết kế** so với một `CONF_FIRE`
+chung của SPEC.
+
+**Cách làm.**
+
+- `FSM_ZOOM_FIRE`, `FSM_ZOOM_K` trong `config.py`; ngưỡng giữ của ứng viên zoom là
+  `min(CONF_HOLD, FSM_ZOOM_FIRE)`. Tiền tố `FSM_` nằm ngoài băm bản ghi, nên cả 46 bản ghi Phase 8
+  vẫn hợp lệ.
+- Áp cho mọi mô hình, vì mọi mô hình dùng chung một máy trạng thái. Vì vậy các hàng khác của
+  bảng cũng đổi.
+- `sweep_activation.py` và ba hàng `FSM_TRADEOFF` của `bench.py analyze` vẫn quét một ngưỡng chung;
+  `analyze` có thêm một hàng cho cấu hình cuối.
+
+**Kết quả với code thật** (`analyze/run_07`, `evaluate/run_13`–`run_16`), khớp phép thử nháp:
+
+- Mô hình ghép: F1 sự kiện val 0,561, 0,85 nhầm/phút val, 0,18 nhầm/phút talking (0,79 mỗi phút
+  có tay), recall vuốt 0,55, recall zoom 0,50, **1,00 lệnh mỗi lời nhắc**, trễ val 0,76 s.
+- Replay phiên `live_final`: 4 lệnh vuốt như cũ, **6 cú zoom thành lệnh, cả 6 đúng chiều**.
+- "0,9–1,1 lệnh" trên webcam giờ đạt theo định nghĩa của SPEC, nhưng vẫn có bù trừ: recall chung
+  chỉ 0,525. Trên video val, mô hình ghép đạt 0,61 lệnh mỗi cử chỉ, tức mục của Phase 9 vẫn chưa
+  đạt.
+
+**Bảng Phase 8 dựng lại** (`experiments/run_04`, không học lại, bộ cửa sổ vẫn trùng từng bit):
+
+| F1 sự kiện | `run_03` (0,85 · 4/5 chung) | `run_04` (cấu hình cuối) |
+|---|---|---|
+| LSTM, năm seed | 0,629 ± 0,051 | 0,627 ± 0,058 |
+| Ghép, năm seed | 0,516 ± 0,056 | 0,522 ± 0,043 |
+| Rừng, năm seed | 0,235 ± 0,024 | 0,305 ± 0,010 |
+| LSTM, k-fold: F1 / nhầm mỗi phút | 0,722 / 0,57 | 0,677 / 1,08 |
+| Ghép, k-fold: F1 / nhầm mỗi phút | 0,597 / 0,37 | **0,677 / 0,63** |
+
+- **Với công thức chính, LSTM vẫn hơn mô hình ghép trên val:** −0,105 F1 sự kiện, độ lệch chuẩn
+  0,058. Qua năm fold người, hai bên bằng nhau và mô hình ghép ít nhầm hơn. Với mô hình đã lưu
+  (Bảng 1, `run_08`), mô hình ghép đạt 0,561, LSTM 0,507.
+- **Lý do chọn mô hình ghép đến từ webcam,** không từ IPN: trên tay người dùng nó phát được zoom
+  mà không nhầm thêm khi nói chuyện.
+- Ba kết luận một seed của bảng phụ lại lật: 11 điểm rút gọn (−0,067, nay đủ bằng chứng), biên
+  khoảnh khắc chính 6 bước của rừng (−0,008, nay không đủ), quota tự nhiên của rừng (−0,052, nay đủ).
+  Đúng bài học ở mục 6.
+
+**Giới hạn.**
+
+- Ngưỡng chọn trên ít dữ liệu (40 lời nhắc, 12 cú zoom), và chính dữ liệu đó dùng để chấm, nên
+  con số lạc quan. **Phải xác nhận bằng một phiên thử mới.**
+- Phím `+` / `−` chưa được kiểm chứng trên PowerPoint. Khi đang phóng to, mũi tên có thể di chuyển
+  trong slide thay vì chuyển slide.
+- Với 3/5, cú mở rồi chụm lại ngay chỉ tạo khoảng 2 cửa sổ rõ, không đủ phiếu: nên giữ yên khoảng
+  1 giây sau khi mở hoặc chụm, và cách nhau khoảng 2 giây giữa hai cử chỉ.
+
+## 8. Bước tiếp
+
+1. **Đã xong.**
+   - 2026-10-26: chọn 0,85 · 4/5; thêm "không lấy đà ngược chiều" vào màn hình trợ giúp và
+     `docs/gestures.md`.
+   - 2026-11-01: mô hình ghép, zoom 0,40 · 3/5, phím `+` / `−` (mục 7);
+     `results/model_comparison` và bảng Phase 8 đã tính lại.
 2. **Còn lại của Phase 10.**
+   - Thử lại slide thật với cấu hình mới, xác nhận con số ở mục 7 và phím zoom.
    - Tốc độ đủ bốn mô hình × hai mức ánh sáng: `run_01` mới có `rules` và `rf`, ánh sáng
      tối. Thêm một lần đo lại để kiểm "đo lại lần hai gần giống".
-   - Thử điều khiển slide thật.
    - Độ trễ thủ công.
    - Video demo.

@@ -152,7 +152,8 @@ def main():
         for fire in config.FSM_FIRE_SWEEP:
             for k in config.FSM_K_SWEEP:
                 fsm = partial(ActivationFSM, conf_fire=fire,
-                              conf_hold=min(config.CONF_HOLD, fire), k_of_n=(k, n))
+                              conf_hold=min(config.CONF_HOLD, fire), k_of_n=(k, n),
+                              zoom_fire=fire, zoom_k=k)     # lưới: một ngưỡng chung
                 row = event_row(*gated, fsm)
                 grid_rows.append({"model": model, "conf_fire": fire, "k_of_n": f"{k}/{n}",
                                   **row, "in_range": lo <= row["cmds_per_gesture"] <= hi})

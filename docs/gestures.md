@@ -45,7 +45,10 @@ out**. Tên gọi của IPN khớp với hình dung thông thường; số đo x
 - **Một cử chỉ ≈ 2 giây, nhưng phần động tác chính chỉ ≈ 0,2–0,3 giây.** Hai
   giây đó gồm: đưa tay vào tư thế → động tác dứt khoát → giữ hoặc thả tay. Đừng
   làm chậm rãi kéo dài cả hai giây; cũng đừng làm vội đến mức bỏ bước chuẩn bị.
-- Giữa hai cử chỉ, hạ tay hoặc để tay yên một nhịp.
+- Giữa hai cử chỉ, hạ tay hoặc để tay yên một nhịp, **cách nhau khoảng 2 giây**: mỗi lệnh chiếm
+  khoảng 1,8 giây (đồng thuận cộng thời gian nghỉ của máy trạng thái).
+- **Giơ tay lên, giữ khoảng 1 giây rồi mới làm.** Cửa sổ 1,2 giây cần 70% số bước có tay; làm ngay
+  lúc vừa đưa tay vào khung thì hệ thống chưa kịp thấy.
 
 ---
 
@@ -145,6 +148,8 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
   cùng nhau, không tách khỏi nhau; chỗ mở ra là giữa ngón cái và cặp trỏ – giữa.
 - **Dễ sai — quan trọng nhất:** xòe **cả năm ngón** từ nắm tay thành bàn tay
   mở. Đó là `G07` *Open twice*, thuộc lớp `none` — xem mục dưới.
+- **Mở rồi chụm lại ngay:** chỉ tạo khoảng 2 cửa sổ rõ, không đủ 3 phiếu để thành lệnh. Mở xong
+  **giữ yên khoảng 1 giây**. Với `zoom_out` cũng vậy.
 
 > **Ngón nhẫn và út quan trọng tới đâu tuỳ mô hình** (đo ngày 2026-10-10 bằng
 > `scripts/probe_zooms.py`, trên cú zoom thật của IPN; `results/phase7/notes.md` mục 9).
@@ -165,6 +170,10 @@ Giống động tác **hất một vật nhỏ sang bên trái của bạn**.
 > zoom khi tay đứng yên. Cái giá: lúc nói chuyện có khua tay, nó đôi khi phát `zoom_out` nhầm.
 > Gập nhẫn và út vẫn là cách chắc chắn nhất: trong `demo.py --show-features`, phím 3 và 4 hiện
 > độ duỗi nhẫn, út của bạn cạnh hộp IPN (`results/phase10/notes.md`).
+>
+> **Cập nhật 2026-11-01.** Thử trên slide thật, LSTM vẫn không đủ tin để phát lệnh zoom nào khi
+> nhẫn và út duỗi, còn rừng gán đúng cả 12/12 cú. Demo nay chạy `--model hybrid`: zoom theo rừng,
+> với ngưỡng riêng (`results/phase10/notes.md` mục 7).
 
 ## `zoom_out` — G11 *Zoom out*
 

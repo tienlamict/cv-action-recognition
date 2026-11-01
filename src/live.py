@@ -226,11 +226,11 @@ HELP_LINES = (
     "swipe_right: nhu tren, hat sang PHAI cua ban",
     "zoom_in    : cai+tro+giua chum -> mo ra (hinh chu L)",
     "zoom_out   : cai+tro+giua dang mo -> chum lai",
-    "             zoom: nhan, ut gap; co tay dung yen",
+    "             zoom: nhan, ut gap; xong giu yen 1 giay",
     "Dong tac chinh ~0.3 s, dut khoat, mot chieu",
     "KHONG lay da: dung keo tay nguoc chieu truoc khi hat",
     "KHONG: chi tro ngon, xoe ca 5 ngon, vay qua lai",
-    "Ha tay ra khoi khung = huy",
+    "Gio tay ~1 s roi moi lam; ha tay ra khoi khung = huy",
     "c: bat/tat dieu khien   q: thoat",
     "Bat c xong, bam chuot vao cua so trinh chieu",
 )
