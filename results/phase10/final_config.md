@@ -35,7 +35,7 @@
 | Zoom: mở ứng viên | độ tin ≥ **0,40** | `FSM_ZOOM_FIRE` |
 | Zoom: đồng thuận | **3 trong 5** cửa sổ; cửa sổ đồng ý cần độ tin ≥ 0,40 | `FSM_ZOOM_K` |
 | Nghỉ sau lệnh | 1,2 s | `COOLDOWN_SEC` |
-| Phím | ← / → / `+` / `−` (PowerPoint khi đang trình chiếu); phím `c` bật, mặc định tắt | `CTRL_HOTKEYS`, `CTRL_TOGGLE_KEY` |
+| Phím | vuốt trái → mũi tên phải (slide sau), vuốt phải → mũi tên trái (slide trước), người dùng chọn 2026-11-02; zoom `+` / `−` (PowerPoint khi đang trình chiếu); phím `c` bật, mặc định tắt | `CTRL_HOTKEYS`, `CTRL_TOGGLE_KEY` |
 
 SPEC khởi đầu ở 0,75 với 3/5; Phase 9 giữ mức đó và để Phase 10 chọn. Cấu hình máy trạng thái
 không nằm trong băm của bản ghi Phase 8, nên đổi nó không làm bản ghi nào hết hạn.

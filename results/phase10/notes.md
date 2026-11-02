@@ -334,6 +334,8 @@ chung của SPEC.
    - 2026-10-26: chọn 0,85 · 4/5; thêm "không lấy đà ngược chiều" vào màn hình trợ giúp và
      `docs/gestures.md`.
    - 2026-11-01: mô hình ghép, zoom 0,40 · 3/5, phím `+` / `−` (mục 7);
+   - 2026-11-02: người dùng đổi ánh xạ vuốt — vuốt trái sang slide sau, vuốt phải về slide trước
+     (`CTRL_HOTKEYS`; SPEC gốc ngược lại);
      `results/model_comparison` và bảng Phase 8 đã tính lại.
 2. **Còn lại của Phase 10.**
    - Thử lại slide thật với cấu hình mới, xác nhận con số ở mục 7 và phím zoom.

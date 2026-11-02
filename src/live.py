@@ -231,6 +231,7 @@ HELP_LINES = (
     "KHONG lay da: dung keo tay nguoc chieu truoc khi hat",
     "KHONG: chi tro ngon, xoe ca 5 ngon, vay qua lai",
     "Gio tay ~1 s roi moi lam; ha tay ra khoi khung = huy",
+    "Vuot TRAI = slide sau, vuot PHAI = slide truoc",
     "c: bat/tat dieu khien   q: thoat",
     "Bat c xong, bam chuot vao cua so trinh chieu",
 )

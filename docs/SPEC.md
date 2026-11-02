@@ -693,7 +693,7 @@ test_nguong_tin_cay           # 5 cửa sổ conf 0,6 với CONF_FIRE 0,75 → 0
 **Việc phải làm**
 
 1. `scripts/demo.py --model {rules,rf,lstm}` có đủ `ActivationFSM`. Giao diện hiển thị: nhãn hiện tại, độ tin cậy, trạng thái FSM, `presence_ratio`, FPS, và cờ điều khiển đang bật hay tắt.
-2. Ánh xạ lệnh qua `pyautogui`: `swipe_left` → slide trước, `swipe_right` → slide sau, `zoom_in` → phóng to, `zoom_out` → thu nhỏ. Có phím bật/tắt điều khiển, **mặc định tắt**. *Ghi chú 2026-10-25:* phím trong `CTRL_HOTKEYS` — mũi tên trái, mũi tên phải, Ctrl +, Ctrl −. Phím `c` bật/tắt điều khiển (`src/control.py`). `pyautogui` chỉ nạp khi bật lần đầu, nên kiểm thử không cần nó.
+2. Ánh xạ lệnh qua `pyautogui`: `swipe_left` → slide trước, `swipe_right` → slide sau *(ghi chú 2026-11-02: **người dùng đổi ngược lại** — `swipe_left` → slide sau, `swipe_right` → slide trước, như lật trang trên màn hình cảm ứng; `CTRL_HOTKEYS`)*, `zoom_in` → phóng to, `zoom_out` → thu nhỏ. Có phím bật/tắt điều khiển, **mặc định tắt**. *Ghi chú 2026-10-25:* phím trong `CTRL_HOTKEYS` — mũi tên trái, mũi tên phải, Ctrl +, Ctrl −. Phím `c` bật/tắt điều khiển (`src/control.py`). `pyautogui` chỉ nạp khi bật lần đầu, nên kiểm thử không cần nó.
 3. Phím `?` hiện tóm tắt `docs/gestures.md` ngay trên màn hình, để người khác dùng thử biết phải làm cử chỉ theo cách của IPN.
 4. `scripts/bench.py` sinh năm nhóm số liệu:
     - **FPS** — bỏ 3 giây đầu, đo ít nhất 30 giây, báo trung bình và phân vị thấp, cho cả ba mô hình và hai mức ánh sáng.

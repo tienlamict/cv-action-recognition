@@ -373,12 +373,14 @@ DEPLOY_STATIC_SHARE = 0.1       # ...và AUG_STATIC_SHARE này (train_lstm.py --
                                 # --static-share). Không băm vào bản ghi Phase 8: bản ghi
                                 # của mô hình đã lưu băm thẳng file mô hình
 BENCH_SESSIONS_DIR = PHASE10_RESULTS_DIR / "sessions"    # phiên ghi của bench.py record
-CTRL_HOTKEYS = {"swipe_left": ("left",), "swipe_right": ("right",),
+CTRL_HOTKEYS = {"swipe_left": ("right",), "swipe_right": ("left",),
                 "zoom_in": ("+",), "zoom_out": ("-",)}
-                        # SPEC: swipe_left → slide trước, swipe_right → slide sau
-                        # (mũi tên của trình chiếu); zoom → phím + / − của PowerPoint
-                        # khi đang trình chiếu (người dùng chọn 2026-11-01). Google
-                        # Slides và trình đọc PDF thì dùng ("ctrl", "+"), ("ctrl", "-")
+                        # swipe_left → mũi tên phải = slide SAU, swipe_right → mũi
+                        # tên trái = slide TRƯỚC, như lật trang trên màn hình cảm
+                        # ứng (người dùng chọn 2026-11-02; SPEC gốc ngược lại).
+                        # Zoom → phím + / − của PowerPoint khi đang trình chiếu
+                        # (người dùng chọn 2026-11-01). Google Slides và trình đọc
+                        # PDF thì dùng ("ctrl", "+"), ("ctrl", "-")
 CTRL_TOGGLE_KEY = ord("c")      # bật/tắt điều khiển trong cửa sổ demo; mặc định TẮT
 BENCH_SPEED_SEC = 30.0          # đo FPS bấy nhiêu giây, sau FPS_WARMUP_SEC (cẩm nang 20)
 BENCH_SCENARIOS = ("reading", "typing", "talking")
