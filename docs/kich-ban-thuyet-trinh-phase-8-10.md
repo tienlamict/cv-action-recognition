@@ -1,11 +1,15 @@
-# Kịch bản thuyết trình — Phase 8, 9 và 10
+# Kịch bản thuyết trình — Phase 8–10: Tối ưu hệ thống
 
-**Nguồn:** `docs/tong-ket-phase-8-10.md` (cập nhật 02/11/2026).
+**Nguồn:** `docs/tong-ket-phase-8-10.md` (bản cập nhật 02/11/2026).
 
-**Thời lượng dự kiến:** khoảng 15 phút trình bày, 2 phút demo trực tiếp, sau đó hỏi đáp.
+**Chủ đề:** từ nhãn trên màn hình tới lệnh điều khiển slide — sáu vòng tối ưu, mỗi vòng gồm vấn
+đề, chẩn đoán bằng số đo, cách sửa, kết quả và cái giá.
 
-**Cấu trúc:** 13 slide. Mỗi slide gồm: *trên slide* (nội dung hiển thị), *lời nói* (đọc hoặc nói
-theo ý), và *ghi chú* (nhắc riêng cho người trình bày).
+**Thời lượng dự kiến:** khoảng 18 phút trình bày, 2 phút demo trực tiếp, sau đó hỏi đáp.
+
+**Cấu trúc:** 18 slide. Mỗi slide gồm: *trên slide* (nội dung hiển thị), *lời nói* (đọc hoặc nói
+theo ý), và *ghi chú* (nhắc riêng cho người trình bày). Bộ slide đi kèm:
+`docs/thuyet-trinh-phase-8-10.pptx` — phần lời nói và ghi chú nằm trong speaker notes.
 
 ---
 
@@ -14,12 +18,14 @@ theo ý), và *ghi chú* (nhắc riêng cho người trình bày).
 - Mở sẵn PowerPoint có khoảng 8–10 slide để demo, đặt ở chế độ trình chiếu.
 - Mở terminal, đã kích hoạt env `action-recognition`, gõ sẵn lệnh:
   `python scripts/demo.py --model hybrid`.
+- Sau khi bấm `c` bật điều khiển, **bấm chuột vào cửa sổ trình chiếu** — nếu không, phím sẽ đi vào
+  cửa sổ demo (đây chính là lỗi của lần thử slide đầu tiên, vòng 6).
 - Kiểm tra ánh sáng và webcam: tay phải nằm gọn trong khung, nền không quá rối.
 - **Phương án dự phòng:** nếu demo trực tiếp hỏng, chiếu lại log `results/phase10/live_final2.csv`
   (92 giây, 19 lệnh) hoặc video quay trước. Nên quay video dự phòng trước buổi — việc này cũng nằm
-  trong danh sách còn lại của Phase 10.
-- Tự nhắc cách làm cử chỉ khi demo: giơ tay khoảng 1 giây rồi mới làm, không lấy đà ngược chiều,
-  giữ yên khoảng 1 giây sau cú zoom, các cử chỉ cách nhau khoảng 2 giây.
+  trong danh sách còn lại.
+- Tự nhắc nhịp làm cử chỉ: không lấy đà ngược chiều, giơ tay khoảng 1 giây rồi mới làm, zoom xong
+  giữ yên khoảng 1 giây, các cử chỉ cách nhau khoảng 2 giây.
 
 ---
 
@@ -27,343 +33,513 @@ theo ý), và *ghi chú* (nhắc riêng cho người trình bày).
 
 **Trên slide:**
 - Nhận dạng cử chỉ bàn tay thời gian thực để điều khiển máy tính
-- Phần trình bày: Phase 8, 9, 10 — từ mô hình đến hệ thống dùng được
+- Phase 8–10 · Tối ưu hệ thống: từ nhãn trên màn hình tới lệnh điều khiển slide
 
 **Lời nói:**
 
 > Xin chào thầy cô và các bạn. Đề tài của em là nhận dạng cử chỉ bàn tay thời gian thực để điều
-> khiển máy tính. Ở buổi trước em đã trình bày cách xây dựng dữ liệu và mô hình đến Phase 7. Hôm nay
-> em trình bày ba giai đoạn tiếp theo: làm sao biết mô hình thực sự tốt, làm sao biến dự đoán của
-> mô hình thành lệnh, và cuối cùng là dùng nó để điều khiển PowerPoint thật.
+> khiển máy tính. Buổi trước em đã trình bày đến Phase 7, khi các mô hình đã gán nhãn được cử chỉ.
+> Hôm nay em kể ba phase tiếp theo dưới một góc nhìn: hệ thống đã được tối ưu lại thế nào để đi từ
+> nhãn hiện trên màn hình tới lệnh điều khiển slide thật.
 
 ---
 
-## Slide 2 — Câu hỏi của giai đoạn này (1:00)
+## Slide 2 — Nhãn chưa phải là lệnh (1:00)
 
 **Trên slide:**
-- Đến Phase 7: đã có mô hình phân loại cửa sổ 1,2 giây (LSTM, rừng ngẫu nhiên)
-- Câu hỏi mới: *mô hình phân loại tốt* có nghĩa là *hệ thống dùng được* không?
-- Kết quả hôm nay: điều khiển được PowerPoint bằng cử chỉ
+- Hết Phase 7: mô hình **gán nhãn** cho từng cửa sổ 1,2 giây
+- Người dùng cần **lệnh**: mỗi cử chỉ đúng một lần đổi slide; không lệnh nào khi chỉ nói chuyện
+- Phase 8 đo khoảng cách → Phase 9–10 thu hẹp qua **sáu vòng tối ưu**:
+  1. Máy trạng thái · 2. Sửa thước đo · 3. LSTM `run_08` · 4. Chặn lấy đà · 5. Tách ngưỡng zoom ·
+  6. Trải nghiệm điều khiển
 
 **Lời nói:**
 
-> Đến cuối Phase 7, em đã có các mô hình nhìn một đoạn 1,2 giây chuyển động của bàn tay và nói đó là
-> cử chỉ gì. Nhưng người dùng không quan tâm đến từng đoạn 1,2 giây. Họ quan tâm: tôi vuốt một cái,
-> slide có sang đúng một trang không; tôi đang nói chuyện và khua tay, máy có tự nhảy slide không.
+> Hết Phase 7, mô hình đã gán nhãn được cho từng cửa sổ 1,2 giây. Nhưng người dùng không cần nhãn,
+> họ cần lệnh: mỗi cử chỉ đúng một lần đổi slide, và không có lệnh nào khi họ chỉ đang nói chuyện.
 >
-> Ba phase hôm nay trả lời đúng câu hỏi đó. Và kết quả cuối cùng là hệ thống đã điều khiển được
-> PowerPoint: vuốt trái sang slide sau, vuốt phải về slide trước, mở hay chụm ba ngón để phóng to,
-> thu nhỏ.
+> Phase 8 đo khoảng cách giữa hai việc đó. Phase 9 và 10 thu hẹp nó qua sáu vòng tối ưu: thêm máy
+> trạng thái, sửa thước đo, đổi mô hình cho hợp bàn tay thật, chặn động tác lấy đà, tách ngưỡng
+> riêng cho zoom, và cuối cùng là trải nghiệm điều khiển.
 
 ---
 
-## Slide 3 — Lộ trình ba phase (0:45)
+## Slide 3 — Tối ưu được bao nhiêu (1:15)
 
 **Trên slide:**
 
-| Phase | Câu hỏi | Trạng thái |
+| Chỉ số | Điểm xuất phát | Hiện tại |
 |---|---|---|
-| 8 | Mô hình nào tốt, và tin con số đến đâu? | ✅ (còn lần chạy test cuối) |
-| 9 | Khi nào thì phát lệnh? | ✅ |
-| 10 | Chạy thật trên webcam có ổn không? | 🟡 đã thử slide thật |
+| Lệnh nhầm mỗi phút, video val IPN | 6,6–30 | **0,85** |
+| Lệnh nhầm mỗi phút khi nói chuyện có khua tay | 0,64 | **0,18** |
+| Lời nhắc vuốt phát ngược chiều trước | 5/20 | **2/20** |
+| Zoom nhận đúng trên tay người dùng | 0/10 | **10/20** |
+| Thử slide thật: cú zoom thành lệnh | 0/12 | **6/12** |
+| F1 sự kiện trên video val | 0,559 | 0,561 — giữ ngang |
+
+- Cấu hình đang dùng: vuốt ← LSTM (0,85 · 4/5), zoom ← rừng ngẫu nhiên (0,40 · 3/5)
 
 **Lời nói:**
 
-> Phase 8 là đánh giá: chấm mọi mô hình và chạy bảy bảng khảo sát. Phase 9 thêm một máy trạng thái
-> để biến chuỗi nhãn của mô hình thành lệnh rời rạc. Phase 10 là demo hoàn chỉnh và đo đạc trên
-> webcam. Riêng tập test em cố ý để chạy đúng một lần cuối cùng, để con số trên test không bị ảnh
-> hưởng bởi các lần chỉnh sửa.
+> Em đưa kết quả lên trước. Trên video val của IPN, lệnh nhầm giảm từ 6,6–30 lệnh mỗi phút xuống
+> 0,85. Khi nói chuyện có khua tay trước webcam, từ 0,64 xuống 0,18 mỗi phút, tức hơn 5 phút mới có
+> một lệnh nhầm. Vuốt phát ngược chiều giảm từ 5 xuống 2 trên 20 lời nhắc. Zoom trên tay em đi từ
+> không nhận được cú nào lên 10 trên 20. Khi thử slide thật, số cú zoom thành lệnh từ 0 lên 6 trên
+> 12. Và trong lúc đó, F1 sự kiện trên video val được giữ ngang, 0,559 và 0,561.
+>
+> Cấu hình đang dùng là một mô hình ghép: vuốt theo LSTM, zoom theo rừng ngẫu nhiên, mỗi họ cử chỉ
+> một ngưỡng riêng. Phần còn lại của bài là câu chuyện sáu vòng tối ưu dẫn tới đây.
+
+**Ghi chú:** zoom 0/10 là LSTM `run_07` trên 10 lời nhắc; 10/20 là cấu hình cuối trên 20 lời nhắc
+zoom. `pytest -q`: 215 passed.
 
 ---
 
-## Slide 4 — Phase 8: chấm ở hai mức (1:30)
+## Slide 4 — Cách làm: đo trước, sửa sau (1:15)
 
 **Trên slide:**
-- **Mức cửa sổ:** từng cửa sổ 1,2 giây có đúng lớp không → macro-F1
-- **Mức sự kiện:** chạy cả hệ thống trên 27 video val liên tục của IPN (60 phút, 108 cử chỉ),
-  qua đúng đường ống của demo
-  - Lệnh đúng = đúng loại, phát trong khoảng từ lúc cử chỉ bắt đầu đến 1 giây sau khi kết thúc
-  - Đo: F1 sự kiện, số lệnh mỗi cử chỉ, lệnh nhầm mỗi phút
+- **Ghi một lần, chấm mọi cấu hình:** phiên webcam ghi thành điểm mốc thô, chạy lại qua đúng đường
+  ống của demo (trùng 316/316 câu trả lời lúc chạy thật)
+- **Chẩn đoán bằng số đo trên điểm mốc:** khoảng cách cái–trỏ, độ duỗi ngón, góc khớp, chuỗi nhãn
+  và độ tin từng nhịp 0,2 giây
+- **Mỗi thay đổi chấm trên bốn nguồn:** 27 video val IPN (60 phút, 108 cử chỉ) · 40 lời nhắc cử chỉ
+  · 10,9 phút nói chuyện · các lần thử slide thật
+- **Người dùng chọn điểm đánh đổi** từ bảng số đo
 
 **Lời nói:**
 
-> Điểm đầu tiên của Phase 8 là em chấm ở hai mức. Mức cửa sổ là con số quen thuộc của học máy,
-> macro-F1. Nhưng người dùng không cảm nhận trực tiếp con số này.
+> Mọi vòng tối ưu đều theo cùng một nếp: đo trước, sửa sau.
 >
-> Nên em thêm mức sự kiện: lấy 27 video liên tục của tập val, tổng cộng 60 phút với 108 cử chỉ, cho
-> chạy qua đúng đường ống mà demo dùng. Một lệnh được tính là đúng nếu đúng loại và phát ra trong
-> khoảng từ lúc cử chỉ bắt đầu đến 1 giây sau khi nó kết thúc. Từ đó em đo được những thứ người dùng
-> thật sự cảm nhận: bao nhiêu cử chỉ thành lệnh, một cử chỉ ra mấy lệnh, và mỗi phút máy phát nhầm
-> bao nhiêu lần.
-
-**Ghi chú:** nhấn mạnh "đúng đường ống của demo" — dữ liệu IPN và webcam đi qua cùng các hàm, không
-có hai bản gần giống nhau.
+> Thứ nhất, ghi một lần, chấm mọi cấu hình. Phiên webcam được ghi thành điểm mốc bàn tay thô, rồi
+> chạy lại qua đúng đường ống của demo. Ở Phase 7 em đã kiểm: chạy lại trùng 316 trên 316 câu trả
+> lời lúc chạy thật. Nhờ vậy một lần ghi đủ để so mọi mô hình và mọi ngưỡng.
+>
+> Thứ hai, chẩn đoán bằng số đo chứ không đoán: khoảng cách ngón cái–ngón trỏ theo thời gian, độ
+> duỗi ngón tay, góc khớp, và chuỗi nhãn kèm độ tin của từng nhịp 0,2 giây.
+>
+> Thứ ba, mỗi thay đổi được chấm trên bốn nguồn: video val của IPN, 40 lời nhắc cử chỉ, gần 11 phút
+> nói chuyện có khua tay, và các lần thử slide thật. Cuối cùng, mỗi điểm đánh đổi đều được chọn từ
+> bảng số đo, không chọn theo cảm giác.
 
 ---
 
-## Slide 5 — Bảy bảng khảo sát (1:00)
+## Slide 5 — Vòng 1: Dạy hệ thống biết im lặng (1:30)
 
 **Trên slide:**
-- 46 thí nghiệm, mỗi thí nghiệm đổi **đúng một yếu tố**: chuẩn hoá, độ dài cửa sổ, cách chia tập,
-  bộ đặc trưng, seed, k-fold theo người, biến thể LSTM
-- Lưu dự đoán thành bản ghi → chỉnh máy trạng thái chỉ mất khoảng 1 phút thay vì học lại 170 phút
-- Bản ghi tự hết hạn khi đổi hằng số ảnh hưởng đến kết quả
+- Vấn đề (Phase 8): recall **0,82–0,94** nhưng precision **0,05–0,20** → **6,6–30** lệnh nhầm mỗi
+  phút
+- Nguyên nhân: mỗi 0,2 giây một nhãn mới → một cú vuốt sinh cả chục nhãn, có lúc nhấp nháy
+- Cách sửa: máy trạng thái `IDLE → READY → CANDIDATE → COOLDOWN`
+  - ngưỡng tin cậy · đồng thuận k/5 · nghỉ 1,2 giây · mất tay thì quên hết
+- Tối ưu trong thiết kế: cửa sổ khác lớp mà đủ tin là **phiếu phản đối**, huỷ ngay ứng viên
 
 **Lời nói:**
 
-> Script `run_experiments.py` chạy 46 thí nghiệm, mỗi cái chỉ đổi đúng một yếu tố để so sánh công
-> bằng. Một chi tiết kỹ thuật quan trọng: mỗi thí nghiệm lưu lại toàn bộ dự đoán. Khi em chỉnh máy
-> trạng thái ở Phase 9, em chỉ cần dựng lại bảng trong khoảng một phút, thay vì học lại mọi mô hình
-> mất 170 phút. Bản ghi được gắn với cấu hình, nên nếu em đổi một hằng số có ảnh hưởng đến mô hình
-> thì bản ghi tự hết hạn, không bao giờ dùng nhầm kết quả cũ.
+> Vòng một bắt đầu từ Phase 8: em chạy cả hệ thống trên video val. Hệ thống bắt được cử chỉ rất tốt,
+> recall 0,82 đến 0,94, nhưng không biết im lặng: precision chỉ 0,05 đến 0,20, tức 6,6 đến 30 lệnh
+> nhầm mỗi phút. Lý do là mỗi 0,2 giây mô hình cho một nhãn mới, nên một cú vuốt sinh cả chục nhãn,
+> và nhãn còn nhấp nháy.
+>
+> Cách sửa là một máy trạng thái nằm giữa mô hình và bàn phím. Phải đủ tin mới mở ứng viên lệnh; cần
+> đủ số cửa sổ đồng ý trong 5 cửa sổ; phát lệnh xong thì nghỉ 1,2 giây; và mất tay thì quên hết.
+>
+> Có một chỗ tối ưu trong thiết kế. Cách hiểu đầu tiên của "đồng thuận" là đếm phiếu trên cửa sổ
+> trượt. Theo cách đó, chuỗi nhấp nháy "vuốt, none, vuốt, none, vuốt" vẫn có 3 trên 5 phiếu và phát
+> lệnh. Bản dùng thật coi một cửa sổ khác lớp mà đủ tin là phiếu phản đối, và huỷ ứng viên ngay.
 
 ---
 
-## Slide 6 — Kết luận đứng vững và bài học về con số (1:30)
+## Slide 6 — Vòng 1: Kết quả và cái giá (1:00)
 
 **Trên slide:**
-- LSTM hơn rừng ngẫu nhiên: **+0,116 macro-F1** (trung bình 5 seed); mức sự kiện: **+0,323**
-- Chia ngẫu nhiên theo cửa sổ **thổi phồng 0,10–0,15** → luôn chia theo người
-- Thêm góc khớp ngón tay: nhầm `none` → `swipe_left` giảm **366 → 190** cửa sổ
-- ⚠️ Chênh lệch < 0,1 F1 sự kiện trong một seed thường **lật chiều** khi đổi cấu hình
+
+| Ngưỡng khởi đầu 0,75 · 3/5 | F1 sự kiện | Lệnh nhầm mỗi phút |
+|---|---|---|
+| LSTM | 0,559 | 1,46 |
+| Ghép | 0,490 | 1,33 |
+| Rừng | 0,405 | 0,50 |
+| Luật | 0,130 | 6,82 |
+
+- `MIN_PRESENCE` 0,7 → 1,0: mất 3/54 cú vuốt, lệnh nhầm chỉ giảm 3% → giữ 0,7
+- Cái giá: **0,77 lệnh mỗi cử chỉ**, chưa vào khoảng 0,9–1,1 của SPEC — phần thiếu là cử chỉ bị sót
 
 **Lời nói:**
 
-> Từ bốn lần dựng bảng, có những kết luận đứng vững qua tất cả.
+> Với ngưỡng khởi đầu 0,75 và 3 trên 5, lệnh nhầm trên video val giảm xuống khoảng 1,5 mỗi phút với
+> LSTM, và LSTM có F1 sự kiện cao nhất, 0,559. Luật viết tay vẫn nhầm gần 7 lệnh mỗi phút.
 >
-> Thứ nhất, LSTM hơn rừng ngẫu nhiên một cách chắc chắn, hơn 0,116 macro-F1 trung bình năm seed, và
-> ở mức sự kiện thì khoảng cách còn lớn hơn, 0,323.
+> Em cũng thử nâng yêu cầu tỉ lệ có tay của cửa sổ từ 70% lên 100%. Kết quả mất 3 trong 54 cú vuốt
+> mà lệnh nhầm chỉ giảm 3%, nên em giữ 70%.
 >
-> Thứ hai, và đây là điều em muốn nhấn mạnh: nếu chia tập ngẫu nhiên theo cửa sổ, con số bị thổi
-> phồng thêm 0,10 đến 0,15. Mức thổi phồng này còn lớn hơn khoảng cách giữa hai mô hình. Lý do là
-> các cửa sổ của cùng một người rất giống nhau, mô hình "đã gặp" người đó khi học. Vì vậy toàn bộ dự
-> án luôn chia theo người.
->
-> Thứ ba là một vòng cải tiến thành công: ô nhầm lớn nhất là nhầm "không có cử chỉ" thành "vuốt
-> trái". Thêm đặc trưng góc khớp ngón tay làm ô này giảm gần một nửa, từ 366 xuống 190 cửa sổ.
->
-> Và một bài học về độ tin của con số: khi đi qua máy trạng thái, những chênh lệch nhỏ hơn khoảng
-> 0,1 trong một seed thường đổi chiều khi chỉnh cấu hình kích hoạt. Có một thay đổi từng cho +0,108,
-> lần dựng sau chỉ còn +0,012. Nên em chỉ tin những kết luận có năm seed, năm fold người, hoặc chênh
-> lệch thật lớn.
+> Cái giá của vòng này: chỉ còn 0,77 lệnh mỗi cử chỉ, chưa vào khoảng 0,9 đến 1,1 mà SPEC yêu cầu.
+> Phần thiếu là cử chỉ bị sót, không phải lệnh thừa.
 
 ---
 
-## Slide 7 — Phase 9: máy trạng thái (2:00)
+## Slide 7 — Vòng 2: Sửa thước đo trước khi tối ưu tiếp (1:15)
 
 **Trên slide:**
-- Mô hình: "0,2 giây vừa rồi giống cử chỉ gì?" → một cú vuốt sinh cả chục nhãn, có lúc nhấp nháy
-- Máy trạng thái: "**có nên phát lệnh bây giờ không?**"
 
-```
-IDLE ──thấy tay──▶ READY ──cửa sổ đủ tin──▶ CANDIDATE ──đủ phiếu──▶ COOLDOWN (1,2 s)
-  ▲                  ▲                         │ bất đồng → huỷ          │
-  └──── mất tay: quên hết ◀──────────────────────────────────────────────┘
-```
-
-- Ngưỡng tin cậy · đồng thuận k/5 cửa sổ · nghỉ sau lệnh · hạ tay để huỷ
-
-**Lời nói:**
-
-> Mô hình cứ 0,2 giây trả lời một lần, "cửa sổ vừa rồi giống cử chỉ gì". Nên một cú vuốt sinh ra cả
-> chục nhãn liên tiếp, có lúc nhấp nháy giữa các lớp. Nếu phát lệnh theo từng nhãn thì một cú vuốt
-> sẽ nhảy mười slide.
->
-> Máy trạng thái trả lời một câu hỏi khác: có nên phát lệnh bây giờ không. Nó có bốn trạng thái.
-> IDLE là chưa thấy tay. READY là thấy tay và đang chờ. Khi một cửa sổ đủ tin cậy, máy chuyển sang
-> CANDIDATE và bắt đầu gom phiếu: cần đủ số cửa sổ đồng ý trong năm cửa sổ. Nếu một cửa sổ đủ tin
-> mà lại nói khác đi, ứng viên bị huỷ. Phát lệnh xong thì nghỉ 1,2 giây để không phát trùng. Và bất
-> cứ lúc nào mất tay, máy quên hết — tức là người dùng có thể hạ tay xuống để huỷ.
->
-> Một ví dụ về đánh đổi: em thử nâng yêu cầu "tay phải có mặt" từ 70% lên 100% thời gian của cửa
-> sổ. Kết quả mất 3 trong 54 cú vuốt mà lệnh nhầm chỉ giảm 3%, nên em giữ 70%.
-
-**Ghi chú:** nếu bị hỏi về mục chưa đạt — trên video val, số lệnh mỗi cử chỉ là 0,61, thấp hơn mục
-tiêu 0,9–1,1, phần thiếu là cử chỉ bị sót. Quyết định là để Phase 10 chọn cấu hình bằng số đo trên
-webcam.
-
----
-
-## Slide 8 — Phase 10: công cụ demo và đo đạc (1:00)
-
-**Trên slide:**
-- `demo.py`: phát phím thật, bấm `c` để bật (mặc định tắt), trang trợ giúp `?`, luôn nằm trên cùng,
-  log mọi dự đoán và phím đã gửi
-- `bench.py`: `speed` (FPS, thời gian từng khâu) · `record` (ghi theo lời nhắc) · `analyze` (chấm
-  mọi cấu hình từ một lần ghi)
-- Dữ liệu ghi: 40 lời nhắc cử chỉ · 10,9 phút nói chuyện có khua tay · 2 lần thử slide thật
-
-**Lời nói:**
-
-> Phase 10 có hai công cụ chính. `demo.py` phát phím thật ra hệ điều hành. Điều khiển mặc định tắt,
-> phải bấm `c` mới bật, để tránh máy tự nhảy slide khi chưa sẵn sàng. Mọi dự đoán và mọi phím đã gửi
-> đều được ghi log để phân tích lại.
->
-> `bench.py` dùng để đo: đo tốc độ, ghi phiên theo kịch bản có lời nhắc trên màn hình, và quan trọng
-> nhất là chấm được mọi cấu hình từ một lần ghi. Em ghi 40 lời nhắc cử chỉ, mỗi lớp 10 lần, và gần
-> 11 phút nói chuyện có khua tay để đo kích hoạt nhầm.
-
----
-
-## Slide 9 — Bốn phát hiện về cách làm cử chỉ (1:30)
-
-**Trên slide:**
-1. **Nhẫn và út duỗi khi zoom** (độ duỗi 1,4–2,1; người diễn IPN ≈ 0,5)
-2. **Lấy đà ngược chiều** trước khi vuốt → mô hình nhận đúng cú kéo ngược, độ tin 1,00
-3. **Cử chỉ đến muộn:** tay vào khung ở giây 2–4 của lời nhắc 4 giây
-4. **Đổi chiều quá nhanh:** mỗi lệnh chiếm ≈ 1,8 giây, người dùng đổi chiều zoom mỗi ≈ 1,3 giây
-
-**Lời nói:**
-
-> Khi chạy trên webcam, em phát hiện phần lớn lỗi không đến từ đường ống mà đến từ việc em làm cử chỉ
-> khác người diễn trong IPN.
->
-> Thứ nhất, khi zoom em để duỗi ngón nhẫn và ngón út, trong khi người diễn IPN gập hai ngón này. LSTM
-> chưa thấy dáng tay đó nên thiếu tự tin.
->
-> Thứ hai, rất thú vị: trước khi vuốt, em có thói quen kéo tay ngược lại để lấy đà. Đoạn kéo ngược đó
-> cũng là một cú vuốt, và mô hình nhận đúng chiều của nó với độ tin 1,00 — tức là mô hình đúng, nhưng
-> lệnh phát ra lại ngược ý người dùng.
->
-> Thứ ba, tay thường vào khung muộn. Thứ tư, em đổi chiều zoom nhanh hơn thời gian một lệnh cần để
-> gom phiếu và nghỉ.
->
-> Từ đó em bổ sung hướng dẫn và màn hình luyện tập: hiện độ duỗi của ngón nhẫn và út so với khoảng
-> của IPN để người dùng tự chỉnh.
-
----
-
-## Slide 10 — Cấu hình cuối và kết quả (1:30)
-
-**Trên slide:**
-- **Mô hình ghép:** vuốt theo LSTM (0,85 · 4/5), zoom theo rừng ngẫu nhiên (0,40 · 3/5)
-
-| | Kết quả |
+| Con số đánh lừa | Cách sửa |
 |---|---|
-| Vuốt (20 lời nhắc) | 11 đúng · 2 ngược · 7 sót |
-| Zoom (20 lời nhắc) | 10 đúng · 4 ngược · 6 sót (trước khi đổi: 4 đúng) |
-| Lệnh mỗi lời nhắc | 1,00 |
-| Nhầm khi nói chuyện | 0,18 lệnh/phút |
-| Video val IPN | F1 sự kiện 0,561 · độ trễ trung vị 0,76 s |
-| Tốc độ | ≈ 30 FPS · ≈ 16 ms/khung, MediaPipe chiếm 76–79% |
+| **Độ trễ ra số âm:** chuyển động lớn nhất trong khung 4 giây nhiều khi là lúc thu tay | Đo từ khoảnh khắc chính trên video val, dùng đúng hàm đã gán nhãn dữ liệu |
+| **"1,00 lệnh mỗi cử chỉ" nhưng recall 0,55:** sót và thừa bù cho nhau | Luôn báo kèm recall, lệnh mỗi lời nhắc, lệnh phát trùng |
+| **Nhầm mỗi phút bị pha loãng:** hai kịch bản không thấy tay kéo luật từ 7,39 xuống 2,46 | Gộp theo thời lượng; thêm "nhầm mỗi phút có tay" (17% so với 89%) |
 
 **Lời nói:**
 
-> Cấu hình cuối là một mô hình ghép. Vuốt lấy từ LSTM với ngưỡng cao, 0,85 và cần 4 trong 5 cửa sổ
-> đồng ý. Zoom lấy từ rừng ngẫu nhiên với ngưỡng 0,40 và 3 trong 5.
+> Lần chấm đầu tiên trên webcam lộ ra ba con số đánh lừa. Nếu không sửa, mọi vòng sau sẽ tối ưu theo
+> hướng sai.
 >
-> Vì sao lại ghép? Ở lần thử slide thật đầu tiên, không cú zoom nào trong 12 cú thành lệnh. Nhưng
-> khi xem lại log, rừng ngẫu nhiên gán đúng cả 12 cú, chỉ là thang độ tin của nó thấp hơn. Nên em
-> cho zoom đi theo rừng với ngưỡng riêng. Còn ngưỡng 0,85 của vuốt giảm vuốt ngược chiều từ 5 xuống
-> 2 trên 20 lời nhắc, và giảm lệnh nhầm khi nói chuyện từ 0,64 xuống 0,18 mỗi phút.
+> Thứ nhất, độ trễ ra số âm. Khung lời nhắc 4 giây chứa cả động tác chuẩn bị và lúc thu tay, nên
+> "khoảnh khắc chính" bị đặt sau lệnh. Em chuyển sang đo độ trễ trên video val, dùng đúng hàm đã dùng
+> để gán nhãn dữ liệu.
 >
-> Kết quả: khoảng một nửa số cử chỉ thành lệnh đúng ngay lần làm đầu. Rất ít khi phát trùng. Khi nói
-> chuyện có khua tay, trung bình hơn 5 phút mới có một lệnh nhầm. Hệ thống chạy khoảng 30 khung hình
-> mỗi giây, trong đó phần lớn thời gian là của MediaPipe chứ không phải của mô hình của em.
-
-**Ghi chú:** con số 0,18/phút tính trên toàn bộ thời gian; nếu chỉ tính lúc tay trong khung thì là
-0,79/phút (camera thấy tay 23% thời gian). Nói thẳng nếu bị hỏi.
+> Thứ hai, "1,00 lệnh mỗi cử chỉ" trông hoàn hảo nhưng recall chỉ 0,55, vì cử chỉ bị sót và lệnh
+> phát thừa bù cho nhau. Từ đó em luôn báo kèm recall và số lệnh phát trùng.
+>
+> Thứ ba, lệnh nhầm mỗi phút bị pha loãng. Hai kịch bản đọc và gõ phím không thấy tay nên bằng 0,
+> kéo con số của luật từ 7,39 xuống 2,46. Em gộp theo thời lượng và thêm chỉ số nhầm mỗi phút có tay:
+> phiên 10 phút chỉ thấy tay 17% thời gian, phiên ngắn thấy tới 89%.
 
 ---
 
-## Slide 11 — Demo trực tiếp (2:00)
+## Slide 8 — Vòng 3: Mô hình cho bàn tay thật (1:30)
 
 **Trên slide:**
-- `python scripts/demo.py --model hybrid` → bấm `c`
+- Vấn đề: LSTM `run_07` nhận **0/10** cú zoom; báo vuốt khi tay chụm đứng yên (4 lệnh nhầm / 1,1
+  phút)
+- Chẩn đoán: người dùng zoom với nhẫn, út **duỗi** (1,5–2,1); người diễn IPN gập (≈ 0,5)
+- Cách sửa — `run_08` học thêm: một nửa cửa sổ zoom mang dáng ngón phụ của bàn tay IPN khác; 10%
+  cửa sổ tay đứng yên, nhãn `none`
+
+| Cùng dữ liệu, 0,75 · 3/5 | `run_07` | `run_08` |
+|---|---|---|
+| Zoom trên webcam | 0/10 | 4/10 |
+| Luyện zoom: `zoom_in` / `zoom_out` / vuốt nhầm | 0 / 2 / 4 | 5 / 5 / 0 |
+| IPN nhẫn, út duỗi tổng hợp: zoom còn nhận | 10% / 35% | 95% / 95% |
+| F1 sự kiện val | 0,559 | 0,554 |
+
+- Cái giá: precision `zoom_out` mức cửa sổ giảm; khi nói chuyện thêm 5 lệnh `zoom_out` nhầm (vuốt
+  nhầm 8 → 2)
+
+**Lời nói:**
+
+> Vòng ba: trên tay em, LSTM `run_07` không nhận cú zoom nào, 0 trên 10. Nó còn báo vuốt khi bàn tay
+> đang chụm đứng yên: 4 lệnh vuốt nhầm trong hơn một phút luyện zoom.
+>
+> Đo trên điểm mốc thì thấy nguyên nhân: em zoom với ngón nhẫn và ngón út duỗi, độ duỗi 1,5 đến 2,1,
+> trong khi người diễn IPN gập hai ngón này, khoảng 0,5. LSTM học đúng dáng ngón của IPN nên gặp kiểu
+> khác thì không nhận ra.
+>
+> Cách sửa là lần học `run_08`: một nửa số cửa sổ zoom được mang dáng ngón phụ của một bàn tay IPN
+> khác, và thêm 10% cửa sổ bàn tay đứng yên với nhãn none. Kết quả: zoom trên webcam từ 0 lên 4
+> trên 10, hết vuốt nhầm khi luyện zoom, và trên dữ liệu IPN có nhẫn, út duỗi tổng hợp thì zoom còn
+> nhận 95%. F1 sự kiện val gần như giữ nguyên.
+>
+> Cái giá: precision `zoom_out` ở mức cửa sổ giảm — đây chính là lý do Phase 7 từng bác `run_08`. Và
+> khi nói chuyện, LSTM một mình phát thêm 5 lệnh `zoom_out` nhầm, đổi lại vuốt nhầm giảm từ 8 xuống 2.
+
+**Ghi chú:** đi kèm vòng này là màn hình luyện tập (`--show-features`, phím 3 và 4) hiện độ duỗi
+nhẫn, út so với hộp của IPN để người dùng tập gập ngón.
+
+---
+
+## Slide 9 — Vòng 4: Chặn "lấy đà" (1:30)
+
+**Trên slide:**
+- Vấn đề: **5/20** lời nhắc vuốt phát lệnh **ngược chiều** trước
+- Chuỗi nhãn của một lời nhắc vuốt phải: `R R · L L L R R R R R`
+  - đoạn lấy đà `L L L`: mô hình gọi đúng chiều, độ tin **1,00** → phát `swipe_left`
+  - cú hất thật `R × 5` rơi vào 1,2 giây nghỉ → bị bỏ
+  - không ngưỡng tin cậy nào lọc được
+- Cách sửa: lấy đà ≈ 3 cửa sổ, cú hất thật 4–5 → đòi **4 trong 5**
+
+| | 0,75 · 3/5 | **0,85 · 4/5** |
+|---|---|---|
+| Vuốt phát ngược chiều trước | 5/20 | **2/20** |
+| Nhầm khi nói chuyện (mỗi phút; mỗi phút có tay) | 0,64; 2,77 | **0,18; 0,79** |
+| F1 sự kiện val; nhầm mỗi phút val | 0,554; 1,63 | **0,600; 0,77** |
+| Recall vuốt trên webcam | 0,60 | 0,55 |
+| Recall zoom trên webcam | 0,40 | 0,20 ← cái giá |
+| Độ trễ trung vị | 0,62 s | 0,76 s |
+
+**Lời nói:**
+
+> Vòng bốn: 5 trên 20 lời nhắc vuốt phát lệnh ngược chiều trước. Nhìn chuỗi nhãn từng nhịp của một
+> lời nhắc vuốt phải thì thấy ngay: trước khi hất sang phải, em kéo tay sang trái để lấy đà. Mô hình
+> gọi đúng chiều của đoạn đó, với độ tin 1,00, nên phát lệnh vuốt trái. Cú hất thật đến sau thì rơi
+> vào 1,2 giây nghỉ và bị bỏ. Mô hình không sai — và vì đoạn lấy đà tự tin như cú hất thật, không
+> ngưỡng tin cậy nào lọc được.
+>
+> Điểm khác nhau nằm ở độ dài: đoạn lấy đà chỉ khoảng 3 cửa sổ, cú hất thật kéo dài 4 đến 5. Đòi 4
+> trong 5 cửa sổ đồng ý thì đoạn lấy đà không đủ phiếu.
+>
+> Kết quả: vuốt ngược chiều từ 5 xuống 2 trên 20, nhầm khi nói chuyện từ 0,64 xuống 0,18 mỗi phút, và
+> trên video val F1 sự kiện còn tăng lên 0,600. Cái giá là recall zoom trên webcam giảm một nửa, từ
+> 0,40 xuống 0,20 — và vòng tiếp theo sinh ra từ chính cái giá này.
+
+---
+
+## Slide 10 — Vòng 5: Thử slide thật, 0/12 cú zoom (1:30)
+
+**Trên slide:**
+- Lần thử slide thật đầu (32 giây): 4/4 lệnh vuốt, **0/12 cú zoom**, dù nhãn zoom hiện đúng trên
+  màn hình
+- Chẩn đoán từ log của chính phiên đó:
+  - động tác zoom sạch: cái–trỏ đi 0,1 ↔ 1,7 lòng bàn tay, đổi trong 0,2–0,4 giây rồi giữ yên
+  - LSTM tự tin quá muộn: 0,4–0,7 ở đầu chuỗi, vượt 0,85 chỉ ở 1–3 cửa sổ cuối
+  - rừng ngẫu nhiên gán đúng **12/12**, chỉ là thang độ tin thấp hơn (`zoom_in` 0,33–0,56)
+  - không hạ được ngưỡng chung: quay về 0,75 · 3/5 thì lấy đà trở lại (5/20)
+- Cách sửa: **mỗi họ cử chỉ một ngưỡng** — vuốt giữ nguyên, zoom lấy từ rừng
+- Kết quả: chạy lại đúng phiên đó **0/12 → 6/12**, cả 6 đúng chiều; lần thử hai 92 giây, 19 lệnh
+
+**Lời nói:**
+
+> Vòng năm đến từ lần thử slide thật đầu tiên. Trong 32 giây, cả 4 lệnh vuốt đều chạy, nhưng 0 trên
+> 12 cú zoom thành lệnh — dù nhãn zoom vẫn hiện đúng trên màn hình.
+>
+> Em chẩn đoán từ log của chính phiên đó. Động tác zoom rất sạch: khoảng cách cái–trỏ đổi trong 0,2
+> đến 0,4 giây rồi giữ yên. Vấn đề là LSTM tự tin quá muộn: độ tin chỉ 0,4 đến 0,7 ở đầu chuỗi, và
+> chỉ vượt 0,85 ở 1 đến 3 cửa sổ cuối, nên không bao giờ gom đủ 4 phiếu. Trong khi đó rừng ngẫu nhiên
+> gán đúng lớp cả 12 cú, chỉ là thang độ tin của nó thấp hơn. Còn hạ ngưỡng chung thì không được, vì
+> vấn đề lấy đà của vuốt sẽ quay lại.
+>
+> Nên em tách ngưỡng: mỗi họ cử chỉ một ngưỡng. Vuốt giữ nguyên, zoom lấy từ rừng với ngưỡng riêng.
+> Chạy lại đúng phiên thử đó: từ 0 lên 6 trên 12 cú zoom, cả 6 đúng chiều. Lần thử thứ hai, 92 giây,
+> hệ thống phát 19 lệnh, 8 vuốt và 11 zoom, mọi phím đều được gửi.
+
+---
+
+## Slide 11 — Vòng 5: Chọn ngưỡng cho zoom (1:15)
+
+**Trên slide:**
+
+| Zoom | Thử slide (có nghỉ / bỏ nghỉ) | 20 lời nhắc: đúng / ngược / sót | Lệnh mỗi lời nhắc | Nhầm khi nói chuyện | Val: F1; nhầm/phút |
+|---|---|---|---|---|---|
+| LSTM 0,85 · 4/5 (trước) | 0/12, — | 4 / 1 / 15 | 0,62 | 0,18 | 0,600; 0,77 |
+| **Rừng 0,40 · 3/5 (chọn)** | **6/12, 9/12** | **10 / 4 / 6** | **1,00** | **0,18** | 0,561; 0,85 |
+| Rừng 0,40 · 2/5 | 8/12, 11/12 | 16 / 4 / 0 | 1,48 | 0,27 | 0,525; 1,33 |
+| Rừng 0,50 · 3/5 | 5/12, 5/12 | 10 / 2 / 8 | 0,90 | 0,18 | 0,581; 0,68 |
+
+- 0,40 chứ không 0,50: độ tin `zoom_in` phần lớn dưới 0,50 → ở 0,50 không cú `zoom_in` nào thành lệnh
+- 3/5 chứ không 2/5: 2/5 gần như không sót nhưng 1,48 lệnh mỗi lời nhắc
+- Cái giá: F1 sự kiện val 0,600 → 0,561; đổi thiết kế so với một ngưỡng chung của SPEC
+
+**Lời nói:**
+
+> Đây là bảng em dùng để chọn ngưỡng cho zoom, chấm trên cả bốn nguồn.
+>
+> Vì sao 0,40 mà không phải 0,50? Độ tin `zoom_in` trên tay em phần lớn dưới 0,50; ở 0,50, khi thử
+> trực tiếp không cú `zoom_in` nào thành lệnh. Vì sao 3 trên 5 mà không phải 2 trên 5? Với 2 trên 5,
+> zoom gần như không sót, nhưng lệnh thừa tăng mạnh, 1,48 lệnh mỗi lời nhắc, phần lớn là động tác
+> chuẩn bị và thu tay.
+>
+> Cột "bỏ nghỉ" tắt thời gian nghỉ để xem riêng khả năng nhận từng cú: 9 trên 12. Phần chênh lệch là
+> vì em đổi chiều zoom mỗi khoảng 1,3 giây, nhanh hơn 1,8 giây mà một lệnh cần.
+>
+> Với lựa chọn này, lần đầu tiên hệ thống đạt đúng 1,00 lệnh mỗi lời nhắc mà không tăng nhầm khi nói
+> chuyện. Cái giá là F1 sự kiện val giảm từ 0,600 xuống 0,561, và đây là một thay đổi thiết kế so
+> với SPEC, vốn dùng một ngưỡng chung.
+
+---
+
+## Slide 12 — Vòng 6: Trải nghiệm điều khiển (1:00)
+
+**Trên slide:**
+- **Phím gửi nhầm cửa sổ:** lần thử đầu, phím đi vào cửa sổ demo → demo luôn nằm trên cùng, nhắc
+  bấm chuột vào cửa sổ trình chiếu
+- **Phím zoom:** `+` / `−` cho PowerPoint; Ctrl + / Ctrl − cho Google Slides và trình đọc PDF
+- **Ánh xạ theo người dùng:** vuốt trái → slide sau, vuốt phải → slide trước (SPEC gốc ngược lại)
+- **Tay ra vào khung không sinh lệnh lạ:** 66 lần vào lại trong các phiên đã ghi
+- Nhịp làm cử chỉ: không lấy đà · giơ tay ≈ 1 giây rồi mới làm · zoom xong giữ yên ≈ 1 giây · cách
+  nhau ≈ 2 giây
+
+**Lời nói:**
+
+> Vòng cuối là những thứ nhỏ nhưng quyết định trải nghiệm. Lần thử slide đầu tiên, không có gì xảy
+> ra trên slide, vì phím đi vào cửa sổ demo đang được chọn. Giờ cửa sổ demo luôn nằm trên cùng, và
+> màn hình nhắc bấm chuột vào cửa sổ trình chiếu sau khi bật điều khiển.
+>
+> Phím zoom là cộng và trừ khi trình chiếu PowerPoint. Ánh xạ vuốt theo ý người dùng: vuốt trái sang
+> slide sau, như lật trang trên màn hình cảm ứng. Đưa tay ra khỏi khung rồi vào lại không sinh lệnh
+> lạ, đã kiểm trên 66 lần vào lại.
+>
+> Và nhịp làm cử chỉ được ghi lên màn hình trợ giúp: không lấy đà, giơ tay khoảng 1 giây rồi mới làm
+> — vì cửa sổ 1,2 giây cần 70% số bước có tay — zoom xong giữ yên, và các cử chỉ cách nhau khoảng 2
+> giây.
+
+---
+
+## Slide 13 — Hạ tầng: để mỗi vòng chỉ mất vài phút (1:00)
+
+**Trên slide:**
+- Bản ghi thí nghiệm Phase 8: 46 thí nghiệm học một lần (**170 phút**); đổi máy trạng thái chỉ dựng
+  lại bảng (**0,8 phút**)
+- Bản ghi "băm" theo cấu hình; hai lần suýt hết hạn cả 46 bản ghi → nay có kiểm thử chặn
+- `bench.py analyze`: 4 mô hình × 4 cấu hình trên mọi phiên trong 1–2,5 phút
+- Log của demo kèm điểm mốc → chạy lại lần thử thật dưới cấu hình mới (0/12 → 6/12)
+- `run_all.py` dựng lại toàn bộ; `requirements.txt` ghim phiên bản
+- Quyết định: 25/10 ngưỡng khởi đầu · 26/10 `run_08`, 0,85 · 4/5 · 01/11 mô hình ghép · 02/11 ánh
+  xạ vuốt
+
+**Lời nói:**
+
+> Sáu vòng này làm được trong vài ngày là nhờ hạ tầng. 46 thí nghiệm của Phase 8 chỉ học một lần, mất
+> 170 phút; sau đó đổi máy trạng thái chỉ cần dựng lại bảng trong chưa tới một phút. Bản ghi được gắn
+> với cấu hình; đã hai lần một hằng số mới suýt làm hết hạn cả 46 bản ghi, nên giờ có kiểm thử chặn.
+>
+> `bench.py analyze` chấm 4 mô hình nhân 4 cấu hình trên mọi phiên trong một đến hai phút rưỡi. Log
+> của demo lưu kèm điểm mốc, nên một lần thử thật có thể chạy lại dưới cấu hình mới — đó là cách em
+> có con số 0 trên 12 thành 6 trên 12.
+>
+> Bên phải là các quyết định cấu hình theo thời gian; mỗi quyết định đều chọn từ bảng số đo.
+
+---
+
+## Slide 14 — Demo trực tiếp (2:00)
+
+**Trên slide:**
+- `python scripts/demo.py --model hybrid` → bấm `c` → bấm chuột vào cửa sổ trình chiếu
 - Vuốt trái: slide sau · Vuốt phải: slide trước · Mở/chụm ba ngón: phóng to/thu nhỏ
 
 **Lời nói:**
 
-> Bây giờ em xin demo trực tiếp. Em bật chương trình, bấm `c` để bật điều khiển.
+> Bây giờ em xin demo trực tiếp. Em bật chương trình, bấm c để bật điều khiển, rồi bấm vào cửa sổ
+> trình chiếu.
 >
-> *(vuốt trái 2 lần)* Vuốt trái, slide sang trang sau — giống lật trang trên màn hình cảm ứng.
-> *(vuốt phải 1 lần)* Vuốt phải để quay lại.
-> *(mở ba ngón, chờ, chụm lại)* Mở ngón cái, trỏ, giữa để phóng to; chụm lại để thu nhỏ.
+> (vuốt trái 2 lần) Vuốt trái, slide sang trang sau.
+> (vuốt phải 1 lần) Vuốt phải để quay lại.
+> (mở ba ngón, giữ yên, chụm lại) Mở ngón cái, trỏ, giữa để phóng to; chụm lại để thu nhỏ.
 >
-> Ở lần thử cuối ngày 01/11, em dùng liền 92 giây, hệ thống phát 19 lệnh — 8 vuốt và 11 zoom — và mọi
-> phím đều được gửi.
+> Ở lần thử ngày 01/11, em dùng liền 92 giây, hệ thống phát 19 lệnh — 8 vuốt và 11 zoom — và mọi phím
+> đều được gửi.
 
 **Ghi chú:**
 - Làm vuốt trước, zoom sau cùng. Trong PowerPoint, khi đang phóng to, mũi tên có thể di chuyển trong
   slide thay vì chuyển slide — nếu cần vuốt tiếp thì thu nhỏ về trước.
-- Giơ tay khoảng 1 giây rồi mới làm; không lấy đà; các cử chỉ cách nhau khoảng 2 giây.
+- Giơ tay khoảng 1 giây rồi mới làm; không lấy đà; zoom xong giữ yên; các cử chỉ cách nhau khoảng 2
+  giây.
 - Nếu một cử chỉ bị sót, bình tĩnh nói: "Đây đúng là hạn chế em sẽ trình bày ngay sau đây", rồi làm
   lại.
 - Nếu demo hỏng hẳn, chuyển sang phương án dự phòng (video hoặc log `live_final2.csv`).
 
 ---
 
-## Slide 12 — Hạn chế (1:00)
+## Slide 15 — Những gì tối ưu chưa giải quyết được (1:15)
 
 **Trên slide:**
-- Khoảng **một nửa cử chỉ bị sót** ở lần làm đầu (vuốt hất nhanh, tay vào muộn; zoom do duỗi nhẫn–út)
-- Zoom có thể **ngược chiều** khi tay chuẩn bị: 4/20 lời nhắc
-- Ngưỡng zoom chọn trên **ít dữ liệu** (12 cú zoom), chấm trên chính dữ liệu đó → hơi lạc quan
-- Trên IPN, mô hình ghép **không thắng ở mọi phép đo**
-- Đo lại lần hai và video demo: chưa làm
+- **Khoảng một nửa cử chỉ bị sót ở lần làm đầu** (40 lời nhắc): vuốt 11 đúng · 2 ngược · 7 sót; zoom
+  10 đúng · 4 ngược · 6 sót — do nhẫn, út duỗi, lấy đà, tay vào khung muộn
+- **Ngưỡng chọn trên ít dữ liệu** (40 lời nhắc, 12 cú zoom), chấm trên chính dữ liệu đó → hơi lạc
+  quan
+- **"0,9–1,1 lệnh mỗi cử chỉ" trên video val** vẫn chưa đạt: 0,61
+- **Trên IPN, lựa chọn tốt nhất tuỳ phép đo:** học lại, trung bình 5 seed, LSTM một mình hơn ghép
+  0,105 F1 sự kiện; với `run_08` thì ngược lại, 0,561 so với 0,507 → chọn ghép vì kết quả webcam
 
 **Lời nói:**
 
-> Em xin nói thẳng các hạn chế. Thứ nhất, khoảng một nửa cử chỉ bị sót ở lần làm đầu. Thứ hai, zoom
-> đôi khi phát ngược chiều khi tay chuẩn bị. Thứ ba, ngưỡng zoom được chọn trên ít dữ liệu, và chính
-> dữ liệu đó dùng để chấm, nên con số có phần lạc quan.
+> Em xin nói thẳng những gì tối ưu chưa giải quyết được.
 >
-> Thứ tư, trên IPN mô hình ghép không phải lúc nào cũng tốt nhất. Nếu học lại theo công thức chính và
-> lấy trung bình năm seed, LSTM một mình hơn mô hình ghép 0,105 F1 sự kiện. Với mô hình đang dùng thì
-> ngược lại, 0,561 so với 0,507. Em chọn mô hình ghép vì lý do từ webcam: nó phát được zoom trên tay
-> người dùng thật mà không nhầm thêm.
+> Thứ nhất, khoảng một nửa cử chỉ vẫn bị sót ở lần làm đầu. Trên 40 lời nhắc, vuốt có 11 đúng, 2
+> ngược, 7 sót; zoom 10 đúng, 4 ngược, 6 sót. Phần lớn do cách làm khác người diễn IPN, và không
+> ngưỡng nào sửa hết được.
+>
+> Thứ hai, ngưỡng được chọn trên ít dữ liệu, và chính dữ liệu đó dùng để chấm, nên con số có phần lạc
+> quan. Thứ ba, mục tiêu 0,9 đến 1,1 lệnh mỗi cử chỉ trên video val vẫn chưa đạt, mới 0,61.
+>
+> Thứ tư, trên IPN lựa chọn tốt nhất tuỳ phép đo. Nếu học lại theo công thức chính và lấy trung bình
+> năm seed, LSTM một mình hơn mô hình ghép 0,105 F1 sự kiện. Với mô hình đang dùng thì ngược lại,
+> 0,561 so với 0,507. Em chọn mô hình ghép vì kết quả trên webcam.
 
 ---
 
-## Slide 13 — Việc còn lại và kết luận (0:45)
+## Slide 16 — Bài học về độ tin của con số (0:45)
 
 **Trên slide:**
-- Đo tốc độ đủ bốn mô hình ở hai mức ánh sáng; đo độ trễ thủ công; quay video demo
-- Quyết định Phase 11 (dữ liệu tự quay)
-- **Cuối cùng, đúng một lần:** chạy tập test; thử tái lập từ đầu bằng `run_all.py`
-- Đã có: `run_all.py` (16 bước), ghim phiên bản, README · `pytest`: 215 passed
+- Chênh lệch **dưới ≈ 0,1** F1 sự kiện trong một seed thường **lật chiều** khi đổi cấu hình kích
+  hoạt → chỉ tin kết luận nhiều seed, nhiều fold
+- Kết luận đứng qua cả bốn lần dựng bảng:
+  - LSTM hơn rừng ngẫu nhiên
+  - chia ngẫu nhiên theo cửa sổ thổi phồng macro-F1 thêm **0,10–0,15** → luôn chia theo người
+  - rừng cần gốc toạ độ ở cổ tay frame đầu và cửa sổ 1,2 giây
 
 **Lời nói:**
 
-> Việc còn lại gồm: đo tốc độ đầy đủ, đo độ trễ thủ công, quay video demo, và quyết định có tự quay
-> thêm dữ liệu ở Phase 11 hay không. Cuối cùng, đúng một lần, em sẽ chạy tập test và thử tái lập
-> toàn bộ dự án từ một môi trường trống bằng một lệnh `run_all.py`.
+> Một bài học xuyên suốt: những chênh lệch nhỏ hơn khoảng 0,1 F1 sự kiện trong một seed thường đổi
+> chiều khi chỉnh cấu hình kích hoạt. Nên em chỉ tin những kết luận có nhiều seed hoặc nhiều fold.
 >
-> Tóm lại: từ một mô hình phân loại, em đã có một hệ thống điều khiển được PowerPoint bằng cử chỉ,
-> đo được ở mức người dùng cảm nhận, và biết rõ nó còn yếu ở đâu. Em xin cảm ơn thầy cô và các bạn
-> đã lắng nghe.
+> Có ba kết luận đứng vững qua cả bốn lần dựng bảng: LSTM hơn rừng ngẫu nhiên; chia tập ngẫu nhiên
+> theo cửa sổ thổi phồng macro-F1 thêm 0,10 đến 0,15, nên dự án luôn chia theo người; và rừng ngẫu
+> nhiên cần gốc toạ độ ở cổ tay frame đầu cùng cửa sổ 1,2 giây.
+
+---
+
+## Slide 17 — Việc còn lại và kết luận (0:45)
+
+**Trên slide:**
+- Đo tốc độ đủ 4 mô hình ở 2 mức ánh sáng, đo lại lần hai (lần đầu: ≈ 30 FPS, ≈ 16 ms mỗi khung,
+  MediaPipe chiếm 76–79%)
+- Đo độ trễ thủ công, 10 lần mỗi cử chỉ · quay video demo · quyết định Phase 11, duyệt
+  `docs/gestures.md`
+- **Cuối cùng, đúng một lần:** chạy tập test; thử tái lập từ đầu bằng `run_all.py`
+- Kết luận: sáu vòng tối ưu, mỗi vòng đo trước rồi mới sửa
+
+**Lời nói:**
+
+> Việc còn lại gồm: đo tốc độ đủ bốn mô hình ở hai mức ánh sáng — lần đo đầu được khoảng 30 khung
+> hình mỗi giây, phần lớn thời gian là của MediaPipe — đo độ trễ thủ công, quay video demo, và quyết
+> định có tự quay thêm dữ liệu ở Phase 11 hay không. Cuối cùng, đúng một lần, em sẽ chạy tập test và
+> thử tái lập toàn bộ dự án từ môi trường trống.
+>
+> Tóm lại: qua sáu vòng tối ưu, mỗi vòng đo trước rồi mới sửa, hệ thống đi từ 6,6–30 lệnh nhầm mỗi
+> phút xuống 0,85, và lần đầu điều khiển được slide thật. Em xin cảm ơn thầy cô và các bạn đã lắng
+> nghe.
+
+---
+
+## Slide 18 — Cảm ơn và hỏi đáp
+
+**Trên slide:**
+- XIN CẢM ƠN!
+- Mời thầy cô và các bạn đặt câu hỏi
 
 ---
 
 ## Phụ lục — Câu hỏi có thể gặp
 
-**1. Vì sao recall chỉ khoảng 52%?**
-Phần lớn do cách làm cử chỉ khác người diễn IPN (slide 9), không phải lỗi đường ống. Mô hình chỉ học
-từ IPN. Cách khắc phục trực tiếp nhất là Phase 11: tự quay thêm dữ liệu với dáng tay của người dùng.
+**1. Vì sao khoảng một nửa cử chỉ vẫn bị sót?**
+Phần lớn do cách làm cử chỉ khác người diễn IPN: nhẫn, út duỗi, lấy đà, tay vào khung muộn. Mô hình
+chỉ học từ IPN. Cách khắc phục trực tiếp nhất là Phase 11: tự quay thêm dữ liệu với dáng tay người
+dùng.
 
-**2. Vì sao không chia tập ngẫu nhiên?**
-Vì chia ngẫu nhiên theo cửa sổ thổi phồng macro-F1 thêm 0,10–0,15. Khi dùng thật, hệ thống luôn gặp
+**2. Vì sao không hạ một ngưỡng chung cho dễ?**
+Quay về 0,75 · 3/5 thì vấn đề lấy đà của vuốt trở lại (5/20 lời nhắc ngược chiều). Vuốt và zoom có
+thang độ tin khác nhau, nên mỗi họ cần một ngưỡng.
+
+**3. Vì sao không chia tập ngẫu nhiên?**
+Chia ngẫu nhiên theo cửa sổ thổi phồng macro-F1 thêm 0,10–0,15. Khi dùng thật, hệ thống luôn gặp
 người mới, nên phải chấm trên người chưa thấy khi học.
 
-**3. Vì sao không dùng LSTM hai chiều hay làm mượt hai phía?**
+**4. Vì sao không dùng LSTM hai chiều hay làm mượt hai phía?**
 Hệ thống chạy thời gian thực. Hai chiều nghĩa là phải chờ dữ liệu tương lai, làm tăng độ trễ.
 
-**4. Vì sao chưa chạy tập test?**
+**5. Vì sao chưa chạy tập test?**
 Tập test chỉ chạy đúng một lần ở cuối. Nếu nhìn test trong lúc còn chỉnh, mọi lựa chọn sau đó đều
 ngầm khớp với test và con số không còn khách quan.
 
-**5. 0,18 lệnh nhầm mỗi phút có thấp thật không?**
-Tính trên toàn bộ thời gian nói chuyện thì là 0,18. Camera chỉ thấy tay 23% thời gian; nếu chỉ tính
-lúc tay trong khung thì là 0,79 mỗi phút. Ngoài ra, ở phiên đọc và gõ phím, camera không thấy tay nên
-kết quả 0 lệnh nhầm ở đó chưa nói được nhiều.
+**6. 0,18 lệnh nhầm mỗi phút có thấp thật không?**
+Đó là con số gộp theo thời lượng. Nếu chỉ tính lúc tay trong khung thì là 0,79 mỗi phút. Phiên đọc
+và gõ phím không thấy tay nên 0 lệnh nhầm ở đó chưa nói được nhiều.
 
-**6. Vì sao vuốt trái lại sang slide sau?**
-Theo lựa chọn của người dùng ngày 02/11, giống thao tác lật trang trên màn hình cảm ứng. SPEC gốc
-quy ước ngược lại. Ánh xạ nằm trong `CTRL_HOTKEYS` của `src/config.py`, đổi được mà không cần học lại.
+**7. Ngưỡng chọn rồi chấm trên cùng dữ liệu, có phải "học vẹt" không?**
+Có phần lạc quan, và tài liệu ghi rõ điều đó. Mỗi lựa chọn được xem đồng thời trên cả bốn nguồn,
+nên không tối ưu riêng cho một con số; nhưng cách kiểm chắc hơn là ghi phiên mới rồi chấm lại với
+cấu hình đã chốt.
 
-**7. Vì sao chỉ dùng toạ độ 2D?**
-Toạ độ z của MediaPipe ước lượng từ một camera nên nhiễu. Dùng 2D giúp dữ liệu IPN, dữ liệu tự quay
-và webcam đi qua cùng một đường ống, cùng một cách chuẩn hoá.
+**8. Vì sao vuốt trái lại sang slide sau?**
+Theo lựa chọn của người dùng ngày 02/11, giống thao tác lật trang trên màn hình cảm ứng. SPEC gốc quy
+ước ngược lại. Ánh xạ nằm trong `CTRL_HOTKEYS` của `src/config.py`, đổi được mà không cần học lại.
 
-**8. Hệ thống có cần GPU không?**
-Không. Chạy khoảng 30 FPS, khoảng 16 ms mỗi khung hình; phần nặng nhất là MediaPipe (76–79%).
+**9. Hệ thống có cần GPU không?**
+Không. Lần đo đầu khoảng 30 FPS, khoảng 16 ms mỗi khung hình; phần nặng nhất là MediaPipe (76–79%).
