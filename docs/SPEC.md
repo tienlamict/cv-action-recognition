@@ -755,6 +755,15 @@ test_fps_bo_qua_ba_giay_dau
 
 **Mục tiêu.** Đo — và nếu cần, cải thiện — hệ thống trong điều kiện thật của bạn. **Chỉ bật** khi `results/phase6/live_check.md` ghi nhận ít nhất một trong bốn dấu hiệu ở mục Chiến lược dữ liệu. Không bật thì bỏ qua cả phase này, và báo cáo nêu rõ giới hạn.
 
+*Ghi chú 2026-11-06 — **người dùng bật Phase 11**, bản đầy đủ, với hai điểm khác SPEC:*
+- **Thêm cả cử chỉ tự quay của `real_tune` vào tập học**, không chỉ cửa sổ `none` như bước 5. Lý do: độ chính xác trên tay người dùng còn thấp vì họ làm cử chỉ khác người diễn IPN (`results/phase10/notes.md` mục 7). `real_test` vẫn không bao giờ vào tập học.
+- **Người quay làm cử chỉ theo kiểu tự nhiên của họ,** không theo `docs/gestures.md`, nhưng giữ phần cốt lõi để không trùng các lớp `none` của IPN (`docs/huong-dan-quay-du-lieu.md`). Tập `real_test` quay cùng kiểu, để con số phản ánh cách dùng thật.
+
+*Cách làm:*
+- 3–4 người quay; `p01` quay hai buổi khác ngày. Cách chia `real_tune` và `real_test` sẽ chốt khi có dữ liệu.
+- Video kèm **mốc thời gian thật của từng frame**, vì FPS webcam không cố định.
+- Bước 1 xong: `scripts/record_session.py`, `src/selfdata.py`, `test_ten_file_suy_ra_nhan_va_ma_nguoi`.
+
 Có hai bản. **Bản đầy đủ** — quyết định ở tuần 6, chạy song song với Phase 7–8 — gồm cả điều chỉnh lẫn đánh giá. **Bản tối giản** — khi nhu cầu chỉ lộ ra ở Phase 10 — chỉ quay tập đánh giá và làm bước 6 dưới đây, không điều chỉnh gì.
 
 **Việc phải làm**

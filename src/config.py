@@ -392,6 +392,34 @@ BENCH_PROMPT_SEC = 4.0          # mỗi lời nhắc hiện bấy nhiêu giây �
 BENCH_REST_SEC = 3.0            # nghỉ giữa hai lời nhắc, tay để yên trong khung
 
 # --------------------------------------------------------------------------
+# Dữ liệu tự quay (Phase 11; người dùng bật 2026-11-06 — bản đầy đủ, và thêm cả
+# cử chỉ tự quay vào tập học). Bản ghi Phase 8 không băm tiền tố REC_
+# (src/experiments.py, _IRRELEVANT)
+# --------------------------------------------------------------------------
+
+SELF_LANDMARKS_DIR = LANDMARKS_DIR / "self"     # extract_landmarks.py --source self
+REC_CLIP_SEC = 3.0          # mỗi lần quay một cử chỉ dài bấy nhiêu giây
+REC_COUNTDOWN_SEC = 2.0     # đếm ngược trước mỗi lần, đủ để đặt tay vào tư thế
+REC_TRIM_SEC = 0.5          # cẩm nang 12.6: gán nhãn bỏ bấy nhiêu giây đầu và cuối
+                            # mỗi đoạn cử chỉ — lúc đó người quay chưa làm cử chỉ
+REC_GESTURE_TAKES = 25      # mỗi cử chỉ, mỗi buổi; buổi chỉ để chấm: --takes 15
+REC_NEAR_GROUPS = ("wave", "throwup", "throwdown", "rotate", "spread", "point")
+                            # cẩm nang 12.3, động tác gần giống — đều là none: vẫy
+                            # tay, hất lên, hất xuống, xoay cổ tay; thêm xoè cả năm
+                            # ngón (G07 của IPN) và chỉ trỏ (B0A, B0B)
+REC_NEAR_TAKES = 10         # mỗi động tác gần giống, mỗi buổi
+REC_TRANSITION_TAKES = 10   # đưa tay vào khung rồi hạ xuống — none
+REC_CONTINUOUS_MIN = {"rest": 1.0, "work": 5.0, "incidental": 2.0, "talk": 3.0,
+                      "empty": 0.5}
+                            # phút quay liên tục, đều là none: tay đứng yên; làm
+                            # việc bình thường; với cốc, gãi đầu; nói chuyện khua
+                            # tay; khung trống. Cùng các nhóm trên đủ bảy nhóm
+                            # của cẩm nang 12, và none dài hơn hẳn bốn cử chỉ
+REC_CHUNK_SEC = 60.0        # phần quay liên tục cắt thành file bấy nhiêu giây
+REC_FOURCC = "mp4v"         # codec .mp4 của OpenCV
+REC_MIN_HAND_SHARE = 0.5    # một lần quay cử chỉ thấy tay ít hơn mức này thì cảnh báo
+
+# --------------------------------------------------------------------------
 # Tái lập (Phase 12)
 # --------------------------------------------------------------------------
 

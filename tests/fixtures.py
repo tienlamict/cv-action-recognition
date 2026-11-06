@@ -8,6 +8,7 @@ Bàn tay mẫu dựng quanh ``CENTER``, cỡ lòng bàn tay (khoảng cách đi�
 Trục ``y`` hướng XUỐNG như hệ toạ độ ảnh, nên ngón tay chĩa lên là ``y`` âm.
 """
 
+import cv2
 import numpy as np
 
 from src import config
@@ -145,3 +146,13 @@ def labeled_windows(subject, n=12, none_maker=None, seed=0):
     X = np.stack([normalize_window(w + rng.normal(0, JITTER_PX, w.shape))
                   for w in X]).astype(np.float32)
     return X, np.array(y), np.ones(len(y), np.float32), np.full(len(y), subject)
+
+
+def black_video(path, seconds, fps=config.HZ, size=(64, 48)):
+    """Video MJPG toàn đen — đủ để chạy cả vòng lặp mà không cần camera."""
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), fps, size)
+    assert writer.isOpened(), "OpenCV không tạo được video MJPG để kiểm thử"
+    for _ in range(int(seconds * fps)):
+        writer.write(np.zeros((size[1], size[0], 3), dtype=np.uint8))
+    writer.release()
+    return path

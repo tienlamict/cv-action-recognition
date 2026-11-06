@@ -11,7 +11,8 @@ from src import config, events
 from src.control import Controller
 from src.fps import FpsMeter
 from src.live import HELP_LINES, LandmarkRecorder, help_screen, screen_lines
-from tests.fixtures import PALM_PX, SWIPE_PALMS, make_static, make_swipe, save_parts_clip
+from tests.fixtures import (PALM_PX, SWIPE_PALMS, black_video, make_static, make_swipe,
+                            save_parts_clip)
 from tests.scripts_import import load_script
 
 LEFT = config.CLASSES.index("swipe_left")
@@ -141,16 +142,6 @@ def test_cham_lenh_do_tre_va_kich_hoat_nham():
     assert s["consensus"] == [pytest.approx(2 * step), pytest.approx(2 * step)]
     two = bench.score([timeline], [labels], [np.full(ts.size, 0.9)], 0.6, 2)
     assert two["consensus"][0] == pytest.approx(step), "k = 2: phát ở cửa sổ thứ hai"
-
-
-def black_video(path, seconds, fps=config.HZ, size=(64, 48)):
-    """Video MJPG toàn đen — đủ để chạy cả vòng lặp mà không cần camera."""
-    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), fps, size)
-    assert writer.isOpened(), "OpenCV không tạo được video MJPG để kiểm thử"
-    for _ in range(int(seconds * fps)):
-        writer.write(np.zeros((size[1], size[0], 3), dtype=np.uint8))
-    writer.release()
-    return path
 
 
 def test_do_toc_do_chay_du_vong_lap_va_phan_ra_cong_du_100(tmp_path, monkeypatch):

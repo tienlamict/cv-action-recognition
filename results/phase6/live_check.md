@@ -44,5 +44,12 @@ dấu hiệu 3 hoặc 4 đúng. Nếu muốn đo dấu hiệu 1 cho chắc, ghi 
 
 - [ ] Không bật Phase 11
 - [ ] Bật bản tối giản
+- [x] **Bật bản đầy đủ, và thêm cả cử chỉ tự quay vào tập học**
 
-Người dùng chọn: ……………… Ngày: ………………
+Người dùng chọn ngày 2026-11-06. Lý do: độ chính xác trên tay người dùng còn thấp. Thêm loại cử
+chỉ không giúp: rừng 14 lớp không khá hơn trên tay người dùng. Nguyên nhân chính là người dùng làm
+cử chỉ khác người diễn IPN.
+
+- 3–4 người quay, làm cử chỉ theo kiểu tự nhiên nhưng giữ phần cốt lõi.
+- Một phần dữ liệu khoá lại để chấm, không bao giờ vào tập học.
+- Giao thức quay: `docs/huong-dan-quay-du-lieu.md`.
