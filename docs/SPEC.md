@@ -762,6 +762,7 @@ test_fps_bo_qua_ba_giay_dau
 *Cách làm:*
 - 3–4 người quay; `p01` quay hai buổi khác ngày. Cách chia `real_tune` và `real_test` sẽ chốt khi có dữ liệu.
 - Video kèm **mốc thời gian thật của từng frame**, vì FPS webcam không cố định.
+- *2026-11-07:* người quay tự kết thúc mỗi lần bằng SPACE, và lần sau bắt đầu ngay. Đoạn cố định 3 giây kèm 2 giây đếm ngược quá vội, nhiều lần quay không rõ cử chỉ.
 - Bước 1 xong: `scripts/record_session.py`, `src/selfdata.py`, `test_ten_file_suy_ra_nhan_va_ma_nguoi`.
 
 Có hai bản. **Bản đầy đủ** — quyết định ở tuần 6, chạy song song với Phase 7–8 — gồm cả điều chỉnh lẫn đánh giá. **Bản tối giản** — khi nhu cầu chỉ lộ ra ở Phase 10 — chỉ quay tập đánh giá và làm bước 6 dưới đây, không điều chỉnh gì.

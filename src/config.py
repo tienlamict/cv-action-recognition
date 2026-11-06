@@ -398,9 +398,11 @@ BENCH_REST_SEC = 3.0            # nghỉ giữa hai lời nhắc, tay để yên
 # --------------------------------------------------------------------------
 
 SELF_LANDMARKS_DIR = LANDMARKS_DIR / "self"     # extract_landmarks.py --source self
-REC_CLIP_SEC = 3.0          # mỗi lần quay một cử chỉ dài bấy nhiêu giây
-REC_COUNTDOWN_SEC = 2.0     # đếm ngược trước mỗi lần, đủ để đặt tay vào tư thế
-REC_TRIM_SEC = 0.5          # cẩm nang 12.6: gán nhãn bỏ bấy nhiêu giây đầu và cuối
+REC_MIN_CLIP_SEC = 1.0      # người quay tự kết thúc mỗi lần bằng SPACE (người dùng
+                            # chọn 2026-11-07: đoạn cố định 3 giây quá vội). Bấm sớm
+                            # hơn mức này là bấm nhầm: bỏ đoạn đó, quay lại đúng lần ấy
+REC_MAX_CLIP_SEC = 10.0     # quá mức này màn hình nhắc lưu (SPACE) hay quay lại (r)
+REC_TRIM_SEC = 0.5         # cẩm nang 12.6: gán nhãn bỏ bấy nhiêu giây đầu và cuối
                             # mỗi đoạn cử chỉ — lúc đó người quay chưa làm cử chỉ
 REC_GESTURE_TAKES = 25      # mỗi cử chỉ, mỗi buổi; buổi chỉ để chấm: --takes 15
 REC_NEAR_GROUPS = ("wave", "throwup", "throwdown", "rotate", "spread", "point")

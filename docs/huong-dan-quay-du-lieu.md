@@ -4,7 +4,8 @@
 hình chỉ học từ bộ video IPN Hand, nên kiểu làm khác với người diễn IPN hay bị bỏ lỡ.
 
 Mỗi buổi khoảng **30 phút**. Công cụ quay tự hiện lời nhắc, tự đặt tên file, và tự lưu mốc thời
-gian. Người quay chỉ cần làm theo màn hình.
+gian. **Người quay tự quyết nhịp:** làm xong một cử chỉ thì bấm SPACE để lưu và sang cử chỉ tiếp
+theo.
 
 ---
 
@@ -22,6 +23,8 @@ gian. Người quay chỉ cần làm theo màn hình.
   - cách camera 0,4–0,7 m;
   - đủ sáng;
   - dùng tay phải, chỉ một bàn tay trong khung.
+- **Tay trái đặt sẵn trên phím SPACE, tay phải làm cử chỉ.** Đừng dùng cùng một tay vừa làm cử
+  chỉ vừa bấm phím: cú với tay xuống bàn phím sẽ nằm trong video như một chuyển động lớn.
 
 ---
 
@@ -44,20 +47,31 @@ python scripts/record_session.py --person p02
 
 ## 3. Trên màn hình
 
+**Nhịp của mỗi lần quay:**
+
+1. Đọc dòng hai trên màn hình, ví dụ "VUOT TRAI…". Màn hình hiện số giây đã quay sau chữ **REC**.
+2. Đặt tay vào tư thế, làm cử chỉ **một lần**, rồi giữ yên hoặc hạ tay.
+3. Bấm **SPACE**: lần này được lưu, và lần tiếp theo **bắt đầu quay ngay**. Đọc lời nhắc mới, rồi
+   làm tiếp. Không cần vội: cứ thong thả đặt tay vào tư thế rồi mới làm.
+
 | Thấy gì | Làm gì |
 |---|---|
-| Dòng đầu: khối, lần thứ mấy, nhãn | — |
-| Dòng hai: việc cần làm, ví dụ "VUOT TRAI…" | đọc trước khi bắt đầu |
-| Số lớn **2, 1** | đặt tay vào tư thế bắt đầu |
-| **REC** và số giây còn lại | làm cử chỉ **một lần**, rồi giữ yên hoặc hạ tay |
+| Chữ lớn **SPACE** | máy đang nghỉ; bấm SPACE để bắt đầu quay |
+| **REC** và số giây | đang quay; làm cử chỉ, xong thì bấm SPACE |
 | "Lan vua roi chi thay tay …%" | bấm `r` để quay lại lần đó |
+| "Qua 10s…" | quên bấm; bấm SPACE nếu đã làm xong cử chỉ, `r` nếu muốn quay lại |
+| "Bam qua nhanh…" | SPACE bị bấm hai lần liền; lần đó được quay lại, cứ làm tiếp |
 | "Xong khoi …" | nghỉ một chút, bấm SPACE để sang khối sau |
 
-| Phím | Tác dụng |
-|---|---|
-| SPACE | tạm dừng, hoặc tiếp tục |
-| `r` | quay lại lần vừa xong; bản cũ chuyển vào thư mục `rejected/`, không bị xoá |
-| `q` | thoát; chạy lại lệnh là làm tiếp |
+| Phím | Đang quay | Đang nghỉ |
+|---|---|---|
+| SPACE | lưu lần này, **bắt đầu ngay lần sau** | bắt đầu quay |
+| `p` | lưu lần này rồi nghỉ | — |
+| `r` | bỏ lần đang quay, quay lại ngay | quay lại lần vừa lưu |
+| `q` | thoát; lần đang quay dở bị bỏ | thoát |
+
+Bản bị bỏ chuyển vào thư mục `rejected/`, không bao giờ bị xoá. Thoát rồi chạy lại lệnh là làm
+tiếp đúng chỗ dở.
 
 Màn hình được lật như gương cho dễ nhìn. Video lưu lại thì **không** lật.
 
@@ -67,10 +81,13 @@ Màn hình được lật như gương cho dễ nhìn. Video lưu lại thì **k
 
 | Khối | Làm gì | Số lần | Khoảng |
 |---|---|---|---|
-| `gestures` | vuốt trái, vuốt phải, zoom in, zoom out, xáo trộn thứ tự | 25 mỗi cử chỉ (buổi sau: 15) | 8 phút |
-| `near` | vẫy tay, hất lên, hất xuống, xoay cổ tay, xoè cả năm ngón, chỉ trỏ | 10 mỗi động tác | 5 phút |
+| `gestures` | vuốt trái, vuốt phải, zoom in, zoom out, xáo trộn thứ tự | 25 mỗi cử chỉ (buổi sau: 15) | 6–8 phút |
+| `near` | vẫy tay, hất lên, hất xuống, xoay cổ tay, xoè cả năm ngón, chỉ trỏ | 10 mỗi động tác | 4–5 phút |
 | `transition` | đưa tay vào khung rồi hạ tay xuống | 10 | 1 phút |
-| `continuous` | tay để yên; làm việc bình thường; với cốc, gãi đầu; nói chuyện; khung trống | quay liên tục | 12 phút |
+| `continuous` | tay để yên; làm việc bình thường; với cốc, gãi đầu; nói chuyện; khung trống | quay liên tục, tự cắt file | 12 phút |
+
+Phần quay liên tục chỉ cần bấm SPACE một lần ở đầu mỗi phần, rồi làm theo lời nhắc tới khi hết giờ
+(`p` để nghỉ giữa chừng).
 
 Ba khối sau đều là **"không phải lệnh"**. Chúng dạy mô hình biết im lặng, nên quan trọng không kém
 bốn cử chỉ.
@@ -88,7 +105,7 @@ Nhưng giữ phần cốt lõi của mỗi cử chỉ, để nó không trùng v
 | Zoom in | ngón cái **tách** khỏi ngón trỏ (và ngón giữa); các ngón khác để tự nhiên | xoè **cả năm ngón** từ nắm tay — đó là động tác "không phải lệnh" |
 | Zoom out | ngón cái **chụm** về ngón trỏ | nắm cả bàn tay lại |
 
-- **Mỗi lần chỉ làm một cử chỉ.** Không lặp lại trong cùng 3 giây.
+- **Mỗi lần chỉ làm một cử chỉ,** rồi bấm SPACE. Không lặp lại cử chỉ trong cùng một lần quay.
 - **Khác nhau một chút giữa các lần là tốt:** nhanh chậm, rộng hẹp, vị trí tay. Đừng làm như máy.
 - **Trái, phải là trái, phải của chính bạn,** không phải của màn hình.
 
