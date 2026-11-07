@@ -16,6 +16,9 @@ Mốc thời gian lấy từ đồng hồ thật lúc quay, không từ FPS ghi 
 webcam không phải hằng số — nó tụt khi phòng tối — nên chia số thứ tự frame cho
 FPS danh nghĩa sẽ làm cử chỉ nhanh hay chậm hơn thật, trong khi đặc trưng và
 LSTM đều đo tốc độ.
+
+Mỗi lần quay cử chỉ được kiểm tra ngay lúc quay (:func:`check_take`) bằng đúng
+các hàm gán nhãn của bộ cửa sổ, để người quay làm lại ngay những lần sẽ dạy sai.
 """
 
 import json
@@ -26,6 +29,8 @@ from pathlib import Path
 import numpy as np
 
 from src import config
+from src.preprocess import load_sequence
+from src.windows import core_signal, core_steps, cut_windows, step_labels
 
 GESTURES = tuple(config.CLASSES[1:])
 NONE_PREFIX = "none-"
@@ -37,10 +42,10 @@ SelfClip = namedtuple("SelfClip", "person label take session")
 
 #: Lời nhắc trên màn hình quay. Không dấu, vì cv2.putText chỉ vẽ ASCII.
 PROMPTS = {
-    "swipe_left": "VUOT TRAI: hat tay sang trai cua ban, kieu cua ban",
-    "swipe_right": "VUOT PHAI: hat tay sang phai cua ban, kieu cua ban",
-    "zoom_in": "ZOOM IN: tach ngon cai khoi ngon tro (mo ra)",
-    "zoom_out": "ZOOM OUT: chum ngon cai ve ngon tro",
+    "swipe_left": "VUOT TRAI: tay yen, roi hat ro sang trai cua ban",
+    "swipe_right": "VUOT PHAI: tay yen, roi hat ro sang phai cua ban",
+    "zoom_in": "ZOOM IN: chum san cai-tro, roi tach ra nhanh",
+    "zoom_out": "ZOOM OUT: mo san cai-tro, roi chum lai nhanh",
     "none-wave": "VAY TAY qua lai",
     "none-throwup": "HAT TAY LEN tren",
     "none-throwdown": "HAT TAY XUONG duoi",
@@ -156,6 +161,119 @@ def reject(video_path):
     if sidecar.is_file():
         sidecar.rename(moved.with_suffix(".json"))
     return moved
+
+
+def clip_segments(label, ts, trim_sec):
+    """Đoạn gán nhãn của một lần quay, đúng dạng ``segments``/``src_labels`` của
+    file ``.npz``. Kiểm tra lúc quay và trích điểm mốc dùng chung hàm này.
+
+    - Cử chỉ: một đoạn, bỏ ``trim_sec`` giây đầu và cuối (cẩm nang 12.6). Lúc
+      vừa bắt đầu quay, người quay chưa làm; lúc sắp bấm SPACE, đã làm xong.
+    - ``none``: cả lần quay.
+
+    Args:
+        ts: ``(N,)`` giây của từng frame, tăng dần.
+
+    Returns:
+        ``(segments, src_labels)``: ``(1, 3)`` int64 ``[start, end, class_id]``
+        theo chỉ số frame, và ``(1,)`` nhãn trong tên file.
+    """
+    ts = np.asarray(ts, dtype=np.float64)
+    cls = class_of(label)
+    start, end = 0, ts.size
+    if cls != 0:
+        start = int(np.searchsorted(ts, ts[0] + trim_sec))
+        end = max(start, int(np.searchsorted(ts, ts[-1] - trim_sec, side="right")))
+    return np.array([[start, end, cls]], dtype=np.int64), np.array([label])
+
+
+TakeCheck = namedtuple("TakeCheck", "problem core_sec rival_sec ratio n_windows")
+TakeCheck.__doc__ = """Kết quả kiểm tra một lần quay cử chỉ (:func:`check_take`).
+
+- ``problem``: ``None`` nếu ổn, hoặc một khoá của :data:`CHECK_NOTES`;
+- ``core_sec``: khoảnh khắc chính mà việc gán nhãn sẽ chọn, giây từ frame đầu;
+- ``rival_sec``, ``ratio``: chuyển động mạnh nhất ở chỗ khác trong lần quay,
+  cách khoảnh khắc chính ít nhất ``REC_CORE_SEP_SEC``, và độ mạnh của nó chia
+  cho độ mạnh của khoảnh khắc chính;
+- ``n_windows``: số cửa sổ mang nhãn cử chỉ mà lần quay này cho bộ dữ liệu."""
+
+#: Lời báo trên màn hình quay khi một lần quay cử chỉ nên làm lại. ASCII, một dòng.
+CHECK_NOTES = {
+    "no_hand": "Lan vua roi: khong thay tay luc lam cu chi",
+    "no_window": "Lan vua roi: mat tay quanh cu chi, hoac qua ngan",
+    "early": "Lan vua roi: lam som qua - doi 1 giay roi hay lam",
+    "late": "Lan vua roi: bam SPACE som qua - giu yen 1 giay",
+    "unclear": "Lan vua roi: chua ro - chuan bi cham, lam dut khoat",
+}
+
+
+def check_take(ts, xy_norm, w, h, label, trim_sec):
+    """Lần quay cử chỉ này có dạy đúng cử chỉ không. Đo bằng đúng các hàm gán
+    nhãn của bộ cửa sổ (``src/windows.py``), không phải một bản "gần giống".
+
+    Theo thứ tự:
+
+    1. ``no_hand``: không tìm được khoảnh khắc chính, vì mất tay cả đoạn.
+    2. ``no_window``: không cắt được cửa sổ nào mang nhãn cử chỉ. Lần quay quá
+       ngắn, hoặc mất tay quanh khoảnh khắc chính.
+    3. Có một chuyển động khác, cách khoảnh khắc chính ít nhất
+       ``REC_CORE_SEP_SEC``, mạnh từ ``REC_CORE_RATIO_MAX`` lần khoảnh khắc chính
+       trở lên. Độ mạnh là :func:`windows.core_signal`, đo trên CẢ lần quay:
+
+       - nằm trong phần bỏ ĐẦU → ``early``: cử chỉ làm ngay khi vừa bắt đầu
+         quay, rơi ra ngoài đoạn gán nhãn;
+       - nằm trong phần bỏ CUỐI → ``late``: bấm SPACE quá sớm sau cử chỉ;
+       - nằm trong đoạn → ``unclear``: chuẩn bị hay thu tay mạnh ngang động tác
+         chính. Lần trích sau, điểm mốc lệch một chút là chọn nhầm nó làm
+         khoảnh khắc chính, và cử chỉ thật bị bỏ.
+
+    Args:
+        ts: ``(N,)`` giây của từng frame, tăng dần.
+        xy_norm: ``(N, 21, 2)`` toạ độ chuẩn hoá của MediaPipe, NaN khi mất tay.
+        w, h: cỡ frame.
+        label: một trong bốn cử chỉ.
+        trim_sec: như :func:`clip_segments`.
+
+    Returns:
+        ``TakeCheck``.
+
+    Raises:
+        ValueError: ``label`` là ``none`` — không có khoảnh khắc chính để kiểm.
+    """
+    ts = np.asarray(ts, dtype=np.float64)
+    ts = ts - ts[0]
+    cls = class_of(label)
+    if cls == 0:
+        raise ValueError(f"'{label}' là none: chỉ kiểm tra lần quay cử chỉ")
+    segments, src = clip_segments(label, ts, trim_sec)
+    grid, xy = load_sequence(ts, xy_norm, w, h)
+    _, segment = step_labels(ts, segments, src, grid)
+    core = core_steps(xy, segment, segments).get(0)
+    windows, _ = cut_windows(ts, xy_norm, w, h, segments, src)
+    n_windows = int(np.sum(windows["y"] == cls))
+    if core is None:
+        return TakeCheck("no_hand", None, None, None, n_windows)
+    core_sec = round(float(grid[core]), 3)
+    if n_windows == 0:
+        return TakeCheck("no_window", core_sec, None, None, 0)
+
+    curve = core_signal(xy, np.arange(grid.size), label)
+    steps = np.arange(grid.size)
+    far = np.abs(steps - core) >= config.window_steps(config.REC_CORE_SEP_SEC)
+    if not far.any():
+        return TakeCheck(None, core_sec, None, 0.0, n_windows)
+    rival = int(steps[far][np.argmax(curve[far])])
+    peak, other = float(curve[core]), float(curve[rival])
+    rival_sec = round(float(grid[rival]), 3)
+    if peak <= 0 and other <= 0:                    # không gì chuyển động
+        return TakeCheck("unclear", core_sec, rival_sec, None, n_windows)
+    ratio = other / peak if peak > 0 else np.inf
+    problem = None
+    if ratio >= config.REC_CORE_RATIO_MAX:
+        inside = np.flatnonzero(segment == 0)
+        problem = ("early" if rival < inside[0] else "late" if rival > inside[-1]
+                   else "unclear")
+    return TakeCheck(problem, core_sec, rival_sec, round(min(ratio, 99.0), 3), n_windows)
 
 
 def write_sidecar(video_path, ts, **meta):

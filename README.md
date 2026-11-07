@@ -31,7 +31,8 @@ nằm ở [docs/SPEC.md](docs/SPEC.md). Lý thuyết nền nằm ở [docs/](doc
 - Webcam chỉ dùng để **đo** trong điều kiện thật ở Phase 10: tốc độ, kích hoạt nhầm mỗi phút,
   số lệnh trên một cử chỉ (`results/phase10/`). Các phiên ghi đó không bao giờ vào tập huấn
   luyện.
-- Phase 11 (dữ liệu tự quay) chưa bật; quyết định ghi ở `results/phase6/live_check.md`.
+- Phase 11 (dữ liệu tự quay) bật ngày 2026-11-06 (`results/phase6/live_check.md`) và đang quay.
+  Khi có dữ liệu, cử chỉ tự quay của `real_tune` sẽ vào tập học; `real_test` thì không bao giờ.
 - Giới hạn đi kèm, phải nêu trong báo cáo:
   - chưa có tập kiểm thử điều kiện thật ở mức cửa sổ, nên Bảng 4 của Phase 8 chỉ có hai
     hàng;
@@ -190,7 +191,7 @@ script nhận `--help`. Kết quả ghi vào `results/<phase>/<tên>/run_NN/` k�
 | 10 | `python scripts/bench.py record <reading\|typing\|talking>` | Ghi 10 phút làm việc bình thường, KHÔNG làm cử chỉ: ngồi yên đọc tài liệu; gõ phím và dùng chuột; nói chuyện có khua tay. Phiên ở `results/phase10/sessions/`; không gửi phím nào |
 | 10 | `python scripts/bench.py record gestures` | Ghi 20 cử chỉ theo lời nhắc trên màn hình, 5 mỗi lớp (~2,5 phút); lời nhắc lưu thành đoạn có nhãn |
 | 10 | `python scripts/bench.py analyze` | Chạy lại mọi phiên đã ghi và video val qua bốn mô hình × ba cấu hình của bảng đánh đổi (`FSM_TRADEOFF`) cộng cấu hình cuối: kích hoạt nhầm mỗi phút theo kịch bản (gộp theo thời lượng, kèm nhầm mỗi phút có tay), số lệnh trên một cử chỉ, độ trễ, bảng đánh đổi — `results/phase10/analyze/run_NN/` |
-| 11 | `python scripts/record_session.py --person p01` | Quay có hướng dẫn, khoảng 30 phút một buổi; người quay tự quyết nhịp (SPACE lưu lần này và bắt đầu ngay lần sau, `p` nghỉ, `r` quay lại): bốn cử chỉ theo kiểu tự nhiên của người quay, động tác gần giống, đưa tay vào khung, và các phần quay liên tục "không phải lệnh". Ra `data/raw/<buổi>/pNN_<nhãn>_NN.mp4` (không lật) kèm `.json` mốc thời gian thật từng frame. `--takes 15` cho buổi chỉ để chấm; chạy lại là làm tiếp. Hướng dẫn cho người quay: `docs/huong-dan-quay-du-lieu.md` |
+| 11 | `python scripts/record_session.py --person p01` | Quay có hướng dẫn, khoảng 30 phút một buổi; mỗi lần quay bấm `b` để bắt đầu, SPACE để kết thúc (`r` quay lại). Mỗi lần quay cử chỉ được kiểm tra ngay bằng đúng các hàm gán nhãn; lần nào sẽ dạy sai thì máy dừng và báo lý do. `p01` quay đủ bốn khối; từ `p02` trở đi mặc định chỉ quay bốn cử chỉ, mỗi cử chỉ 5 lần (khoảng 2 phút). Nội dung đủ: bốn cử chỉ theo kiểu tự nhiên của người quay, động tác gần giống, đưa tay vào khung, và các phần quay liên tục "không phải lệnh". Ra `data/raw/<buổi>/pNN_<nhãn>_NN.mp4` (không lật) kèm `.json` mốc thời gian thật từng frame. `--takes 15` cho buổi chỉ để chấm; chạy lại là làm tiếp. Hướng dẫn cho người quay: `docs/huong-dan-quay-du-lieu.md` |
 | 12 | `python scripts/run_all.py` | Dựng lại toàn bộ đường ống bằng một lệnh, bỏ qua bước đã có đầu ra: `--list` xem trạng thái từng bước, `--force <bước>` chạy lại. LSTM của demo: chép lần khảo sát đúng công thức `DEPLOY_` vào `LSTM_MODEL_PATH`, chưa có thì học. Manifest: `results/run_all/run_NN/` |
 
 ---

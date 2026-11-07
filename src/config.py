@@ -398,13 +398,23 @@ BENCH_REST_SEC = 3.0            # nghỉ giữa hai lời nhắc, tay để yên
 # --------------------------------------------------------------------------
 
 SELF_LANDMARKS_DIR = LANDMARKS_DIR / "self"     # extract_landmarks.py --source self
-REC_MIN_CLIP_SEC = 1.0      # người quay tự kết thúc mỗi lần bằng SPACE (người dùng
-                            # chọn 2026-11-07: đoạn cố định 3 giây quá vội). Bấm sớm
-                            # hơn mức này là bấm nhầm: bỏ đoạn đó, quay lại đúng lần ấy
+REC_START_KEY = ord("b")    # bắt đầu một lần quay ("bắt đầu"; tay trái bấm, cạnh SPACE)
+REC_STOP_KEY = ord(" ")     # kết thúc và lưu lần đang quay. Người dùng chọn 2026-11-07:
+                            # một phím bắt đầu, SPACE kết thúc, xong thì máy nghỉ chờ
+REC_REDO_KEY = ord("r")     # đang quay: bỏ lần này; đang nghỉ: quay lại lần vừa lưu
+REC_MIN_CLIP_SEC = 1.0      # kết thúc sớm hơn mức này sau khi bắt đầu là bấm nhầm: bỏ
+                            # đoạn đó, lần ấy vẫn chờ quay
 REC_MAX_CLIP_SEC = 10.0     # quá mức này màn hình nhắc lưu (SPACE) hay quay lại (r)
 REC_TRIM_SEC = 0.5         # cẩm nang 12.6: gán nhãn bỏ bấy nhiêu giây đầu và cuối
                             # mỗi đoạn cử chỉ — lúc đó người quay chưa làm cử chỉ
 REC_GESTURE_TAKES = 25      # mỗi cử chỉ, mỗi buổi; buổi chỉ để chấm: --takes 15
+REC_MAIN_PERSON = "p01"     # chủ đề tài: mặc định quay đủ bốn khối của một buổi
+REC_HELPER_BLOCKS = ("gestures",)
+                            # người khác (p02…) mặc định chỉ quay bốn cử chỉ — người
+                            # dùng chốt 2026-11-06 để buổi quay ngắn. none tự quay chỉ
+                            # có của p01, cùng none của IPN
+REC_HELPER_TAKES = 5        # … mỗi cử chỉ bấy nhiêu lần (người dùng chốt 2026-11-07):
+                            # khoảng 2 phút một người
 REC_NEAR_GROUPS = ("wave", "throwup", "throwdown", "rotate", "spread", "point")
                             # cẩm nang 12.3, động tác gần giống — đều là none: vẫy
                             # tay, hất lên, hất xuống, xoay cổ tay; thêm xoè cả năm
@@ -420,6 +430,14 @@ REC_CONTINUOUS_MIN = {"rest": 1.0, "work": 5.0, "incidental": 2.0, "talk": 3.0,
 REC_CHUNK_SEC = 60.0        # phần quay liên tục cắt thành file bấy nhiêu giây
 REC_FOURCC = "mp4v"         # codec .mp4 của OpenCV
 REC_MIN_HAND_SHARE = 0.5    # một lần quay cử chỉ thấy tay ít hơn mức này thì cảnh báo
+REC_CORE_SEP_SEC = 0.6      # kiểm tra mỗi lần quay cử chỉ (selfdata.check_take): một
+                            # chuyển động "khác" phải cách khoảnh khắc chính ít nhất
+                            # bấy nhiêu giây — gần hơn là cùng một cú (~0,3 giây)
+REC_CORE_RATIO_MAX = 0.8    # chuyển động khác mạnh từ bấy nhiêu phần khoảnh khắc chính
+                            # trở lên thì báo quay lại: lần trích sau có thể chọn nhầm
+                            # nó. Buổi thử 2026-11-06: hai lần hỏng 0,88 và 0,99, hai
+                            # lần ổn 0,15 và 0,44. Trên IPN, 0,8 đánh dấu 13% đoạn cử
+                            # chỉ (0,7: 21%) — khoảng một lần báo trên tám lần quay
 
 # --------------------------------------------------------------------------
 # Tái lập (Phase 12)

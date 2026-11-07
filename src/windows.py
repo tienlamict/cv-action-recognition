@@ -82,8 +82,40 @@ def step_labels(ts, segments, src_labels, grid_ts):
     return class_id.astype(np.int64), segment
 
 
+def core_signal(xy, steps, name):
+    """Tín hiệu mà khoảnh khắc chính lấy cực đại, trên các bước liền nhau ``steps``.
+
+    Độ đổi giữa hai bước kề nhau của vị trí ngang cổ tay (hai lớp vuốt) hay độ
+    mở cái–trỏ (hai lớp zoom), chia cho trung vị lòng bàn tay trên chính các
+    bước đó, rồi làm mượt ``CORE_SMOOTH_STEPS`` bước. Bước mất tay tính là
+    không đổi. Không có dấu: chiều chuyển động không bao giờ dùng để gán nhãn.
+
+    Gán nhãn (:func:`core_steps`) và phép kiểm tra từng lần quay của Phase 11
+    (``selfdata.check_take``) cùng gọi hàm này — không có bản "gần giống".
+
+    Args:
+        xy: ``(M, 21, 2)`` pixel trên lưới, từ ``load_sequence``.
+        steps: chỉ số các bước, liền nhau.
+        name: tên lớp cử chỉ, ví dụ ``"zoom_in"``.
+
+    Returns:
+        ``(len(steps),)``, hoặc ``None`` nếu không đo được (mất tay cả đoạn).
+    """
+    palm = np.linalg.norm(xy[steps, config.MIDDLE_MCP] - xy[steps, config.WRIST], axis=1)
+    unit = np.nanmedian(palm) if np.isfinite(palm).any() else np.nan
+    if not np.isfinite(unit) or unit <= 0:
+        return None
+    signal = (xy[steps, config.WRIST, 0] if name.startswith("swipe")
+              else np.linalg.norm(xy[steps, config.THUMB_TIP] - xy[steps, config.INDEX_TIP],
+                                  axis=1))
+    change = np.abs(np.diff(signal, prepend=signal[0])) / unit
+    kernel = np.ones(config.CORE_SMOOTH_STEPS) / config.CORE_SMOOTH_STEPS
+    return np.convolve(np.where(np.isfinite(change), change, 0.0), kernel, mode="same")
+
+
 def core_steps(xy, segment, segments):
-    """Khoảnh khắc chính của từng đoạn cử chỉ đích.
+    """Khoảnh khắc chính của từng đoạn cử chỉ đích: bước có :func:`core_signal`
+    lớn nhất trong đoạn.
 
     Args:
         xy: ``(M, 21, 2)`` pixel trên lưới, từ ``load_sequence``.
@@ -94,26 +126,15 @@ def core_steps(xy, segment, segments):
         dict ``{chỉ số đoạn: bước}``. Đoạn không đo được (mất tay cả đoạn)
         không có mặt — mọi cửa sổ giao với nó sẽ bị bỏ.
     """
-    palm = np.linalg.norm(xy[:, config.MIDDLE_MCP] - xy[:, config.WRIST], axis=1)
-    pinch_px = np.linalg.norm(xy[:, config.THUMB_TIP] - xy[:, config.INDEX_TIP],
-                              axis=1)
-    kernel = np.ones(config.CORE_SMOOTH_STEPS) / config.CORE_SMOOTH_STEPS
-
     cores = {}
     for k, (_, _, class_id) in enumerate(np.asarray(segments).reshape(-1, 3)):
         name = config.CLASSES[class_id]
         steps = np.flatnonzero(segment == k)
         if name == "none" or steps.size == 0:
             continue
-        unit = np.nanmedian(palm[steps]) if np.isfinite(palm[steps]).any() else np.nan
-        if not np.isfinite(unit) or unit <= 0:
-            continue
-        signal = (xy[steps, config.WRIST, 0] if name.startswith("swipe")
-                  else pinch_px[steps])
-        change = np.abs(np.diff(signal, prepend=signal[0])) / unit
-        change = np.convolve(np.where(np.isfinite(change), change, 0.0),
-                             kernel, mode="same")
-        cores[k] = int(steps[int(np.argmax(change))])
+        change = core_signal(xy, steps, name)
+        if change is not None:
+            cores[k] = int(steps[int(np.argmax(change))])
     return cores
 
 
