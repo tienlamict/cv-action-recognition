@@ -393,11 +393,32 @@ BENCH_REST_SEC = 3.0            # nghỉ giữa hai lời nhắc, tay để yên
 
 # --------------------------------------------------------------------------
 # Dữ liệu tự quay (Phase 11; người dùng bật 2026-11-06 — bản đầy đủ, và thêm cả
-# cử chỉ tự quay vào tập học). Bản ghi Phase 8 không băm tiền tố REC_
-# (src/experiments.py, _IRRELEVANT)
+# cử chỉ tự quay vào tập học). Bản ghi Phase 8 chỉ dùng IPN, nên không băm tiền tố
+# REC_ và SELF_ (src/experiments.py, _IRRELEVANT)
 # --------------------------------------------------------------------------
 
 SELF_LANDMARKS_DIR = LANDMARKS_DIR / "self"     # extract_landmarks.py --source self
+SELF_WINDOWS = {"real_tune": WINDOWS_DIR / "self_real_tune.npz",
+                "real_test": WINDOWS_DIR / "self_real_test.npz"}
+                            # build_self_dataset.py; tách khỏi windows.npz để mô hình demo
+                            # (băm windows.npz trong manifest) vẫn tái lập được
+SELF_MIN_NET = {"swipe_left": 0.17, "swipe_right": 0.31, "zoom_in": 0.61, "zoom_out": 0.50}
+                            # lọc đoạn học tự quay (chỉ real_tune): độ dời ròng theo chiều
+                            # cử chỉ ít nhất bấy nhiêu — phân vị 25 trên cửa sổ dương của tập
+                            # TRAIN IPN, đo 2026-11-09 (results/phase11/qa_p02.md)
+SELF_MAX_BACK = 0.5         # ...và kéo ngược lại sau khi đã đi xa nhất không quá nửa quãng
+SELF_HOLD_SEC = 1.0         # compare_self.py: chấm lệnh thêm một lần với mỗi lần quay nối
+                            # bấy nhiêu giây tay giữ yên — lúc dùng thật luồng hình chạy
+                            # tiếp sau cử chỉ, còn lần quay thì hết ngay sau SPACE
+SELF_HOLD_JITTER_PX = 0.3   # ...tay "giữ yên" rung bấy nhiêu pixel, như điểm mốc thật
+PHASE11_RESULTS_DIR = RESULTS_DIR / "phase11"
+SELF_RF_PATH = PHASE11_RESULTS_DIR / "rf_model_self.joblib"    # train_self.py: học thêm
+SELF_LSTM_PATH = PHASE11_RESULTS_DIR / "lstm_model_self.pt"    # real_tune; demo không dùng
+SELF_SEEDS = (42, 43, 44)   # mỗi bên (IPN thuần, IPN + tự quay) học với bấy nhiêu hạt:
+                            # LSTM dao động mạnh theo hạt (Bảng 6 Phase 8, F1 vuốt trái
+                            # 0,25–0,46). Người dùng duyệt 2026-11-09. Hạt SEED của bên
+                            # IPN thuần chính là mô hình demo
+SELF_SEED_DIR = PHASE11_RESULTS_DIR / "seeds"   # mô hình của các hạt còn lại
 REC_START_KEY = ord("b")    # bắt đầu một lần quay ("bắt đầu"; tay trái bấm, cạnh SPACE)
 REC_STOP_KEY = ord(" ")     # kết thúc và lưu lần đang quay. Người dùng chọn 2026-11-07:
                             # một phím bắt đầu, SPACE kết thúc, xong thì máy nghỉ chờ

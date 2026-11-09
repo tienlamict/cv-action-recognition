@@ -114,8 +114,12 @@ def clip_meta(path):
 
 
 def clip_paths(subjects, landmarks_dir=None):
-    """Video IPN của các người ``subjects``, theo thứ tự tên file. Bỏ video lệch
+    """Video của các người ``subjects``, theo thứ tự đường dẫn. Bỏ video lệch
     nhãn (``length_mismatch``) như ``build_dataset.py``.
+
+    Tìm cả trong thư mục con: dữ liệu tự quay nằm theo buổi
+    (``data/landmarks/self/<buổi>/``), ``subjects`` là mã người–buổi. Thư mục IPN
+    phẳng nên kết quả của nó không đổi.
 
     Returns:
         ``(paths, skipped)`` — ``skipped`` là ``clip_id`` các video bị bỏ.
@@ -123,7 +127,7 @@ def clip_paths(subjects, landmarks_dir=None):
     landmarks_dir = landmarks_dir or config.LANDMARKS_DIR / "ipn"
     subjects = set(map(str, subjects))
     paths, skipped = [], []
-    for path in sorted(landmarks_dir.glob("*.npz")):
+    for path in sorted(landmarks_dir.rglob("*.npz")):
         meta = clip_meta(path)
         if str(meta["subject"]) not in subjects:
             continue

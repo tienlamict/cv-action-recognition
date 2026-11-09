@@ -8,10 +8,19 @@
 - bỏ qua clip đã có .npz, nên chạy lại là tiếp tục chứ không làm lại từ đầu;
 - clip lỗi ghi vào results/phase3/failed.txt rồi chạy tiếp.
 
+Hai nguồn đi qua CÙNG vòng theo dõi tay (track_video, luật 1):
+
+- ``ipn``: mốc thời gian lấy từ vị trí frame trong file video;
+- ``self`` (Phase 11): mốc thời gian THẬT của từng frame, từ file .json đi kèm video
+  (FPS webcam không cố định). Đoạn gán nhãn là ``selfdata.clip_segments``. Chỉ trích
+  các người–buổi của ``--split`` trong splits.json; ``real_test`` cần thêm --final, vì
+  buổi chấm chỉ được mở ở lần chạy cuối (luật 13). Ra data/landmarks/self/<buổi>/.
+
 Ví dụ:
     python scripts/extract_landmarks.py --source ipn --limit 3
     python scripts/extract_landmarks.py --source ipn --workers 4
     python scripts/extract_landmarks.py --source ipn --estimate-only
+    python scripts/extract_landmarks.py --source self                # real_tune
 """
 
 import sys
@@ -23,16 +32,46 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import cv2  # noqa: E402
 
-from src import config, ipn  # noqa: E402
+from src import config, ipn, selfdata  # noqa: E402
 from src.cli import make_parser, setup_console  # noqa: E402
 from src.hands import HandTracker, seconds_to_ms  # noqa: E402
 from src.io_data import save_clip  # noqa: E402
 from src.io_video import iter_frames  # noqa: E402
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
+from src.splits import read_splits  # noqa: E402
 
 
-def build_tasks(source):
-    """Danh sách việc cần làm: mỗi video một dict, kèm nhãn và thông tin nguồn."""
+def self_tasks(split):
+    """Việc trích của dữ liệu tự quay: mọi video của các người–buổi trong ``split``."""
+    keys = read_splits().get(split) or []
+    if not keys:
+        raise SystemExit(f"{split} trong {config.SPLITS_JSON.name} còn trống — chạy "
+                         "scripts/split_self.py trước.")
+    found = selfdata.sessions()
+    tasks = []
+    for key in keys:
+        person, session = key.split("/")
+        for video in found.get(key, []):
+            tasks.append({
+                "clip_id": f"{session}/{video.stem}",
+                "video": str(video),
+                "out": str(config.SELF_LANDMARKS_DIR / session / f"{video.stem}.npz"),
+                "expected_frames": None,
+                "split": split,
+                "self": {"key": key, "person": person, "session": session,
+                         "label": selfdata.parse_name(video).label},
+            })
+    return tasks
+
+
+def build_tasks(source, split="real_tune"):
+    """Danh sách việc cần làm: mỗi video một dict, kèm nhãn và thông tin nguồn.
+
+    Args:
+        split: chỉ với ``self`` — người–buổi của tập nào trong splits.json.
+    """
+    if source == "self":
+        return self_tasks(split)
     out_dir = config.LANDMARKS_DIR / source
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -60,18 +99,7 @@ def build_tasks(source):
                 "split": splits.get(clip_id),
             })
         return tasks
-
-    videos = sorted(p for p in config.RAW_DIR.iterdir()
-                    if p.suffix.lower() in (".mp4", ".avi", ".mov"))
-    if not videos:
-        raise SystemExit(
-            f"Không có video nào trong {relative_to_root(config.RAW_DIR)}. "
-            "Dữ liệu tự quay chỉ có nếu bật Phase 11 — xem docs/SPEC.md."
-        )
-    raise SystemExit(
-        "--source self chưa dùng được: bảng nhãn cho dữ liệu tự quay là việc "
-        "của Phase 11."
-    )
+    raise SystemExit(f"Nguồn lạ '{source}'")
 
 
 def pending(tasks):
@@ -79,44 +107,89 @@ def pending(tasks):
     return [t for t in tasks if not Path(t["out"]).is_file()]
 
 
+def track_video(video, ts=None):
+    """Theo dõi tay trên MỘT video bằng một ``HandTracker`` mới — vòng lặp chung của
+    mọi nguồn (luật 1).
+
+    Args:
+        ts: mốc thời gian thật của từng frame (dữ liệu tự quay). ``None``: mốc của
+            ``iter_frames`` (video IPN).
+
+    Returns:
+        ``(ts_list, xy_list, present_list, (w, h))``.
+
+    Raises:
+        ValueError: không đọc được frame nào, hoặc số frame khác số mốc thời gian.
+    """
+    ts_list, xy_list, present_list, size = [], [], [], None
+    stamps = None if ts is None else iter(ts)
+    with HandTracker() as tracker:
+        for frame_bgr, frame_ts in iter_frames(video):
+            if stamps is not None:
+                frame_ts = next(stamps, None)
+                if frame_ts is None:
+                    raise ValueError("video có nhiều frame hơn file mốc thời gian")
+            if size is None:
+                h, w = frame_bgr.shape[:2]
+                size = (w, h)
+            xy, present, _ = tracker.process(frame_bgr, seconds_to_ms(frame_ts))
+            ts_list.append(frame_ts)
+            xy_list.append(xy)
+            present_list.append(present)
+    if not ts_list:
+        raise ValueError("không đọc được frame nào")
+    if ts is not None and len(ts_list) != len(ts):
+        raise ValueError(f"video {len(ts_list)} frame, file mốc thời gian {len(ts)}")
+    return ts_list, xy_list, present_list, size
+
+
+def extract_ipn(task):
+    """Một video IPN: nhãn từ file chú thích của IPN."""
+    ts_list, xy_list, present_list, size = track_video(task["video"])
+    cap = cv2.VideoCapture(task["video"])
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
+
+    # Nhãn IPN đếm frame theo cách khác nhau tuỳ video: đo, rồi đổi chỉ
+    # số frame của nhãn sang chỉ số hàng. Xem docs/ipn_format.md mục 6.
+    frame_index, frame_match = None, None
+    if task["segments"]:
+        frame_index, frame_match = ipn.match_label_frames(
+            ts_list, fps, ipn.label_frames(task["segments"]))
+    segments, src_labels = ipn.segments_array(task["segments"],
+                                              frame_index)
+    meta = ipn.clip_meta(task["clip_id"], *size, fps, len(ts_list),
+                         frame_match=frame_match,
+                         expected_frames=task["expected_frames"],
+                         split=task["split"])
+    save_clip(task["out"], ts_list, xy_list, present_list, segments,
+              src_labels, meta)
+    return ts_list, present_list, src_labels, meta
+
+
+def extract_self(task):
+    """Một lần quay tự quay: mốc thời gian thật và nhãn từ tên file + file .json."""
+    info = task["self"]
+    sidecar = selfdata.read_sidecar(task["video"])
+    ts_list, xy_list, present_list, size = track_video(task["video"], sidecar["ts"])
+    segments, src_labels = selfdata.clip_segments(info["label"], ts_list,
+                                                  sidecar["trim_sec"])
+    meta = {"w": size[0], "h": size[1], "fps": sidecar["fps_nominal"], "source": "self",
+            "subject": info["key"], "clip_id": task["clip_id"], "person": info["person"],
+            "session": info["session"], "label": info["label"],
+            "block": sidecar.get("block"), "trim_sec": sidecar["trim_sec"],
+            "n_frames": len(ts_list), "live_check": sidecar.get("live_check")}
+    Path(task["out"]).parent.mkdir(parents=True, exist_ok=True)
+    save_clip(task["out"], ts_list, xy_list, present_list, segments, src_labels, meta)
+    return ts_list, present_list, src_labels, meta
+
+
 def extract_one(task):
     """Trích một video. Luôn trả về dict kết quả, không ném lỗi ra ngoài."""
     started = time.perf_counter()
     try:
-        ts_list, xy_list, present_list = [], [], []
-        size = None
-        with HandTracker() as tracker:
-            for frame_bgr, ts in iter_frames(task["video"]):
-                if size is None:
-                    h, w = frame_bgr.shape[:2]
-                    size = (w, h)
-                xy, present, _ = tracker.process(frame_bgr, seconds_to_ms(ts))
-                ts_list.append(ts)
-                xy_list.append(xy)
-                present_list.append(present)
-
-        if not ts_list:
-            raise ValueError("không đọc được frame nào")
-
-        cap = cv2.VideoCapture(task["video"])
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        cap.release()
-
-        # Nhãn IPN đếm frame theo cách khác nhau tuỳ video: đo, rồi đổi chỉ
-        # số frame của nhãn sang chỉ số hàng. Xem docs/ipn_format.md mục 6.
-        frame_index, frame_match = None, None
-        if task["segments"]:
-            frame_index, frame_match = ipn.match_label_frames(
-                ts_list, fps, ipn.label_frames(task["segments"]))
-        segments, src_labels = ipn.segments_array(task["segments"],
-                                                  frame_index)
-        meta = ipn.clip_meta(task["clip_id"], *size, fps, len(ts_list),
-                             frame_match=frame_match,
-                             expected_frames=task["expected_frames"],
-                             split=task["split"])
-        save_clip(task["out"], ts_list, xy_list, present_list, segments,
-                  src_labels, meta)
-
+        extract = extract_self if "self" in task else extract_ipn
+        ts_list, present_list, src_labels, meta = extract(task)
         return {"clip_id": task["clip_id"], "ok": True,
                 "n_frames": len(ts_list), "n_present": sum(present_list),
                 "n_segments": len(src_labels),
@@ -157,9 +230,16 @@ def main():
                         help="số tiến trình chạy song song (mặc định %(default)s)")
     parser.add_argument("--estimate-only", action="store_true",
                         help="chỉ in ước lượng thời gian, không trích gì")
+    parser.add_argument("--split", choices=("real_tune", "real_test"), default="real_tune",
+                        help="chỉ với --source self (mặc định %(default)s)")
+    parser.add_argument("--final", action="store_true",
+                        help="bắt buộc với --split real_test: buổi chấm chỉ mở ở lần cuối")
     args = parser.parse_args()
+    if args.source == "self" and args.split == "real_test" and not args.final:
+        raise SystemExit("real_test chỉ được mở ở lần chạy cuối (luật 13) — thêm --final "
+                         "nếu đúng là lúc đó.")
 
-    tasks = build_tasks(args.source)
+    tasks = build_tasks(args.source, args.split)
     total_frames = sum(t["expected_frames"] or 0 for t in tasks)
     todo = pending(tasks)
     done_already = len(tasks) - len(todo)
@@ -213,7 +293,7 @@ def main():
                              "n_failed": len(failed), "workers": args.workers,
                              "elapsed_sec": elapsed, "n_frames": frames})
 
-    if frames and elapsed > 0:
+    if frames and elapsed > 0 and total_frames:      # tự quay không biết trước số frame
         print_estimate(frames, elapsed, sum(r["seconds"] for r in results),
                        total_frames, args.workers)
 

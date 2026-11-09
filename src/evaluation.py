@@ -313,12 +313,14 @@ def batch_predictor(model_name, lstm_path=None):
     raise ValueError(f"Không có bộ dự đoán theo lô cho '{model_name}'")
 
 
-def model_proba(model_name, F, X=None):
+def model_proba(model_name, F, X=None, rf_path=None, lstm_path=None):
     """Xác suất của mô hình ``rf`` hoặc ``lstm`` ĐÃ LƯU trên cả một lô.
 
     Args:
         F: ``(n, 15)`` đặc trưng — cho ``rf``.
         X: ``(n, T, 21, 2)`` cửa sổ đã chuẩn hoá — cho ``lstm``.
+        rf_path, lstm_path: mô hình khác của demo (``RF_MODEL_PATH``,
+            ``LSTM_MODEL_PATH``) — ví dụ mô hình học thêm dữ liệu tự quay (Phase 11).
 
     Returns:
         ``(proba (n, n_classes), details)`` — ``details`` mô tả mô hình đã
@@ -331,29 +333,34 @@ def model_proba(model_name, F, X=None):
         from src.datasets import window_sequences
         if X is None:
             raise ValueError("lstm dự đoán từ cửa sổ — truyền X")
-        model, checkpoint = models.load_checkpoint()
-        details = {"model_file": config.LSTM_MODEL_PATH.name,
-                   "model_sha256": forest.file_sha256(config.LSTM_MODEL_PATH),
+        path = Path(lstm_path or config.LSTM_MODEL_PATH)
+        model, checkpoint = models.load_checkpoint(path)
+        details = {"model_file": path.name,
+                   "model_sha256": forest.file_sha256(path),
                    "created": checkpoint.get("created"),
                    "epoch": checkpoint.get("epoch"),
                    "val_macro_f1": checkpoint.get("val_macro_f1")}
         return models.predict_proba(model, window_sequences(X)), details
     if model_name == "rf":
-        bundle = forest.load_bundle()
-        details = {"model_file": config.RF_MODEL_PATH.name,
-                   "model_sha256": forest.file_sha256(config.RF_MODEL_PATH),
+        path = Path(rf_path or config.RF_MODEL_PATH)
+        bundle = forest.load_bundle(path)
+        details = {"model_file": path.name,
+                   "model_sha256": forest.file_sha256(path),
                    "created": bundle.get("created")}
         return forest.class_proba(bundle["model"], F), details
     raise ValueError(f"Không có xác suất cho mô hình '{model_name}'")
 
 
-def label_confidence(model_name, F, X=None):
+def label_confidence(model_name, F, X=None, rf_path=None, lstm_path=None):
     """Nhãn và độ tin của từng cửa sổ — đúng ``(label, confidence)`` mà mô hình
     của demo trả về, chỉ tính theo lô cho nhanh.
 
     ``rules`` gọi luật từng cửa sổ; ``rf`` và ``lstm`` lấy lớp có xác suất cao
     nhất và xác suất đó; ``hybrid`` ghép hai xác suất bằng
     ``hybrid.hybrid_predict`` — hàm mà demo cũng gọi.
+
+    Args:
+        rf_path, lstm_path: như :func:`model_proba`.
 
     Returns:
         ``(labels (n,) int64, confidences (n,) float64, details)``.
@@ -366,12 +373,12 @@ def label_confidence(model_name, F, X=None):
         return (np.array([p[0] for p in pairs], dtype=np.int64),
                 np.array([p[1] for p in pairs], dtype=np.float64), details)
     if model_name in ("rf", "lstm"):
-        proba, details = model_proba(model_name, F, X)
+        proba, details = model_proba(model_name, F, X, rf_path, lstm_path)
         return proba.argmax(axis=1).astype(np.int64), proba.max(axis=1, initial=0.0), details
     if model_name == "hybrid":
         from src.hybrid import hybrid_predict
-        p_lstm, lstm_details = model_proba("lstm", F, X)
-        p_rf, rf_details = model_proba("rf", F)
+        p_lstm, lstm_details = model_proba("lstm", F, X, lstm_path=lstm_path)
+        p_rf, rf_details = model_proba("rf", F, rf_path=rf_path)
         labels, confidences = hybrid_predict(p_lstm, p_rf)
         return labels, confidences, {"lstm": lstm_details, "rf": rf_details}
     raise ValueError(f"Không biết mô hình '{model_name}' — có: "

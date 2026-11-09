@@ -86,7 +86,8 @@ _IRRELEVANT = ("EXP_JOBS", "EXP_TORCH_THREADS", "EXP_LOG_EVERY", "TIMING_WINDOWS
                "DISPLAY_", "QUIT_", "FPS_", "OBS_", "MP_", "CAM_", "EXAMPLES_",
                "PROFILE_", "PROBE_", "PERM_", "LEAKAGE_", "CALIB_",
                "CONF_FIRE", "CONF_HOLD", "K_OF_N", "COOLDOWN_SEC", "FSM_",
-               "CTRL_", "BENCH_", "SHOW_FINGERS", "FINGER_TIPS", "DEPLOY_", "REC_")
+               "CTRL_", "BENCH_", "SHOW_FINGERS", "FINGER_TIPS", "DEPLOY_", "REC_",
+               "SELF_")
 
 
 def full_spec(spec):
@@ -116,10 +117,16 @@ def relevant_config():
 
 def data_fingerprint(landmarks_dir=None):
     """Dấu vân tay của dữ liệu vào: tên và cỡ từng file điểm mốc, và
-    ``splits.json``."""
+    ``splits.json``.
+
+    ``real_tune`` và ``real_test`` băm như đang rỗng: thí nghiệm Phase 8 chỉ dùng IPN,
+    còn Phase 11 ghi hai khoá đó sau. Băm như rỗng (thay vì bỏ khoá) giữ nguyên dấu
+    vân tay của mọi bản ghi đã có.
+    """
     landmarks_dir = Path(landmarks_dir or config.LANDMARKS_DIR / "ipn")
     files = [(p.name, p.stat().st_size) for p in sorted(landmarks_dir.glob("*.npz"))]
-    return fingerprint({"landmarks": files, "splits": read_splits()})
+    splits = {**read_splits(), "real_tune": [], "real_test": []}
+    return fingerprint({"landmarks": files, "splits": splits})
 
 
 def pool_subjects(splits):

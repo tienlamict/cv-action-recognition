@@ -30,13 +30,15 @@ import numpy as np
 
 from src import config
 from src.preprocess import load_sequence
-from src.windows import core_signal, core_steps, cut_windows, step_labels
+from src.windows import DTYPES, core_signal, core_steps, cut_windows, step_labels
 
 GESTURES = tuple(config.CLASSES[1:])
 NONE_PREFIX = "none-"
 TRANSITION = "none-transition"
 NAME_RE = re.compile(r"^(p\d{2})_([a-z]+(?:[_-][a-z]+)*)_(\d{2,3})$")
 REJECTED = "rejected"           # thư mục con chứa các lần quay hỏng — không xoá
+KEY_LEN = np.dtype(DTYPES["subject"]).itemsize // np.dtype("<U1").itemsize
+                                # mã người–buổi phải vừa cột subject của bộ cửa sổ
 
 SelfClip = namedtuple("SelfClip", "person label take session")
 
@@ -108,6 +110,40 @@ def parse_name(path):
     person, label, take = match.groups()
     class_of(label)
     return SelfClip(person, label, int(take), path.parent.name)
+
+
+def session_key(person, session):
+    """``p01/2026-11-06``: một người trong một buổi. Đây là đơn vị chia
+    ``real_tune``/``real_test`` (luật 15), và là cột ``subject`` của cửa sổ tự quay.
+    p01 có buổi ở cả hai phía, nên mã người thôi là không đủ.
+
+    Raises:
+        ValueError: dài quá cột ``subject`` của bộ cửa sổ.
+    """
+    key = f"{person}/{session}"
+    if len(key) > KEY_LEN:
+        raise ValueError(f"Mã '{key}' dài quá {KEY_LEN} ký tự — đặt tên buổi ngắn hơn")
+    return key
+
+
+def sessions(raw_dir=None):
+    """Mọi người–buổi có lần quay dùng được. Bỏ ``rejected/`` và file thiếu mốc
+    thời gian.
+
+    Returns:
+        dict ``mã người–buổi → list video``, đã sắp xếp.
+    """
+    raw_dir = Path(raw_dir or config.RAW_DIR)
+    out = {}
+    for folder in sorted(p for p in raw_dir.iterdir() if p.is_dir()):
+        for video in sorted(folder.glob("*.mp4")):
+            try:
+                clip = parse_name(video)
+            except ValueError:
+                continue
+            if video.with_suffix(".json").is_file():
+                out.setdefault(session_key(clip.person, clip.session), []).append(video)
+    return out
 
 
 def existing_takes(directory, person, label):
@@ -274,6 +310,56 @@ def check_take(ts, xy_norm, w, h, label, trim_sec):
         problem = ("early" if rival < inside[0] else "late" if rival > inside[-1]
                    else "unclear")
     return TakeCheck(problem, core_sec, rival_sec, round(min(ratio, 99.0), 3), n_windows)
+
+
+def model_paths(with_self, seed):
+    """Rừng và LSTM của một bên, một hạt (Phase 11).
+
+    Bên IPN thuần với hạt ``SEED`` là chính mô hình demo (``RF_MODEL_PATH``,
+    ``LSTM_MODEL_PATH``). Bên học thêm ``real_tune`` với hạt ``SEED`` là
+    ``SELF_RF_PATH``, ``SELF_LSTM_PATH``. Các hạt còn lại nằm trong ``SELF_SEED_DIR``.
+
+    Returns:
+        ``(đường dẫn rừng, đường dẫn LSTM)``.
+    """
+    if seed == config.SEED:
+        return ((config.SELF_RF_PATH, config.SELF_LSTM_PATH) if with_self
+                else (config.RF_MODEL_PATH, config.LSTM_MODEL_PATH))
+    side = "self" if with_self else "ipn"
+    return (config.SELF_SEED_DIR / f"rf_{side}_s{seed}.joblib",
+            config.SELF_SEED_DIR / f"lstm_{side}_s{seed}.pt")
+
+
+#: Chiều của từng cử chỉ: vuốt theo dấu đã đo trên IPN, zoom theo độ mở cái–trỏ.
+DIRECTION = {"swipe_left": config.SWIPE_LEFT_SIGN, "swipe_right": -config.SWIPE_LEFT_SIGN,
+             "zoom_in": 1, "zoom_out": -1}
+
+
+def window_progress(label, win):
+    """Quãng đi theo chiều của cử chỉ trên MỘT cửa sổ đã chuẩn hoá ``(T, 21, 2)``,
+    tính từ bước đầu. Vuốt: vị trí ngang cổ tay; zoom: độ mở cái–trỏ.
+
+    Returns:
+        ``(ròng, xa nhất)`` — độ dời ở bước cuối, và quãng đi xa nhất theo đúng chiều.
+    """
+    if label.startswith("swipe"):
+        signal = win[:, config.WRIST, 0]
+    else:
+        signal = np.linalg.norm(win[:, config.THUMB_TIP] - win[:, config.INDEX_TIP], axis=1)
+    s = DIRECTION[label] * (signal - signal[0])
+    s = s[np.isfinite(s)]
+    return float(s[-1]), float(s.max())
+
+
+def window_ok(label, win):
+    """Một đoạn học tự quay có dạy đúng cử chỉ không: đi đúng chiều, ít nhất
+    ``SELF_MIN_NET``, và không kéo ngược lại quá ``SELF_MAX_BACK`` quãng đã đi.
+
+    Dấu chuyển động dùng để LOẠI đoạn học, không để gán nhãn. Chỉ áp cho
+    ``real_tune``: tập chấm giữ nguyên như quay (results/phase11/qa_p02.md).
+    """
+    net, ahead = window_progress(label, win)
+    return net >= config.SELF_MIN_NET[label] and ahead - net <= config.SELF_MAX_BACK * ahead
 
 
 def write_sidecar(video_path, ts, **meta):

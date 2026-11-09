@@ -76,6 +76,26 @@ def check_disjoint(splits):
     return overlap
 
 
+def check_self_split(splits):
+    """``real_tune`` và ``real_test`` không chung người–buổi, cũng không chung buổi
+    quay (luật 15). Một người chỉ được ở cả hai phía bằng hai buổi khác nhau — mã
+    ``người/buổi`` (``selfdata.session_key``) bảo đảm điều đó.
+
+    Raises:
+        ValueError: chung mã, chung buổi, hay mã sai dạng ``người/buổi``.
+    """
+    tune, test = set(splits.get("real_tune", [])), set(splits.get("real_test", []))
+    keys = tune | test
+    bad = sorted(k for k in keys if k.count("/") != 1)
+    if bad:
+        raise ValueError(f"Mã dữ liệu tự quay phải dạng người/buổi: {bad}")
+    if tune & test:
+        raise ValueError(f"Người–buổi ở cả real_tune lẫn real_test: {sorted(tune & test)}")
+    shared = {k.split("/")[1] for k in tune} & {k.split("/")[1] for k in test}
+    if shared:
+        raise ValueError(f"Buổi quay ở cả real_tune lẫn real_test: {sorted(shared)}")
+
+
 def write_splits(splits, path=None):
     path = path or config.SPLITS_JSON
     check_disjoint(splits)

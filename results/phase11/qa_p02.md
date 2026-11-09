@@ -25,6 +25,14 @@ từ video, bằng đúng hàm của bước trích, và được cắt bằng �
    lớp. Các mức là: vuốt trái +0,10, vuốt phải +0,27, zoom in +0,34, zoom out +0,50;
 2. **không chứa cú quay về:** phần kéo ngược lại sau khi đã đi xa nhất không quá nửa quãng.
 
+*Sửa 2026-11-09:* các mức trên tính trên **mọi** cửa sổ của IPN, kể cả tập test. Như vậy
+là phạm luật 13, vì mọi quyết định chỉ được dựa vào train, val hay real_tune. Bộ mức dùng
+trong mã (`config.SELF_MIN_NET`, `selfdata.window_ok`) tính lại chỉ trên **tập train**:
+vuốt trái +0,17, vuốt phải +0,31, zoom in +0,61, zoom out +0,50.
+
+Quyết định với p02 **không đổi**. Mức mới chỉ chặt hơn, nên không lần nào trong 17 lần đã
+bỏ đạt lại. Ba lần giữ vẫn đạt: vuốt phải nhỏ nhất +0,35, zoom in nhỏ nhất +1,40.
+
 Lấy đà nhẹ trước cử chỉ không bị tính lỗi: IPN cũng có, và lấy đà mạnh thì phép kiểm tra
 lúc quay đã bắt.
 

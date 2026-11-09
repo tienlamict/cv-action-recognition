@@ -2,6 +2,7 @@
 đen tổng hợp; không đụng data/ hay results/ thật."""
 
 import argparse
+import json
 
 import cv2
 import numpy as np
@@ -9,11 +10,17 @@ import pytest
 
 from src import config, experiments, selfdata
 from src.io_video import iter_frames
+from src.splits import check_self_split
 from src.windows import core_times
 from tests.fixtures import CENTER, OPEN_TIGHT, PALM_PX, black_video, hand
 from tests.scripts_import import load_script
 
 rec = load_script("record_session")
+split_self = load_script("split_self")
+extract = load_script("extract_landmarks")
+build_self = load_script("build_self_dataset")
+train_self = load_script("train_self")
+compare = load_script("compare_self")
 
 
 def test_ten_file_suy_ra_nhan_va_ma_nguoi():
@@ -453,6 +460,286 @@ def test_loi_nhac_ascii_vua_khung_va_du_moi_nhan():
         (width, _), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, config.FONT_SCALE,
                                         config.TEXT_THICKNESS)
         assert config.TEXT_ORIGIN[0] + width < config.CAM_W, text
+
+
+# --- Chia real_tune / real_test (luật 15) -------------------------------------------
+
+def fake_session(raw, session, names):
+    """Một buổi quay giả: video rỗng kèm file mốc thời gian."""
+    folder = raw / session
+    folder.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        video = folder / f"{name}.mp4"
+        video.write_bytes(b"video")
+        selfdata.write_sidecar(video, [0.0, 0.1], person=name[:3])
+    return folder
+
+
+def test_real_tune_va_real_test_khong_chung_nguoi_hoac_buoi(tmp_path):
+    """Đơn vị chia là người–buổi: p01 ở cả hai phía bằng hai buổi khác nhau. Không
+    người–buổi nào, không buổi quay nào ở cả hai phía; rejected/ không tính."""
+    raw = tmp_path / "raw"
+    fake_session(raw, "2026-11-06", ["p01_swipe_left_01", "p01_none-wave_01"])
+    fake_session(raw, "2026-11-07", ["p02_zoom_in_01"])
+    fake_session(raw, "p01-test", ["p01_zoom_out_01"])
+    (raw / "2026-11-06" / "rejected").mkdir()
+    (raw / "2026-11-06" / "rejected" / "p01_swipe_left_02~1.mp4").write_bytes(b"video")
+    found = selfdata.sessions(raw)
+    assert {k: len(v) for k, v in found.items()} == {
+        "p01/2026-11-06": 2, "p02/2026-11-07": 1, "p01/p01-test": 1}
+    assert split_self.plan(found, ["p01/p01-test"]) == {
+        "real_tune": ["p01/2026-11-06", "p02/2026-11-07"], "real_test": ["p01/p01-test"]}
+    with pytest.raises(ValueError):
+        split_self.plan(found, ["p09/khong-co"])
+    for bad in ({"real_tune": ["p02/2026-11-06"], "real_test": ["p01/2026-11-06"]},
+                {"real_tune": ["p01/a"], "real_test": ["p01/a"]},
+                {"real_tune": ["p01"], "real_test": []}):
+        with pytest.raises(ValueError):
+            check_self_split(bad)
+    with pytest.raises(ValueError):
+        selfdata.session_key("p01", "mot-buoi-co-ten-rat-dai")
+
+
+def test_split_self_tu_choi_ghi_de(tmp_path, monkeypatch):
+    """Chia một lần: lần chạy thứ hai không đổi gì trong splits.json."""
+    raw = tmp_path / "raw"
+    fake_session(raw, "2026-11-06", ["p01_swipe_left_01"])
+    fake_session(raw, "p01-test", ["p01_zoom_out_01"])
+    path = tmp_path / "splits.json"
+    path.write_text(json.dumps({"train": ["1"], "val": ["2"], "test": ["3"],
+                                "real_tune": [], "real_test": []}), encoding="utf-8")
+    monkeypatch.setattr(config, "SPLITS_JSON", path)
+    split_self.main(["--test", "p01/p01-test", "--raw", str(raw)])
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["real_tune"] == ["p01/2026-11-06"] and written["real_test"] == ["p01/p01-test"]
+    assert written["train"] == ["1"]
+    with pytest.raises(SystemExit):
+        split_self.main(["--test", "p01/p01-test", "--raw", str(raw)])
+    assert json.loads(path.read_text(encoding="utf-8")) == written
+
+
+def test_chia_du_lieu_tu_quay_khong_lam_ban_ghi_het_han(tmp_path, monkeypatch):
+    """Thí nghiệm Phase 8 chỉ dùng IPN: ghi real_tune/real_test không đổi dấu vân tay
+    dữ liệu, còn đổi người của val thì có."""
+    path = tmp_path / "splits.json"
+    base = {"train": ["1"], "val": ["2"], "test": ["3"], "real_tune": [], "real_test": []}
+    path.write_text(json.dumps(base), encoding="utf-8")
+    monkeypatch.setattr(config, "SPLITS_JSON", path)
+    before = experiments.data_fingerprint(tmp_path)
+    path.write_text(json.dumps({**base, "real_tune": ["p01/2026-11-06"],
+                                "real_test": ["p01/p01-test"]}), encoding="utf-8")
+    assert experiments.data_fingerprint(tmp_path) == before
+    path.write_text(json.dumps({**base, "val": ["2", "4"]}), encoding="utf-8")
+    assert experiments.data_fingerprint(tmp_path) != before
+
+
+# --- Trích điểm mốc dữ liệu tự quay ------------------------------------------------
+
+class RecordingTracker:
+    """Thay HandTracker trong extract_landmarks: trả bàn tay mẫu dời dần, và ghi lại
+    mốc thời gian (ms) mà vòng theo dõi đưa cho MediaPipe."""
+    calls = []
+
+    def __init__(self):
+        RecordingTracker.calls = []
+
+    def process(self, frame_bgr, ts_ms):
+        RecordingTracker.calls.append(ts_ms)
+        k = len(RecordingTracker.calls)
+        return hand_at("swipe_left", 0.05 * k).astype(np.float32), True, 1.0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_extract_self_dung_cung_ham_voi_ipn(tmp_path, monkeypatch):
+    """Dữ liệu tự quay đi qua ĐÚNG vòng theo dõi tay của IPN (track_video), với mốc
+    thời gian THẬT trong file .json — không phải mốc suy từ FPS. Đoạn gán nhãn là
+    selfdata.clip_segments; clip nạp lại không bị lật. Số frame lệch file mốc thời
+    gian thì báo lỗi, không đoán."""
+    import inspect
+
+    from src.hands import seconds_to_ms
+    from src.io_data import load_clip
+
+    assert "track_video(" in inspect.getsource(extract.extract_ipn)
+    assert "track_video(" in inspect.getsource(extract.extract_self)
+    monkeypatch.setattr(extract, "HandTracker", RecordingTracker)
+    video = black_video(tmp_path / "p01_swipe_left_03.avi", 1.0)          # 15 frame
+    ts = np.cumsum([0.0] + [0.05, 0.09] * 7)                             # FPS không đều
+    selfdata.write_sidecar(video, ts, trim_sec=0.2, fps_nominal=30, block="gestures",
+                           live_check=None)
+    task = {"clip_id": "buoi/p01_swipe_left_03", "video": str(video),
+            "out": str(tmp_path / "ra" / "buoi" / "p01_swipe_left_03.npz"),
+            "expected_frames": None, "split": "real_tune",
+            "self": {"key": "p01/buoi", "person": "p01", "session": "buoi",
+                     "label": "swipe_left"}}
+    result = extract.extract_one(task)
+    assert result["ok"] and result["n_frames"] == ts.size
+    assert RecordingTracker.calls == [seconds_to_ms(t) for t in ts]
+    got_ts, xy, w, h, segments, src, meta = load_clip(task["out"])
+    np.testing.assert_allclose(got_ts, ts)
+    np.testing.assert_allclose(xy[3], hand_at("swipe_left", 0.2), atol=1e-6)
+    want_segments, want_src = selfdata.clip_segments("swipe_left", ts, 0.2)
+    np.testing.assert_array_equal(segments, want_segments)
+    assert list(src) == list(want_src) and (w, h) == (64, 48)
+    assert (meta["source"], meta["subject"], meta["flip_applied"]) == ("self", "p01/buoi", False)
+
+    selfdata.write_sidecar(video, ts[:-2], trim_sec=0.2, fps_nominal=30)  # thiếu 2 mốc
+    task["out"] = str(tmp_path / "ra" / "lech.npz")
+    bad = extract.extract_one(task)
+    assert not bad["ok"] and "mốc thời gian" in bad["error"]
+
+
+# --- Lọc đoạn học, học thêm, so cũ–mới -----------------------------------------------
+
+def normalized(points):
+    from src.preprocess import normalize_window
+    return normalize_window(np.asarray(points, dtype=np.float64))
+
+
+def swipe_path(offsets_palms):
+    """Cửa sổ pixel: cổ tay đi theo ``offsets_palms`` lòng bàn tay trên trục x ảnh."""
+    return [hand(center=(CENTER[0] + o * PALM_PX, CENTER[1])) for o in offsets_palms]
+
+
+def test_loc_doan_hoc_giu_dung_chieu_bo_nguoc_chieu_va_keo_ve():
+    """Đoạn học tốt: đi đúng chiều cử chỉ (vuốt theo SWIPE_LEFT_SIGN đã đo), ít nhất
+    SELF_MIN_NET, không kéo ngược quá SELF_MAX_BACK quãng đã đi."""
+    left = config.SWIPE_LEFT_SIGN
+    steps = np.linspace(0.0, 1.0, config.T)
+    clean = normalized(swipe_path(left * 2.0 * steps))
+    assert selfdata.window_progress("swipe_left", clean) == pytest.approx((2.0, 2.0))
+    assert selfdata.window_ok("swipe_left", clean)
+    assert not selfdata.window_ok("swipe_right", clean), "ngược chiều"
+    there_and_back = normalized(swipe_path(left * 2.0 * np.sin(np.pi * steps)))
+    assert not selfdata.window_ok("swipe_left", there_and_back), "kéo về"
+    tiny = normalized(swipe_path(left * 0.5 * config.SELF_MIN_NET["swipe_left"] * steps))
+    assert not selfdata.window_ok("swipe_left", tiny), "quá nhỏ"
+    opening = normalized([hand(openness=o) for o in np.linspace(0.0, 1.5, config.T)])
+    assert selfdata.window_ok("zoom_in", opening) and not selfdata.window_ok("zoom_out", opening)
+    windows = {"y": np.array([0, 1, 1]), "X": np.stack([there_and_back, clean, there_and_back])}
+    assert build_self.filter_positives(windows).tolist() == [True, True, False], \
+        "none giữ hết, chỉ lọc cửa sổ dương"
+
+
+def test_buoi_cham_chi_mo_voi_final(monkeypatch):
+    """Trích điểm mốc hay dựng cửa sổ của real_test đều cần --final (luật 13)."""
+    import sys
+    for module, argv in ((extract, ["--source", "self", "--split", "real_test"]),
+                         (build_self, ["--split", "real_test"])):
+        monkeypatch.setattr(sys, "argv", ["script.py", *argv])
+        with pytest.raises(SystemExit, match="--final"):
+            module.main()
+
+
+def windows_of(subjects):
+    """Bộ cửa sổ tối thiểu đúng các cột của windows.npz."""
+    n = len(subjects)
+    return {"X": np.zeros((n, config.T, config.NUM_LANDMARKS, 2), np.float32),
+            "y": np.arange(n, dtype=np.int64) % len(config.CLASSES),
+            "presence": np.ones(n, np.float32), "subject": np.array(subjects, dtype="<U16"),
+            "clip": np.array([f"c{i}" for i in range(n)], dtype="<U64"),
+            "t0": np.zeros(n, np.float32), "src_label": np.array([""] * n, dtype="<U32")}
+
+
+def test_hoc_them_chi_lay_real_tune():
+    """Tập học mới là người train của IPN cộng người–buổi real_tune; val vẫn là val IPN.
+    Cửa sổ của real_test lọt vào thì dừng ngay."""
+    splits = {"train": ["1"], "val": ["2"], "test": ["3"],
+              "real_tune": ["p01/a"], "real_test": ["p01/b"]}
+    data, part = train_self.merged(windows_of(["1", "2"]), windows_of(["p01/a"]), splits)
+    assert part == {"train": ["1", "p01/a"], "val": ["2"]} and data["y"].size == 3
+    with pytest.raises(ValueError, match="p01/b"):
+        train_self.merged(windows_of(["1"]), windows_of(["p01/b"]), splits)
+
+
+def test_so_cu_moi_tren_real_test_chi_mot_lan_mot_dong(tmp_path, monkeypatch):
+    """compare_self trên real_test: thiếu --final thì dừng, không ghi gì. Có --final thì
+    ghi ĐÚNG MỘT dòng cho cả hai mô hình, TRƯỚC khi đọc dữ liệu (dữ liệu thiếu vẫn
+    còn dòng đó)."""
+    from src import evaluation
+    log = tmp_path / "TEST_USED.log"
+    monkeypatch.setattr(compare, "guard_split",
+                        lambda *a, **k: evaluation.guard_split(*a, **k, log_path=log))
+    monkeypatch.setattr(compare, "read_splits", lambda: {
+        "train": ["1"], "val": ["2"], "test": ["3"],
+        "real_tune": ["p01/a"], "real_test": ["p01/b"]})
+    monkeypatch.setattr(config, "SELF_WINDOWS", {"real_tune": tmp_path / "a.npz",
+                                                 "real_test": tmp_path / "khong_co.npz"})
+    with pytest.raises(SystemExit):
+        compare.main(["--split", "real_test"])
+    assert not log.exists()
+    with pytest.raises(FileNotFoundError):
+        compare.main(["--split", "real_test", "--final"])
+    entries = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert len(entries) == 1 and entries[0]["split"] == "real_test"
+    assert set(entries[0]["details"]) == {f"{side} s{seed}" for side in ("cũ", "mới")
+                                          for seed in config.SELF_SEEDS}
+
+
+def test_moi_ben_moi_hat_mot_mo_hinh_va_khong_ghi_de_demo():
+    """IPN thuần với hạt SEED là chính mô hình demo; mọi hạt và bên khác có file riêng.
+    train_self từ chối học lại mô hình demo. Bảng gộp lấy trung bình và khoảng mỗi bên."""
+    assert selfdata.model_paths(False, config.SEED) == (config.RF_MODEL_PATH,
+                                                         config.LSTM_MODEL_PATH)
+    assert selfdata.model_paths(True, config.SEED) == (config.SELF_RF_PATH,
+                                                        config.SELF_LSTM_PATH)
+    others = {p for side in (False, True) for s in config.SELF_SEEDS if s != config.SEED
+              for p in selfdata.model_paths(side, s)}
+    assert len(others) == 4 * (len(config.SELF_SEEDS) - 1)
+    assert all(p.parent == config.SELF_SEED_DIR for p in others)
+    with pytest.raises(SystemExit, match="demo"):
+        train_self.targets(True, config.SEED)
+    rows = [{"variant": "cũ s42", "model": "rf", "f1": 0.2},
+            {"variant": "cũ s43", "model": "rf", "f1": 0.4},
+            {"variant": "mới s42", "model": "rf", "f1": 0.5}]
+    sides = compare.side_rows(rows, ["model"], ["f1"])
+    assert sides[0] == {"variant": "cũ", "model": "rf", "n_seeds": 2,
+                        "f1": pytest.approx(0.3), "f1_min": 0.2, "f1_max": 0.4}
+    assert sides[1]["n_seeds"] == 1 and sides[1]["f1"] == 0.5
+
+
+def test_noi_them_giu_yen_khong_doi_nhan(tmp_path):
+    """Bản 'giữ yên' của một lần quay: thêm SELF_HOLD_SEC giây, mốc thời gian nối tiếp,
+    tay lặp frame cuối kèm rung nhỏ; nhãn và mã người–buổi không đổi."""
+    from src.io_data import load_clip, save_clip
+    ts, xy = synthetic_take("swipe_left", 2.0, [(1.0, 2.0, 0.3)])
+    segments, src = selfdata.clip_segments("swipe_left", ts, config.REC_TRIM_SEC)
+    path = tmp_path / "buoi" / "p01_swipe_left_01.npz"
+    path.parent.mkdir()
+    save_clip(path, ts, xy, np.ones(ts.size, bool), segments, src,
+              {"w": config.CAM_W, "h": config.CAM_H, "fps": 30, "source": "self",
+               "subject": "p01/buoi", "clip_id": "buoi/p01_swipe_left_01"})
+    out = compare.held(path, tmp_path / "ra", np.random.default_rng(0))
+    ts2, xy2, w, h, seg2, src2, meta2 = load_clip(out)
+    extra = round(config.SELF_HOLD_SEC * config.CAM_FPS)
+    assert ts2.size == ts.size + extra and np.all(np.diff(ts2) > 0)
+    np.testing.assert_array_equal(seg2, segments)
+    assert list(src2) == list(src) and meta2["subject"] == "p01/buoi"
+    drift_px = np.abs(xy2[ts.size:] - xy[-1]) * np.array([w, h])
+    assert drift_px.max() < 6 * config.SELF_HOLD_JITTER_PX
+
+
+def test_tim_clip_ca_trong_thu_muc_con_va_nap_mo_hinh_theo_duong_dan(tmp_path):
+    """Điểm mốc tự quay nằm theo buổi: clip_paths tìm cả thư mục con. Đánh giá nạp
+    được mô hình ở đường dẫn khác mô hình demo."""
+    from src import evaluation
+    from src.events import clip_paths
+    from src.io_data import save_clip
+    ts = np.arange(3) / 30.0
+    xy = np.full((3, config.NUM_LANDMARKS, 2), np.nan, np.float32)
+    for rel, subject in (("a.npz", "1"), ("buoi/b.npz", "p01/buoi")):
+        (tmp_path / rel).parent.mkdir(exist_ok=True)
+        save_clip(tmp_path / rel, ts, xy, np.zeros(3, bool), np.zeros((0, 3)), [],
+                  {"w": 64, "h": 48, "fps": 30, "source": "self", "subject": subject,
+                   "clip_id": rel})
+    assert clip_paths(["p01/buoi"], tmp_path)[0] == [tmp_path / "buoi" / "b.npz"]
+    with pytest.raises(FileNotFoundError, match="khong_co"):
+        evaluation.model_proba("rf", np.zeros((1, 15)), rf_path=tmp_path / "khong_co.joblib")
 
 
 def test_hang_so_quay_khong_lam_ban_ghi_het_han(monkeypatch):
