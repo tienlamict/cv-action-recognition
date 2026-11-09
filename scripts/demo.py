@@ -22,6 +22,10 @@ cộng độ xòe open_range — tô xanh nếu nằm trong hộp 25–75 của 
 đỏ nếu nằm ngoài. Với vuốt, open_range xanh nghĩa là bàn tay có mở ra trong lúc
 hất như IPN. Log của --log ghi đúng các đặc trưng này.
 
+--self-seed HẠT: dùng mô hình học thêm dữ liệu tự quay của Phase 11 với hạt đó
+(train_self.py), thay mô hình demo; chỉ cho rf, lstm, hybrid. Không có cờ này thì
+vẫn là mô hình demo, nên chạy hai lần là so được hai mô hình trên webcam.
+
 --log FILE: ghi mỗi lần dự đoán vào FILE (CSV, kèm trạng thái máy kích hoạt, lệnh
 vừa phát và phím đã gửi), MỌI lần chuyển trạng thái vào FILE_fsm.csv, và điểm mốc
 thô của cả phiên vào FILE_landmarks.npz — chạy lại phiên đó qua mô hình bất kỳ
@@ -34,6 +38,7 @@ Ví dụ:
     python scripts/demo.py --model rules
     python scripts/demo.py --model rf --log results/phase6/live_rf.csv
     python scripts/demo.py --model lstm --log results/phase7/live_lstm.csv
+    python scripts/demo.py --model hybrid --self-seed 43 --log results/phase11/live_s43.csv
     python scripts/demo.py --model rules --show-features
     python scripts/demo.py --model rules --log results/phase5/misfires_log.csv
     python scripts/demo.py --source data/ipn/videos/videos/1CM42_11_R__205.avi --no-display --max-sec 30
@@ -57,7 +62,9 @@ from src.io_video import iter_frames  # noqa: E402
 from src.live import (PRACTICE_CLASSES, LandmarkRecorder,  # noqa: E402
                       LivePredictor, PredictionLog, TransitionLog, count_episodes,
                       fsm_log_path, help_screen, label_name, landmarks_path,
-                      load_feature_ranges, make_model, recent_command, screen_lines)
+                      load_feature_ranges, make_model, model_files, recent_command,
+                      screen_lines)
+from src.runlog import relative_to_root  # noqa: E402
 from src.recording import track  # noqa: E402
 
 WINDOW = "demo (q = quit)"
@@ -75,9 +82,19 @@ def main():
                         help="không mở cửa sổ — chạy thử trên file video")
     parser.add_argument("--max-sec", type=float, default=None,
                         help="dừng sau bấy nhiêu giây")
+    parser.add_argument("--self-seed", type=int, default=None, metavar="HẠT",
+                        help="mô hình học thêm dữ liệu tự quay (Phase 11), hạt HẠT")
     args = parser.parse_args()
+    if args.self_seed is not None and args.model == "rules":
+        parser.error("--self-seed chỉ dùng với rf, lstm, hybrid")
 
-    predictor = LivePredictor(make_model(args.model))
+    rf_path, lstm_path = model_files(args.self_seed)
+    if args.self_seed is not None:
+        used = {"rf": [rf_path], "lstm": [lstm_path],
+                "hybrid": [lstm_path, rf_path]}[args.model]
+        print(f"Mô hình {args.model}, học thêm dữ liệu tự quay, hạt {args.self_seed}: "
+              + ", ".join(relative_to_root(p) for p in used))
+    predictor = LivePredictor(make_model(args.model, lstm_path=lstm_path, rf_path=rf_path))
     ranges = load_feature_ranges() if args.show_features else None
     practice = PRACTICE_CLASSES[0] if args.show_features else None
     log = PredictionLog(args.log) if args.log else None
@@ -147,7 +164,8 @@ def main():
             if transitions:
                 transitions.close()
             if recorder and recorder.ts:
-                recorder.save(landmarks_path(args.log), model=args.model)
+                recorder.save(landmarks_path(args.log), model=args.model,
+                              self_seed=args.self_seed)
 
     n_valid = sum(label is not None for label in labels)
     print(f"\n{len(labels)} lần dự đoán, {n_valid} có cửa sổ hợp lệ.")

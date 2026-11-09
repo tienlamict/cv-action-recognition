@@ -30,7 +30,7 @@ from src.forest import ForestClassifier
 from src.features import FEATURE_NAMES, EXTENSION_NAMES, finger_extensions, window_features
 from src.preprocess import normalize_window
 
-def make_model(name, lstm_path=None):
+def make_model(name, lstm_path=None, rf_path=None):
     """Mô hình của ``demo.py --model``: một hàm ``đầu vào → (label, confidence)``.
 
     ``rules`` và ``rf`` nhận vector đặc trưng. ``lstm`` nhận cửa sổ đã chuẩn hoá
@@ -42,6 +42,8 @@ def make_model(name, lstm_path=None):
     Args:
         lstm_path: checkpoint LSTM khác ``LSTM_MODEL_PATH`` — để so hai lần
             huấn luyện trên cùng một phiên ghi (``scripts/replay_log.py``).
+        rf_path: rừng khác ``RF_MODEL_PATH`` — ví dụ mô hình của
+            :func:`model_files`.
 
     Raises:
         ValueError: tên không thuộc ``MODEL_NAMES``.
@@ -49,14 +51,34 @@ def make_model(name, lstm_path=None):
     if name == "rules":
         return rules.classify
     if name == "rf":
-        return ForestClassifier()
+        return ForestClassifier(rf_path)
     if name == "lstm":
         from src.models import LSTMRunner
         return LSTMRunner(lstm_path)
     if name == "hybrid":
         from src.hybrid import HybridClassifier
-        return HybridClassifier(lstm_path)
+        return HybridClassifier(lstm_path, rf_path)
     raise ValueError(f"Không biết mô hình '{name}' — có: {', '.join(config.MODEL_NAMES)}")
+
+
+def model_files(self_seed=None):
+    """``(rf_path, lstm_path)`` cho :func:`make_model`.
+
+    Không có ``self_seed``: ``(None, None)``, tức mô hình demo. Có ``self_seed``: mô
+    hình học thêm dữ liệu tự quay của Phase 11 với hạt đó (``selfdata.model_paths``).
+
+    Raises:
+        FileNotFoundError: chưa học mô hình với hạt đó.
+    """
+    if self_seed is None:
+        return None, None
+    from src import selfdata
+    rf_path, lstm_path = selfdata.model_paths(True, self_seed)
+    missing = [p.name for p in (rf_path, lstm_path) if not p.is_file()]
+    if missing:
+        raise FileNotFoundError(f"Chưa có {', '.join(missing)} — chạy python "
+                                f"scripts/train_self.py --seed {self_seed} trước.")
+    return rf_path, lstm_path
 
 Prediction = namedtuple("Prediction", "ts label confidence presence features win_norm",
                         defaults=(None,))

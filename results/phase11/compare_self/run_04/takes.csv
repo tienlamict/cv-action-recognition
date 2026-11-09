@@ -1,0 +1,61 @@
+how,variant,class,đúng,nhầm,sót
+như quay,cũ s42,swipe_left,0,0,15
+như quay,cũ s42,swipe_right,6,0,9
+như quay,cũ s42,zoom_in,13,0,2
+như quay,cũ s42,zoom_out,12,1,2
+như quay,cũ s42,tất cả,31,1,28
+như quay,cũ s43,swipe_left,4,0,11
+như quay,cũ s43,swipe_right,9,0,6
+như quay,cũ s43,zoom_in,12,0,3
+như quay,cũ s43,zoom_out,12,0,3
+như quay,cũ s43,tất cả,37,0,23
+như quay,cũ s44,swipe_left,1,0,14
+như quay,cũ s44,swipe_right,7,0,8
+như quay,cũ s44,zoom_in,13,0,2
+như quay,cũ s44,zoom_out,12,1,2
+như quay,cũ s44,tất cả,33,1,26
+như quay,mới s42,swipe_left,4,0,11
+như quay,mới s42,swipe_right,7,0,8
+như quay,mới s42,zoom_in,13,0,2
+như quay,mới s42,zoom_out,12,1,2
+như quay,mới s42,tất cả,36,1,23
+như quay,mới s43,swipe_left,5,0,10
+như quay,mới s43,swipe_right,5,0,10
+như quay,mới s43,zoom_in,13,0,2
+như quay,mới s43,zoom_out,12,1,2
+như quay,mới s43,tất cả,35,1,24
+như quay,mới s44,swipe_left,6,0,9
+như quay,mới s44,swipe_right,8,0,7
+như quay,mới s44,zoom_in,13,0,2
+như quay,mới s44,zoom_out,12,1,2
+như quay,mới s44,tất cả,39,1,20
++1 s giữ yên,cũ s42,swipe_left,0,0,15
++1 s giữ yên,cũ s42,swipe_right,10,0,5
++1 s giữ yên,cũ s42,zoom_in,15,0,0
++1 s giữ yên,cũ s42,zoom_out,14,1,0
++1 s giữ yên,cũ s42,tất cả,39,1,20
++1 s giữ yên,cũ s43,swipe_left,5,0,10
++1 s giữ yên,cũ s43,swipe_right,14,0,1
++1 s giữ yên,cũ s43,zoom_in,14,0,1
++1 s giữ yên,cũ s43,zoom_out,13,0,2
++1 s giữ yên,cũ s43,tất cả,46,0,14
++1 s giữ yên,cũ s44,swipe_left,1,0,14
++1 s giữ yên,cũ s44,swipe_right,12,0,3
++1 s giữ yên,cũ s44,zoom_in,15,0,0
++1 s giữ yên,cũ s44,zoom_out,14,1,0
++1 s giữ yên,cũ s44,tất cả,42,1,17
++1 s giữ yên,mới s42,swipe_left,5,0,10
++1 s giữ yên,mới s42,swipe_right,11,0,4
++1 s giữ yên,mới s42,zoom_in,15,0,0
++1 s giữ yên,mới s42,zoom_out,14,1,0
++1 s giữ yên,mới s42,tất cả,45,1,14
++1 s giữ yên,mới s43,swipe_left,7,0,8
++1 s giữ yên,mới s43,swipe_right,8,0,7
++1 s giữ yên,mới s43,zoom_in,15,0,0
++1 s giữ yên,mới s43,zoom_out,14,1,0
++1 s giữ yên,mới s43,tất cả,44,1,15
++1 s giữ yên,mới s44,swipe_left,8,0,7
++1 s giữ yên,mới s44,swipe_right,12,0,3
++1 s giữ yên,mới s44,zoom_in,15,0,0
++1 s giữ yên,mới s44,zoom_out,14,1,0
++1 s giữ yên,mới s44,tất cả,49,1,10

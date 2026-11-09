@@ -11,7 +11,9 @@ Bảng in từng mô hình, rồi trung bình và khoảng (nhỏ nhất–lớn
 Hai cấp đo:
 
 1. CỬA SỔ: macro-F1 và F1 từng lớp của rừng, LSTM và mô hình ghép. val dùng
-   windows.npz (IPN); real_test dùng self_real_test.npz, KHÔNG lọc.
+   windows.npz (IPN); real_test dùng self_real_test.npz, KHÔNG lọc. real_test không có
+   cửa sổ none (lần quay ngắn, chỉ cử chỉ), nên macro-F1 năm lớp ở đó tính cả F1 = 0 của
+   none; so hai tập bằng gesture_f1 và gesture_recall — trung bình bốn lớp cử chỉ.
 2. LỆNH: mô hình ghép cộng máy trạng thái cấu hình cuối, chạy trên video liên tục
    của tập (val: video IPN; real_test: từng lần quay). Với real_test, đo thêm lệnh
    đầu tiên của mỗi lần quay: đúng / nhầm / sót. Đo hai cách: như quay, và nối thêm
@@ -19,7 +21,9 @@ Hai cấp đo:
    còn lần quay thì hết ngay.
 
 real_test chỉ chạy ĐÚNG MỘT LẦN (luật 13): cần --final, và script ghi MỘT dòng vào
-results/TEST_USED.log cho cả hai mô hình, trước khi đọc dữ liệu.
+results/TEST_USED.log cho mọi mô hình, trước khi đọc dữ liệu. Vì không chấm lại được,
+manifest giữ thêm ma trận nhầm lẫn của từng mô hình và mọi lệnh của từng lần quay
+(take_record) — phân tích "vì sao" về sau đọc từ đó.
 
 Ví dụ:
     python scripts/compare_self.py                         # val IPN
@@ -80,8 +84,21 @@ def side_rows(rows, keys, metrics):
     return out
 
 
+def window_row(variant, model, y, pred):
+    """Một hàng mức cửa sổ: macro-F1 năm lớp, trung bình F1 và recall của bốn lớp cử chỉ,
+    F1 từng lớp, ma trận nhầm lẫn thô (hàng = thật)."""
+    summary = summarize(y, pred)
+    per = {r["class"]: r for r in summary["per_class"]}
+    return {"variant": variant, "model": model, "n_windows": int(np.size(y)),
+            "macro_f1": summary["macro_f1"],
+            "gesture_f1": float(np.mean([per[c]["f1"] for c in selfdata.GESTURES])),
+            "gesture_recall": float(np.mean([per[c]["recall"] for c in selfdata.GESTURES])),
+            **{c: per[c]["f1"] for c in config.CLASSES},
+            "confusion": summary["confusion"].tolist()}
+
+
 def window_level(split, splits):
-    """macro-F1 và F1 từng lớp của từng (mô hình, biến thể)."""
+    """:func:`window_row` của từng (biến thể, mô hình)."""
     path = config.WINDOWS_NPZ if split == "val" else config.SELF_WINDOWS[split]
     with np.load(path, allow_pickle=False) as data:
         F, y, pick = split_features(data["X"], data["y"], data["presence"],
@@ -91,10 +108,7 @@ def window_level(split, splits):
     for name, paths in variants().items():
         for model in MODELS:
             pred, _, _ = label_confidence(model, F, X, **paths)
-            summary = summarize(y, pred)
-            rows.append({"variant": name, "model": model, "n_windows": int(y.size),
-                         "macro_f1": summary["macro_f1"],
-                         **{r["class"]: r["f1"] for r in summary["per_class"]}})
+            rows.append(window_row(name, model, y, pred))
     return rows
 
 
@@ -133,6 +147,15 @@ def take_outcomes(results):
         outcome = "sót" if first is None else "đúng" if first == want else "nhầm"
         out[config.CLASSES[want]][outcome] += 1
     return out
+
+
+def take_record(how, variant, result):
+    """Một lần quay cho manifest: cử chỉ, đoạn của nó (giây) và mọi lệnh đã phát."""
+    gesture = result["gestures"][0] if result["gestures"] else None
+    return {"how": how, "variant": variant, "clip": result["clip"],
+            "gesture": None if gesture is None else config.CLASSES[gesture[0]],
+            "span": None if gesture is None else [float(gesture[1]), float(gesture[2])],
+            "commands": [[float(t), config.CLASSES[c]] for t, c in result["commands"]]}
 
 
 def event_level(paths):
@@ -178,11 +201,11 @@ def main(argv=None):
                     f"+{config.SELF_HOLD_SEC:g} s giữ yên": event_level(held_paths)}
 
     run_dir = next_run_dir(config.PHASE11_RESULTS_DIR / "compare_self")
-    metrics = ["macro_f1", *config.CLASSES]
+    metrics = ["macro_f1", "gesture_f1", "gesture_recall", *config.CLASSES]
     write_table(windows, ["variant", "model", "n_windows", *metrics], run_dir / "windows")
     window_sides = side_rows(windows, ["model"], metrics)
     write_table(window_sides, list(window_sides[0]), run_dir / "windows_by_side")
-    event_rows, take_rows = [], []
+    event_rows, take_rows, per_take = [], [], []
     for how, by_variant in runs.items():
         for name, (summary, results) in by_variant.items():
             event_rows.append({"how": how, "variant": name, "n_gestures": summary["n_gestures"],
@@ -198,6 +221,7 @@ def main(argv=None):
                 total = sum(outcomes.values(), Counter())
                 take_rows.append({"how": how, "variant": name, "class": "tất cả",
                                   **{k: total[k] for k in OUTCOMES}})
+                per_take += [take_record(how, name, r) for r in results]
     event_metrics = ["precision", "recall", "f1", "false_per_min", "cmds_per_gesture"]
     event_sides = side_rows(event_rows, ["how"], event_metrics)
     take_sides = side_rows(take_rows, ["how", "class"], list(OUTCOMES)) if take_rows else []
@@ -211,19 +235,25 @@ def main(argv=None):
                              "variants": {n: {k: relative_to_root(v) for k, v in p.items()}
                                           for n, p in variants().items()},
                              "windows": windows, "events": event_rows, "takes": take_rows,
+                             "per_take": per_take,
                              "by_side": {"windows": window_sides, "events": event_sides,
                                          "takes": take_sides}})
 
     print(f"Tập {args.split} — mức cửa sổ ({windows[0]['n_windows']} cửa sổ):")
-    print(f"{'':<9}{'mô hình':<8}{'macro-F1':>9}" + "".join(f"{c[:11]:>12}" for c in config.CLASSES))
+    print(f"{'':<9}{'mô hình':<8}{'macro-F1':>9}{'F1 cử chỉ':>10}{'recall cử chỉ':>14}"
+          + "".join(f"{c[:11]:>12}" for c in config.CLASSES))
     for row in windows:
         print(f"{row['variant']:<9}{row['model']:<8}{row['macro_f1']:>9.4f}"
+              f"{row['gesture_f1']:>10.4f}{row['gesture_recall']:>14.4f}"
               + "".join(f"{row[c]:>12.3f}" for c in config.CLASSES))
     print("Trung bình mỗi bên [nhỏ nhất–lớn nhất]:")
     for row in window_sides:
-        print(f"  {row['variant']:<5}{row['model']:<8}macro-F1 {row['macro_f1']:.4f} "
-              f"[{row['macro_f1_min']:.4f}–{row['macro_f1_max']:.4f}]   "
-              + "  ".join(f"{c} {row[c]:.3f}" for c in config.CLASSES[1:]))
+        print(f"  {row['variant']:<5}{row['model']:<8}"
+              + "   ".join(f"{label} {row[m]:.4f} [{row[m + '_min']:.4f}–{row[m + '_max']:.4f}]"
+                           for m, label in (("macro_f1", "macro-F1"),
+                                            ("gesture_f1", "F1 cử chỉ"),
+                                            ("gesture_recall", "recall cử chỉ")))
+              + "   " + "  ".join(f"{c} {row[c]:.3f}" for c in config.CLASSES[1:]))
     print(f"\nMức lệnh (mô hình ghép + máy trạng thái), {len(paths)} video:")
     for row in event_rows:
         print(f"  {row['how']:<14}{row['variant']:<9} P {row['precision']:.3f}  R {row['recall']:.3f}"

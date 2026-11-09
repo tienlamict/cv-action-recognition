@@ -703,6 +703,24 @@ def test_moi_ben_moi_hat_mot_mo_hinh_va_khong_ghi_de_demo():
     assert sides[1]["n_seeds"] == 1 and sides[1]["f1"] == 0.5
 
 
+def test_demo_chon_mo_hinh_tu_quay_theo_hat(tmp_path, monkeypatch):
+    """demo.py --self-seed: rừng và LSTM học thêm dữ liệu tự quay của hạt đó; thiếu file
+    thì chỉ cách học. Không cờ thì vẫn là mô hình demo."""
+    from src import live
+    assert live.model_files(None) == (None, None)
+    assert live.make_model("hybrid").forest.path is None
+    monkeypatch.setattr(config, "SELF_SEED_DIR", tmp_path)
+    with pytest.raises(FileNotFoundError, match="train_self.py --seed 43"):
+        live.model_files(43)
+    rf, lstm = selfdata.model_paths(True, 43)
+    rf.write_bytes(b"")
+    lstm.write_bytes(b"")
+    assert live.model_files(43) == (rf, lstm)
+    model = live.make_model("hybrid", lstm_path=lstm, rf_path=rf)
+    assert model.forest.path == rf and model.lstm_path == lstm
+    assert live.make_model("rf", rf_path=rf).path == rf
+
+
 def test_noi_them_giu_yen_khong_doi_nhan(tmp_path):
     """Bản 'giữ yên' của một lần quay: thêm SELF_HOLD_SEC giây, mốc thời gian nối tiếp,
     tay lặp frame cuối kèm rung nhỏ; nhãn và mã người–buổi không đổi."""
@@ -722,6 +740,38 @@ def test_noi_them_giu_yen_khong_doi_nhan(tmp_path):
     assert list(src2) == list(src) and meta2["subject"] == "p01/buoi"
     drift_px = np.abs(xy2[ts.size:] - xy[-1]) * np.array([w, h])
     assert drift_px.max() < 6 * config.SELF_HOLD_JITTER_PX
+
+
+def test_khong_co_none_thi_so_bang_trung_binh_bon_lop_cu_chi():
+    """real_test không có cửa sổ none: macro-F1 năm lớp tính cả F1 = 0 của none, còn
+    trung bình bốn lớp cử chỉ thì không. Hàng giữ ma trận nhầm lẫn thô."""
+    k = config.CLASSES.index
+    y = np.array([k(c) for c in selfdata.GESTURES for _ in range(2)])
+    pred = y.copy()
+    pred[0], pred[4] = k("none"), k("zoom_out")
+    row = compare.window_row("cũ s42", "rf", y, pred)
+    assert row["gesture_recall"] == pytest.approx((0.5 + 1 + 0.5 + 1) / 4)
+    assert row["none"] == 0 and row["macro_f1"] == pytest.approx(row["gesture_f1"] * 4 / 5)
+    assert np.array(row["confusion"]).sum() == y.size
+
+
+def test_lenh_dau_tien_cua_lan_quay_va_ban_ghi_du_de_phan_tich_lai():
+    """Lệnh đầu tiên quyết định đúng / nhầm / sót. Bản ghi từng lần quay giữ cử chỉ,
+    đoạn của nó và MỌI lệnh, ghi được ra JSON — real_test không chấm lại được."""
+    k = config.CLASSES.index
+    results = [
+        {"clip": "b/a1", "gestures": [(k("swipe_left"), 0.3, 1.5, "")],
+         "commands": [(0.9, k("swipe_left"))]},
+        {"clip": "b/a2", "gestures": [(k("zoom_in"), 0.2, 1.4, "")],
+         "commands": [(0.5, k("zoom_out")), (1.0, k("zoom_in"))]},
+        {"clip": "b/a3", "gestures": [(k("zoom_out"), 0.2, 1.4, "")], "commands": []}]
+    out = compare.take_outcomes(results)
+    assert out["swipe_left"]["đúng"] == 1 and out["zoom_in"]["nhầm"] == 1
+    assert out["zoom_out"]["sót"] == 1 and sum(out["swipe_right"].values()) == 0
+    record = compare.take_record("như quay", "mới s43", results[1])
+    assert record["gesture"] == "zoom_in" and record["span"] == [0.2, 1.4]
+    assert record["commands"] == [[0.5, "zoom_out"], [1.0, "zoom_in"]]
+    assert json.loads(json.dumps(record, ensure_ascii=False)) == record
 
 
 def test_tim_clip_ca_trong_thu_muc_con_va_nap_mo_hinh_theo_duong_dan(tmp_path):
