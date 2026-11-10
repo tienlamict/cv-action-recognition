@@ -419,6 +419,9 @@ SELF_SEEDS = (42, 43, 44)   # mỗi bên (IPN thuần, IPN + tự quay) học v�
                             # 0,25–0,46). Người dùng duyệt 2026-11-09. Hạt SEED của bên
                             # IPN thuần chính là mô hình demo
 SELF_SEED_DIR = PHASE11_RESULTS_DIR / "seeds"   # mô hình của các hạt còn lại
+SELF_CANDIDATE_SEED = 43    # ứng viên bên mới, chốt theo F1 lệnh trên val TRƯỚC khi chấm
+                            # real_test (results/phase11/notes.md mục 1); demo.py
+                            # --self-seed 43 chạy nó trên webcam
 REC_START_KEY = ord("b")    # bắt đầu một lần quay ("bắt đầu"; tay trái bấm, cạnh SPACE)
 REC_STOP_KEY = ord(" ")     # kết thúc và lưu lần đang quay. Người dùng chọn 2026-11-07:
                             # một phím bắt đầu, SPACE kết thúc, xong thì máy nghỉ chờ

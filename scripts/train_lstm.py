@@ -193,7 +193,7 @@ def main():
                          f"epoch {stopper.best_epoch}")
     plot_training_curves(history, stopper.best_epoch, run_dir / "training_curves.png",
                          title=f"{labels['lstm']} — đường học (đo train không tăng "
-                               "cường, cùng cách với val)")
+                               "cường, cùng cách với val)", smooth=args.stop_smooth)
     write_table(history, list(history[0]), run_dir / "history")
 
     preds, skipped = other_models(F_va)

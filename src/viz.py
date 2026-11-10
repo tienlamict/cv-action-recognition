@@ -145,48 +145,74 @@ def plot_importances(names, impurity, perm_mean, perm_std, highlight, out_path):
     return out_path
 
 
-def plot_training_curves(history, best_epoch, out_path, title=""):
-    """Đường học của LSTM: loss (trái) và macro-F1 (phải) theo epoch, train và
-    val trên CÙNG một khung — hai đại lượng khác thang đo nên tách hai khung,
-    không dùng hai trục dọc.
+def trailing_mean(values, window):
+    """Trung bình của tối đa ``window`` giá trị gần nhất, tính tới từng điểm — đúng
+    cách ``training.EarlyStop`` nhìn lại các epoch đã qua. Vài điểm đầu lấy trung bình
+    phần đã có."""
+    values = np.asarray(values, dtype=np.float64)
+    total = np.concatenate([[0.0], np.cumsum(values)])
+    end = np.arange(1, len(values) + 1)
+    start = np.maximum(end - window, 0)
+    return (total[end] - total[start]) / (end - start)
 
-    Cả hai đường đo cùng một cách (chế độ eval, không tăng cường), nên khoảng
-    hở giữa chúng là quá khớp. Val tô màu nhấn vì nó là thứ quyết định; vạch dọc
-    đánh dấu epoch có macro-F1 val cao nhất — checkpoint được lưu.
+
+def plot_training_curves(history, best_epoch, out_path, title="", smooth=None):
+    """Đường học của LSTM: loss (trái) và macro-F1 mức cửa sổ (phải) theo epoch, tập
+    học và kiểm định trên CÙNG một khung — hai đại lượng khác thang đo nên tách hai
+    khung, không dùng hai trục dọc.
+
+    Hai tập đo cùng một cách (chế độ eval, không tăng cường), nên khoảng hở giữa
+    chúng là quá khớp. Kiểm định tô màu nhấn vì nó là thứ quyết định; vạch đứt đánh
+    dấu epoch được chọn — checkpoint được lưu.
 
     Args:
         history: list dict có ``epoch``, ``train_loss``, ``val_loss``,
             ``train_macro_f1``, ``val_macro_f1``.
+        smooth: số epoch của trung bình trượt mà dừng sớm dùng để chọn epoch
+            (``window`` của ``train_lstm``). Lớn hơn 1 thì vẽ thêm đường kiểm định đã
+            làm mượt — đường quyết định epoch được chọn — và đường thô nhạt đi.
     """
+    smooth = smooth if smooth and smooth > 1 else None
     epochs = np.array([r["epoch"] for r in history])
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), facecolor=config.FIG_SURFACE)
-    panels = ((axes[0], "loss", "Loss (CrossEntropy có trọng số lớp)"),
-              (axes[1], "macro_f1", "macro-F1"))
-    for ax, key, subtitle in panels:
+    k = int(np.flatnonzero(epochs == best_epoch)[0])
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6), facecolor=config.FIG_SURFACE)
+    raw_color = config.FIG_SEQ_RAMP[2] if smooth else config.FIG_ACCENT
+    marks = {}
+    for ax, key, subtitle in ((axes[0], "loss", "Loss"),
+                              (axes[1], "macro_f1", "Macro-F1 mức cửa sổ")):
         _report_axes(ax)
         ax.yaxis.grid(True, color=config.FIG_GRID, linewidth=0.8)
-        for split, color, z in (("train", config.FIG_DEEMPH, 2),
-                                ("val", config.FIG_ACCENT, 3)):
-            values = np.array([r[f"{split}_{key}"] for r in history])
-            ax.plot(epochs, values, color=color, linewidth=1.0, zorder=z,
-                    label=split)
-            ax.annotate(split, (epochs[-1], values[-1]), xytext=(4, 0),
-                        textcoords="offset points", va="center", fontsize=8,
-                        color=config.FIG_INK_2)
-        best = next(r for r in history if r["epoch"] == best_epoch)
+        ax.plot(epochs, [r[f"train_{key}"] for r in history], color=config.FIG_DEEMPH,
+                linewidth=1.0, zorder=2, label="tập học")
+        values = np.array([r[f"val_{key}"] for r in history], dtype=np.float64)
+        ax.plot(epochs, values, color=raw_color, linewidth=1.0, zorder=3,
+                label="kiểm định")
+        marks[key] = values
+        if smooth:
+            marks[key] = trailing_mean(values, smooth)
+            ax.plot(epochs, marks[key], color=config.FIG_ACCENT, linewidth=2.0, zorder=4,
+                    label=f"kiểm định, TB {smooth} epoch")
         ax.axvline(best_epoch, color=config.FIG_INK_2, linewidth=0.8,
-                   linestyle=(0, (3, 3)), zorder=1)
-        ax.plot([best_epoch], [best[f"val_{key}"]], marker="o", markersize=5,
+                   linestyle=(0, (3, 3)), zorder=1, label=f"epoch {best_epoch} được chọn")
+        ax.plot([best_epoch], [marks[key][k]], marker="o", markersize=5,
                 color=config.FIG_ACCENT, markeredgecolor=config.FIG_SURFACE,
-                markeredgewidth=1.0, zorder=4)
+                markeredgewidth=1.0, zorder=5)
+        # Tên vạch đặt ngay trên khung: trong khung nó đè lên đường tập học ở gần 1,0.
+        ax.annotate(f"epoch {best_epoch}", (best_epoch, 1.0),
+                    xycoords=("data", "axes fraction"), xytext=(0, 3),
+                    textcoords="offset points", ha="center", va="bottom", fontsize=8,
+                    color=config.FIG_INK_2)
         ax.set_xlabel("epoch", color=config.FIG_INK_2, fontsize=9)
-        ax.set_title(subtitle, fontsize=9, color=config.FIG_INK)
-        ax.set_xlim(epochs[0], epochs[-1] + max(1, len(epochs) // 8))
-    # Chú giải và chú thích vạch dọc đặt ngoài hai khung: trong khung, chúng đè
-    # lên đường cong khi epoch tốt nhất nằm sát mép phải.
-    fig.legend(*axes[0].get_legend_handles_labels(), loc="lower center", ncol=2,
-               frameon=False, fontsize=8, labelcolor=config.FIG_INK_2)
-    note = f"vạch đứng và chấm: epoch {best_epoch}, macro-F1 val cao nhất"
+        ax.set_title(subtitle, fontsize=9, color=config.FIG_INK, pad=16)
+        ax.set_xlim(0, epochs[-1] + 1)
+    fig.legend(*axes[1].get_legend_handles_labels(), loc="lower center",
+               ncol=4 if smooth else 3, frameon=False, fontsize=8,
+               labelcolor=config.FIG_INK_2)
+    f1 = marks["macro_f1"][k]
+    raw = history[k]["val_macro_f1"]
+    note = (f"epoch {best_epoch} được chọn: trung bình {smooth} epoch gần nhất của macro-F1 "
+            f"kiểm định cao nhất ({f1:.3f}; điểm thô của epoch đó {raw:.3f})" if smooth
+            else f"epoch {best_epoch} được chọn: macro-F1 kiểm định cao nhất ({raw:.3f})")
     fig.suptitle(f"{title}\n{note}" if title else note, fontsize=10,
                  color=config.FIG_INK)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
@@ -226,6 +252,73 @@ def plot_per_class_f1(f1_by_model, classes, out_path, title=""):
                frameon=False, fontsize=8, labelcolor=config.FIG_INK_2)
     if title:
         ax.set_title(title, fontsize=10, color=config.FIG_INK)
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    fig.savefig(out_path, dpi=config.FIG_DPI, facecolor=config.FIG_SURFACE)
+    plt.close(fig)
+    return out_path
+
+
+def plot_sides(panels, sides, out_path, title="", note=""):
+    """Vài bên (ví dụ mô hình cũ và mới) đặt cạnh nhau, mỗi khung một đại lượng.
+
+    Mỗi nhóm có một cột cho mỗi bên: chiều cao là trung bình các hạt, vạch mảnh màu
+    mực là thấp nhất–cao nhất. Số trung bình ghi trên đầu vạch, bằng màu mực. Khung
+    nào có thang đo riêng thì đứng riêng, không dùng hai trục dọc.
+
+    Args:
+        panels: list dict ``title``; ``categories`` (tên nhóm trên trục ngang, ``[""]``
+            khi khung chỉ có một nhóm); ``values`` (``{tên bên: [[giá trị từng hạt]
+            của mỗi nhóm]}``); ``ylim``; ``fmt`` (định dạng số trên cột); ``yticks``
+            (tuỳ chọn).
+        sides: list ``(tên bên, nhãn chú giải, màu)`` theo thứ tự vẽ.
+    """
+    from matplotlib.lines import Line2D
+
+    # Cột và khe tính bằng inch, nên mọi hình dày như nhau dù khung rộng hẹp khác nhau;
+    # khe đủ rộng để số trên đầu hai cột cạnh nhau không đè lên nhau. Hình rộng ít nhất
+    # 6,5 inch cho dòng tiêu đề và chú giải; trục dọc và lề chiếm khoảng 0,8 inch.
+    bar_in, gap_in, axis_in = 0.19, 0.12, 0.8
+    sizes = [1.4 + 1.1 * len(p["categories"]) for p in panels]
+    total = max(sum(sizes), 6.5)
+    fig, axes = plt.subplots(1, len(panels), figsize=(total, 4.3), squeeze=False,
+                             gridspec_kw={"width_ratios": sizes},
+                             facecolor=config.FIG_SURFACE)
+    for ax, panel, size in zip(axes[0], panels, sizes):
+        _report_axes(ax)
+        ax.yaxis.grid(True, color=config.FIG_GRID, linewidth=0.8)
+        groups = np.arange(len(panel["categories"]))
+        per_unit = (size * total / sum(sizes) - axis_in) / (len(groups) + 0.2)
+        width, gap = bar_in / per_unit, gap_in / per_unit
+        for k, (side, _, color) in enumerate(sides):
+            x = groups + (k - (len(sides) - 1) / 2) * (width + gap)
+            seeds = [np.asarray(v, dtype=float) for v in panel["values"][side]]
+            means = np.array([v.mean() for v in seeds])
+            ax.bar(x, means, width=width, color=color, zorder=3)
+            lows, highs = [v.min() for v in seeds], [v.max() for v in seeds]
+            ax.vlines(x, lows, highs, color=config.FIG_INK, linewidth=1, zorder=4)
+            ax.hlines(np.r_[lows, highs], np.r_[x, x] - width / 4, np.r_[x, x] + width / 4,
+                      color=config.FIG_INK, linewidth=1, zorder=4)
+            for xi, mean, high in zip(x, means, highs):
+                ax.annotate(panel["fmt"].format(mean), (xi, high), xytext=(0, 3),
+                            textcoords="offset points", ha="center", va="bottom",
+                            fontsize=7.5, color=config.FIG_INK_2)
+        ax.axhline(0.0, color=config.FIG_AXIS, linewidth=1, zorder=5)
+        ax.set_xticks(groups, panel["categories"])
+        ax.set_xlim(-0.6, len(groups) - 0.4)
+        ax.set_ylim(*panel["ylim"])
+        if "yticks" in panel:
+            ax.set_yticks(panel["yticks"])
+        ax.tick_params(axis="x", length=0)
+        if panel.get("title"):
+            ax.set_title(panel["title"], fontsize=9, color=config.FIG_INK)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=color) for _, _, color in sides]
+    handles.append(Line2D([], [], color=config.FIG_INK, linewidth=1))
+    labels = [label for _, label, _ in sides] + ["thấp nhất–cao nhất của các hạt"]
+    fig.legend(handles, labels, loc="lower center", ncol=len(handles), frameon=False,
+               fontsize=8, labelcolor=config.FIG_INK_2)
+    heading = "\n".join(t for t in (title, note) if t)
+    if heading:
+        fig.suptitle(heading, fontsize=10, color=config.FIG_INK)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     fig.savefig(out_path, dpi=config.FIG_DPI, facecolor=config.FIG_SURFACE)
     plt.close(fig)

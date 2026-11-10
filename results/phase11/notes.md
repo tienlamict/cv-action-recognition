@@ -118,6 +118,17 @@ quay). Không chấm lại.
    - Mọi chỉnh sửa từ đây không còn tập chấm độc lập. Muốn có con số không thiên lệch thì
      phải quay một buổi chấm mới.
 
+**Biểu đồ** (2026-11-10, `plot_self/run_01`, chỉ đọc run_03 và run_04):
+- `cua_so_va_lenh.png`: theo lớp, cửa sổ nhận đúng và lần quay ra lệnh đúng;
+- `lenh_p01_test.png`: số lần quay ra lệnh đúng;
+- `val_ipn.png`: val IPN.
+
+**Đường học của mới s43:** `train_self/run_07` (`training_curves.png`, `history.csv`).
+- Lần học đầu không lưu lịch sử từng epoch, nên học lại bằng `--trial`. Trọng số trùng
+  từng số với `seeds/lstm_self_s43.pt`: cùng epoch 56 trên 76, cùng mã băm dữ liệu.
+- Epoch 56 được chọn: trung bình 10 epoch của macro-F1 kiểm định là 0,535, điểm thô 0,568.
+  Mô hình demo chọn epoch 87, với 0,528 và 0,489.
+
 **Bảng 4, hàng thứ ba.** Dùng mô hình demo. So hai tập bằng trung bình bốn lớp cử chỉ.
 
 | Mô hình demo | Tập | F1 cử chỉ | Recall cử chỉ | macro-F1 5 lớp |

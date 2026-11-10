@@ -12,15 +12,19 @@ chỉ cửa sổ none. real_test không bao giờ vào đây.
   và đúng công thức đó; hạt SEED của bên này chính là mô hình demo, không học lại.
 - --seed: LSTM dao động mạnh theo hạt, nên mỗi bên học với SELF_SEEDS (người dùng
   duyệt 2026-11-09). Đường dẫn của từng bên, từng hạt: selfdata.model_paths.
-- Dừng sớm của LSTM theo macro-F1 val IPN, như mô hình demo.
+- Dừng sớm của LSTM theo macro-F1 val IPN, như mô hình demo. Lịch sử từng epoch
+  (history.csv) và đường học (training_curves.png) nằm trong thư mục chạy.
 - Mô hình demo không bao giờ bị ghi đè. So cũ–mới bằng compare_self.py.
-- --max-epochs khác mặc định là chạy thử: checkpoint nằm trong thư mục chạy.
+- --trial, hoặc --max-epochs khác mặc định, là chạy thử: rừng và checkpoint nằm trong
+  thư mục chạy, không ghi đè mô hình đã có. Cùng hạt thì train_lstm cho cùng từng chữ
+  số, nên chạy lại một mô hình đã chấm bằng --trial cho đúng đường học của nó.
 
 Ví dụ:
     python scripts/train_self.py                       # IPN + real_tune, hạt SEED
     python scripts/train_self.py --seed 43
     python scripts/train_self.py --ipn-only --seed 43  # đối chứng: IPN thuần, hạt 43
     python scripts/train_self.py --only lstm --max-epochs 3       # chạy thử
+    python scripts/train_self.py --only lstm --seed 43 --trial    # đường học của mới s43
 """
 
 import sys
@@ -38,6 +42,8 @@ from src.evaluation import model_proba, split_features, summarize  # noqa: E402
 from src.forest import file_sha256, save_bundle, train_forest, training_set  # noqa: E402
 from src.runlog import next_run_dir, relative_to_root, write_manifest  # noqa: E402
 from src.splits import read_splits, split_of  # noqa: E402
+from src.tables import write_table  # noqa: E402
+from src.viz import plot_training_curves  # noqa: E402
 from src.windows import FIELDS  # noqa: E402
 
 
@@ -75,6 +81,13 @@ def targets(ipn_only, seed):
     return selfdata.model_paths(not ipn_only, seed)
 
 
+def outputs(trial, run_dir, rf_path, lstm_path):
+    """Nơi ghi rừng và LSTM: chạy thử thì trong thư mục chạy, không ghi đè mô hình."""
+    if trial:
+        return Path(run_dir) / Path(rf_path).name, Path(run_dir) / Path(lstm_path).name
+    return rf_path, lstm_path
+
+
 def macro_f1_val(name, F_va, X_va, y_va, path):
     proba, _ = model_proba(name, F_va, X_va, **{f"{name}_path": path})
     return summarize(y_va, proba.argmax(axis=1))["macro_f1"]
@@ -88,8 +101,10 @@ def main():
     parser.add_argument("--ipn-only", action="store_true",
                         help="đối chứng: không thêm real_tune (hạt khác SEED)")
     parser.add_argument("--max-epochs", type=int, default=config.LSTM_MAX_EPOCHS)
+    parser.add_argument("--trial", action="store_true",
+                        help="chạy thử: mô hình ghi vào thư mục chạy, không ghi đè")
     args = parser.parse_args()
-    trial = args.max_epochs != config.LSTM_MAX_EPOCHS
+    trial = args.trial or args.max_epochs != config.LSTM_MAX_EPOCHS
     rf_path, lstm_path = targets(args.ipn_only, args.seed)
 
     splits = read_splits()
@@ -111,6 +126,7 @@ def main():
           f"val IPN {y_va.size} cửa sổ.")
 
     run_dir = next_run_dir(config.PHASE11_RESULTS_DIR / "train_self")
+    rf_target, lstm_target = outputs(trial, run_dir, rf_path, lstm_path)
     sources = {"seed": args.seed, "with_self": not args.ipn_only,
                "windows_sha256": file_sha256(config.WINDOWS_NPZ),
                "created": datetime.now().isoformat(timespec="seconds")}
@@ -126,7 +142,7 @@ def main():
                                            data["subject"], part, seed=args.seed)
         model = train_forest(F_tr, y_tr, seed=args.seed)
         trained_on = "train" if args.ipn_only else "train+real_tune"
-        path = save_bundle(model, rf_path, trained_on=trained_on, n_train=int(y_tr.size),
+        path = save_bundle(model, rf_target, trained_on=trained_on, n_train=int(y_tr.size),
                            n_rigid=n_rigid, rigid_share=config.AUG_RIGID_SHARE,
                            sklearn_version=sklearn.__version__, **sources)
         old = macro_f1_val("rf", F_va, X_va, y_va, config.RF_MODEL_PATH)
@@ -155,9 +171,16 @@ def main():
                              max_epochs=args.max_epochs, patience=config.LSTM_PATIENCE,
                              window=config.LSTM_CURVE_SMOOTH, on_epoch=report)
         stopper = trained.stopper
-        target = run_dir / lstm_path.name if trial else lstm_path
+        history = write_table(trained.history, list(trained.history[0]),
+                              run_dir / "history")[0]
+        curves = plot_training_curves(
+            trained.history, stopper.best_epoch, run_dir / "training_curves.png",
+            title=f"Đường cong học của LSTM: {side}, hạt {args.seed}\ntập học "
+                  f"{int(train.sum())} cửa sổ (đo không tăng cường) · kiểm định: val IPN, "
+                  f"{y_va.size} cửa sổ",
+            smooth=config.LSTM_CURVE_SMOOTH)
         path = save_checkpoint(
-            trained.model, target, epoch=stopper.best_epoch, val_macro_f1=stopper.best_raw,
+            trained.model, lstm_target, epoch=stopper.best_epoch, val_macro_f1=stopper.best_raw,
             val_macro_f1_smoothed=stopper.best_score, epochs_run=len(trained.history),
             n_train=int(train.sum()), augment=True,
             zoom_style_p=config.DEPLOY_ZOOM_STYLE_P, static_share=config.DEPLOY_STATIC_SHARE,
@@ -165,6 +188,8 @@ def main():
         old = macro_f1_val("lstm", F_va, X_va, y_va, config.LSTM_MODEL_PATH)
         new = macro_f1_val("lstm", F_va, X_va, y_va, path)
         manifest["lstm"] = {"model": relative_to_root(path), "trial": trial,
+                            "history": relative_to_root(history),
+                            "curves": relative_to_root(curves),
                             "best_epoch": stopper.best_epoch,
                             "epochs_run": len(trained.history),
                             "train_seconds": trained.seconds,

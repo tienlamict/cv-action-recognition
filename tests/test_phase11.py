@@ -21,6 +21,7 @@ extract = load_script("extract_landmarks")
 build_self = load_script("build_self_dataset")
 train_self = load_script("train_self")
 compare = load_script("compare_self")
+plot_self = load_script("plot_self")
 
 
 def test_ten_file_suy_ra_nhan_va_ma_nguoi():
@@ -701,6 +702,84 @@ def test_moi_ben_moi_hat_mot_mo_hinh_va_khong_ghi_de_demo():
     assert sides[0] == {"variant": "cũ", "model": "rf", "n_seeds": 2,
                         "f1": pytest.approx(0.3), "f1_min": 0.2, "f1_max": 0.4}
     assert sides[1]["n_seeds"] == 1 and sides[1]["f1"] == 0.5
+
+
+def test_bieu_do_cu_moi_chi_doc_ket_qua_da_luu(tmp_path):
+    """plot_self đọc manifest của compare_self: lần val mới nhất có cột gesture_f1 và
+    ĐÚNG MỘT lần chấm real_test. Phần trăm cửa sổ lấy từ ma trận nhầm lẫn, phần trăm
+    lần quay từ đúng / nhầm / sót; mỗi bên một danh sách theo hạt."""
+    from src import viz
+    k = config.CLASSES.index
+    variants = ("cũ s42", "mới s42")
+
+    def run(n, manifest):
+        folder = tmp_path / f"run_{n:02d}"
+        folder.mkdir()
+        (folder / config.MANIFEST_NAME).write_text(json.dumps(manifest, ensure_ascii=False),
+                                                   encoding="utf-8")
+        return folder
+
+    def confusion(left_ok):
+        cm = np.eye(len(config.CLASSES), dtype=int).tolist()
+        cm[k("swipe_left")] = [10 - left_ok, left_ok, 0, 0, 0]
+        return cm
+
+    def takes(variant, ok):
+        return [{"how": how, "variant": variant, "class": c, "đúng": ok, "nhầm": 0,
+                 "sót": 5 - ok}
+                for how in (plot_self.AS_RECORDED, plot_self.HOLD)
+                for c in (*selfdata.GESTURES, "tất cả")]
+
+    val = {"split": "val", "n_clips": 2,
+           "windows": [{"variant": v, "model": "lstm", "n_windows": 9, "macro_f1": f,
+                        "gesture_f1": f} for v, f in zip(variants, (0.4, 0.6))],
+           "events": [{"how": "video IPN", "variant": v, "f1": f, "false_per_min": m}
+                      for v, f, m in zip(variants, (0.5, 0.55), (1.2, 0.9))]}
+    test = {"split": "real_test", "final": True, "n_clips": 20,
+            "windows": [{"variant": v, "model": "hybrid", "confusion": confusion(ok)}
+                        for v, ok in zip(variants, (5, 10))],
+            "takes": takes("cũ s42", 1) + takes("mới s42", 4)}
+    run(1, {"split": "val", "windows": [{"variant": "cũ s42", "macro_f1": 0.1}]})
+    val_dir, test_dir = run(2, val), run(3, test)
+    (got_val_dir, got_val), (got_test_dir, got_test) = plot_self.find_runs(tmp_path)
+    assert (got_val_dir, got_test_dir) == (val_dir, test_dir)
+    data = plot_self.figure_data(got_val, got_test)
+    assert data["windows_ok"]["cũ"][0] == [50.0] and data["windows_ok"]["mới"][0] == [100.0]
+    assert data["takes_ok"]["mới"][0] == [80.0] and data["totals"]["cũ"] == [[1], [1]]
+    assert data["event_f1"] == {"cũ": [[0.5]], "mới": [[0.55]]}
+    out = viz.plot_sides([{"title": "F1", "categories": [""], "values": data["event_f1"],
+                           "ylim": (0, 1), "fmt": "{:.2f}"}], plot_self.SIDES,
+                         tmp_path / "f1.png")
+    assert out.is_file()
+    run(4, test)
+    with pytest.raises(SystemExit, match="đúng một lần"):
+        plot_self.find_runs(tmp_path)
+
+
+def test_chay_thu_khong_ghi_de_va_duong_hoc_lam_muot_nhu_dung_som(tmp_path):
+    """train_self --trial ghi mô hình vào thư mục chạy. Đường "kiểm định, TB 10 epoch"
+    của hình đường học trùng điểm mà EarlyStop dùng để chọn epoch."""
+    from src import viz
+    from src.training import EarlyStop
+    rf, lstm = selfdata.model_paths(True, 43)
+    assert train_self.outputs(False, tmp_path, rf, lstm) == (rf, lstm)
+    assert train_self.outputs(True, tmp_path, rf, lstm) == (tmp_path / rf.name,
+                                                            tmp_path / lstm.name)
+
+    class Model:
+        def state_dict(self):
+            return {}
+
+    scores = 0.5 + 0.1 * np.sin(np.arange(40))
+    stopper = EarlyStop(patience=100, window=10)
+    for epoch, score in enumerate(scores, 1):
+        stopper.update(epoch, score, Model())
+    assert viz.trailing_mean(scores, 10)[stopper.best_epoch - 1] == pytest.approx(
+        stopper.best_score)
+    history = [{"epoch": e, "train_loss": 1 / e, "val_loss": 1.5 / e,
+                "train_macro_f1": 0.9, "val_macro_f1": s} for e, s in enumerate(scores, 1)]
+    out = viz.plot_training_curves(history, stopper.best_epoch, tmp_path / "c.png", smooth=10)
+    assert out.is_file()
 
 
 def test_demo_chon_mo_hinh_tu_quay_theo_hat(tmp_path, monkeypatch):
