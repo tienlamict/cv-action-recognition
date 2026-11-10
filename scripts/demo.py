@@ -26,6 +26,10 @@ hất như IPN. Log của --log ghi đúng các đặc trưng này.
 (train_self.py), thay mô hình demo; chỉ cho rf, lstm, hybrid. Không có cờ này thì
 vẫn là mô hình demo, nên chạy hai lần là so được hai mô hình trên webcam.
 
+--arbitrate GIÂY: trọng tài chiều ngược của máy trạng thái (src/activation.py): đủ
+phiếu thì chờ bấy nhiêu giây; lệnh ngược chiều cùng họ đủ phiếu trong lúc chờ thì
+chọn chuyển động mạnh hơn. Mặc định FSM_ARBITRATE_SEC.
+
 --log FILE: ghi mỗi lần dự đoán vào FILE (CSV, kèm trạng thái máy kích hoạt, lệnh
 vừa phát và phím đã gửi), MỌI lần chuyển trạng thái vào FILE_fsm.csv, và điểm mốc
 thô của cả phiên vào FILE_landmarks.npz — chạy lại phiên đó qua mô hình bất kỳ
@@ -39,6 +43,7 @@ Ví dụ:
     python scripts/demo.py --model rf --log results/phase6/live_rf.csv
     python scripts/demo.py --model lstm --log results/phase7/live_lstm.csv
     python scripts/demo.py --model hybrid --self-seed 43 --log results/phase11/live_s43.csv
+    python scripts/demo.py --model hybrid --self-seed 43 --arbitrate 0.6
     python scripts/demo.py --model rules --show-features
     python scripts/demo.py --model rules --log results/phase5/misfires_log.csv
     python scripts/demo.py --source data/ipn/videos/videos/1CM42_11_R__205.avi --no-display --max-sec 30
@@ -84,6 +89,8 @@ def main():
                         help="dừng sau bấy nhiêu giây")
     parser.add_argument("--self-seed", type=int, default=None, metavar="HẠT",
                         help="mô hình học thêm dữ liệu tự quay (Phase 11), hạt HẠT")
+    parser.add_argument("--arbitrate", type=float, default=None, metavar="GIÂY",
+                        help="giây chờ của trọng tài chiều ngược (mặc định FSM_ARBITRATE_SEC)")
     args = parser.parse_args()
     if args.self_seed is not None and args.model == "rules":
         parser.error("--self-seed chỉ dùng với rf, lstm, hybrid")
@@ -100,7 +107,10 @@ def main():
     log = PredictionLog(args.log) if args.log else None
     transitions = TransitionLog(fsm_log_path(args.log)) if args.log else None
     recorder = LandmarkRecorder() if args.log else None
-    fsm = ActivationFSM(on_transition=transitions.write if transitions else None)
+    fsm = ActivationFSM(arbitrate_sec=args.arbitrate,
+                        on_transition=transitions.write if transitions else None)
+    if fsm.arbitrate_sec > 0:
+        print(f"Trọng tài chiều ngược: chờ {fsm.arbitrate_sec:g} s trước khi phát lệnh")
     controller = Controller()
     fps_meter = FpsMeter()
     last, labels, commands, show_help, on_top = None, [], [], False, False
@@ -117,7 +127,8 @@ def main():
                     last = prediction
                     labels.append(prediction.label)
                     command = fsm.update(prediction.label, prediction.confidence,
-                                         prediction.presence, prediction.ts)
+                                         prediction.presence, prediction.ts,
+                                         strength=prediction.strength)
                     if command is not None:
                         commands.append((prediction.ts, command))
                     sent = controller.handle(command)

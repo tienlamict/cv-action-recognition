@@ -259,12 +259,21 @@ def prepare_set(spec, data_fp):
 
 def prepare_stream(spec, data_fp):
     """Chạy các video của tập đánh giá qua ``WindowStream`` và ghi lại, nếu
-    chưa có. Returns: đường dẫn, hoặc ``None`` với phép chia rò rỉ."""
+    chưa có. Returns: đường dẫn, hoặc ``None`` với phép chia rò rỉ.
+
+    Bản ghi từ trước khi có độ mạnh của cửa sổ (trọng tài chiều ngược, Phase 11)
+    được dựng lại: thiếu nó, máy trạng thái phát lệnh như chưa có trọng tài, và cột
+    mức sự kiện khác máy dựng mới. Cửa sổ và đặc trưng không đổi.
+    """
     from src.events import clip_paths, clip_streams, save_streams
     splits = read_splits()
     path = stream_path(spec, splits, data_fp)
-    if path is None or path.is_file():
+    if path is None:
         return path
+    if path.is_file():
+        with np.load(path, allow_pickle=False) as data:
+            if "strength" in data.files:
+                return path
     paths, _ = clip_paths(stream_group(spec, splits)[1])
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp.npz")

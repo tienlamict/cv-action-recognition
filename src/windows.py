@@ -82,6 +82,43 @@ def step_labels(ts, segments, src_labels, grid_ts):
     return class_id.astype(np.int64), segment
 
 
+#: Chiều của từng cử chỉ trên :func:`motion_signal`: vuốt theo dấu đã đo trên IPN
+#: (``SWIPE_LEFT_SIGN``), zoom theo độ mở cái–trỏ (mở ra là zoom_in).
+DIRECTION = {"swipe_left": config.SWIPE_LEFT_SIGN, "swipe_right": -config.SWIPE_LEFT_SIGN,
+             "zoom_in": 1, "zoom_out": -1}
+
+
+def motion_signal(xy, name):
+    """Đại lượng mà cử chỉ ``name`` làm đổi, ở từng frame của ``xy`` ``(..., 21, 2)``:
+    vị trí ngang cổ tay (hai lớp vuốt) hay độ mở cái–trỏ (hai lớp zoom)."""
+    xy = np.asarray(xy)
+    if name.startswith("swipe"):
+        return xy[..., config.WRIST, 0]
+    return np.linalg.norm(xy[..., config.THUMB_TIP, :] - xy[..., config.INDEX_TIP, :], axis=-1)
+
+
+def _step_change(xy, steps, name):
+    """Độ đổi CÓ DẤU của :func:`motion_signal` giữa hai bước kề nhau, chia trung vị
+    lòng bàn tay trên chính các bước đó. Bước mất tay tính là không đổi.
+
+    Returns:
+        ``(len(steps),)``, hoặc ``None`` nếu không đo được (mất tay cả đoạn).
+    """
+    palm = np.linalg.norm(xy[steps, config.MIDDLE_MCP] - xy[steps, config.WRIST], axis=1)
+    unit = np.nanmedian(palm) if np.isfinite(palm).any() else np.nan
+    if not np.isfinite(unit) or unit <= 0:
+        return None
+    signal = motion_signal(xy[steps], name)
+    change = np.diff(signal, prepend=signal[0]) / unit
+    return np.where(np.isfinite(change), change, 0.0)
+
+
+def _smooth(values):
+    """Trung bình trượt ``CORE_SMOOTH_STEPS`` bước, giữ nguyên độ dài."""
+    kernel = np.ones(config.CORE_SMOOTH_STEPS) / config.CORE_SMOOTH_STEPS
+    return np.convolve(values, kernel, mode="same")
+
+
 def core_signal(xy, steps, name):
     """Tín hiệu mà khoảnh khắc chính lấy cực đại, trên các bước liền nhau ``steps``.
 
@@ -101,16 +138,38 @@ def core_signal(xy, steps, name):
     Returns:
         ``(len(steps),)``, hoặc ``None`` nếu không đo được (mất tay cả đoạn).
     """
-    palm = np.linalg.norm(xy[steps, config.MIDDLE_MCP] - xy[steps, config.WRIST], axis=1)
-    unit = np.nanmedian(palm) if np.isfinite(palm).any() else np.nan
-    if not np.isfinite(unit) or unit <= 0:
-        return None
-    signal = (xy[steps, config.WRIST, 0] if name.startswith("swipe")
-              else np.linalg.norm(xy[steps, config.THUMB_TIP] - xy[steps, config.INDEX_TIP],
-                                  axis=1))
-    change = np.abs(np.diff(signal, prepend=signal[0])) / unit
-    kernel = np.ones(config.CORE_SMOOTH_STEPS) / config.CORE_SMOOTH_STEPS
-    return np.convolve(np.where(np.isfinite(change), change, 0.0), kernel, mode="same")
+    change = _step_change(xy, steps, name)
+    return None if change is None else _smooth(np.abs(change))
+
+
+def direction_signal(xy, steps, name):
+    """Như :func:`core_signal`, nhưng chỉ giữ chuyển động THEO CHIỀU của ``name``
+    (``DIRECTION``); chuyển động ngược chiều tính là 0.
+
+    Không dùng để gán nhãn. Máy trạng thái dùng nó để phân xử hai lệnh ngược chiều
+    cùng họ: động tác chuẩn bị (chụm trước khi mở, kéo ngược trước khi hất) thường
+    yếu hơn cử chỉ thật — đúng điều khoảnh khắc chính của việc gán nhãn giả định.
+    """
+    change = _step_change(xy, steps, name)
+    return None if change is None else _smooth(np.maximum(DIRECTION[name] * change, 0.0))
+
+
+def window_strengths(win):
+    """Chuyển động mạnh nhất theo chiều của từng lớp trong MỘT cửa sổ ``(T, 21, 2)``
+    — pixel hay đã chuẩn hoá đều được, vì chuẩn hoá chỉ dời gốc và nhân một hệ số
+    chung, còn :func:`direction_signal` chia cho lòng bàn tay.
+
+    Returns:
+        ``(len(CLASSES),)`` — ``none`` và lớp không đo được là 0.
+    """
+    win = np.asarray(win, dtype=np.float64)
+    steps = np.arange(len(win))
+    out = np.zeros(len(config.CLASSES))
+    for k, name in enumerate(config.CLASSES):
+        if name in DIRECTION:
+            signal = direction_signal(win, steps, name)
+            out[k] = 0.0 if signal is None else float(signal.max())
+    return out
 
 
 def core_steps(xy, segment, segments):

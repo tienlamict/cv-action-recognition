@@ -129,6 +129,104 @@ quay). Không chấm lại.
 - Epoch 56 được chọn: trung bình 10 epoch của macro-F1 kiểm định là 0,535, điểm thô 0,568.
   Mô hình demo chọn epoch 87, với 0,528 và 0,489.
 
+## 3. Còn cải thiện được ở đâu — đo trên các phiên Phase 10, 2026-11-10
+
+Nguồn: `analyze/run_01`, chạy `bench.py analyze --models hybrid --self-seed 42 43 44
+--swipe-grid`. Đếm lệnh nhầm theo lớp bằng một script tạm, chạy cùng các hàm của bench.py.
+
+Dữ liệu: các phiên ghi của Phase 10 trên tay p01 (tháng 10).
+- `gestures_01`, `gestures_02`: 40 lời nhắc, mỗi lớp 10.
+- `talking_01`, `talking_02`: 10,9 phút nói chuyện, 23% thời gian thấy tay.
+
+Đây là dữ liệu chỉnh của Phase 10, không có trong tập học của mô hình mới, và không đụng
+real_test. Người dùng làm cử chỉ tự nhiên, có động tác chuẩn bị.
+
+**Luật hiện tại** (vuốt 0,85 · 4/5, zoom 0,40 · 3/5), trên 40 lời nhắc:
+
+| | demo | mới s43 |
+|---|---|---|
+| Vuốt bắt được (trên 20) | 11 | 13 |
+| Zoom bắt được (trên 20) | 10 | 10 |
+| Lệnh nhầm | 19 | 17 |
+| Trong đó: zoom ngược chiều | 7 | 10 |
+| Lệnh khi nói chuyện, 10,9 phút | 2 zoom_out | 2 zoom_out |
+
+- **Lỗi lớn nhất là zoom ngược chiều.** Động tác chuẩn bị (chụm ngón trước khi mở) được nhận
+  là zoom ngược lại. Luật zoom lỏng (0,40 · 3/5) phát lệnh ngay lúc đó, rồi 1,2 giây im lặng
+  chặn cú zoom thật.
+- **Nới luật vuốt không lợi** (mới s43, zoom giữ nguyên luật):
+  - 3/5: vuốt 12/20, không hơn mà còn thêm 4 lệnh vuốt ngược chiều (do lấy đà);
+  - 2/5: vuốt 17/20, nhưng 9 lệnh vuốt ngược chiều.
+
+  Đánh đổi của Phase 10 vẫn đúng với mô hình mới.
+- **Siết luật zoom** (0,85 · 4/5): hết zoom nhầm, nhưng zoom chỉ còn 4/20.
+- **Đối chiếu với p01-test.** Ở đó các lần quay sạch, vì công cụ quay đã báo và cho quay lại
+  khi động tác chuẩn bị mạnh. Zoom đúng 14–15/15 và gần như không có lệnh nhầm. Vậy phần lớn
+  lỗi còn lại đến từ cách bắt đầu cử chỉ (chuẩn bị, lấy đà), không phải từ việc nhận cử chỉ.
+
+**Hướng cải thiện.** Khi hai lệnh ngược chiều của cùng một họ tranh nhau trong khoảng
+ngắn, chọn chuyển động mạnh hơn thay vì chọn lệnh đến trước. Không cần học lại. Người dùng
+duyệt làm; kết quả ở mục 4.
+
+## 4. Trọng tài chiều ngược — 2026-11-10
+
+**Cách làm** (`src/activation.py`, `FSM_ARBITRATE_SEC`):
+- Ứng viên đủ phiếu thì không phát ngay mà chờ.
+- Trong lúc chờ, lớp ngược chiều cùng họ được mở và bỏ phiếu như ứng viên thường. Nó đủ
+  phiếu thì so độ mạnh, và chuyển động mạnh hơn thắng.
+- Độ mạnh là `windows.window_strengths`: chuyển động mạnh nhất theo chiều của lớp trên các
+  cửa sổ đã đồng ý. Hàm này dùng chung phép tính với `core_signal`. Đã kiểm 200 clip IPN:
+  cửa sổ cử chỉ và nhãn trùng `windows.npz` từng byte.
+- Mặc định `FSM_ARBITRATE_SEC = 0`, tức phát ngay như Phase 10.
+
+**Đo trên dữ liệu chỉnh**, gồm các phiên Phase 10 và val IPN; không đụng real_test. Nguồn:
+`analyze/run_02` (`bench.py analyze --self-seed 42 43 44 --swipe-grid --arbitrate 0 0.2
+0.4 0.6`), và một script tạm chấm lại các phiên gestures.
+
+Một lưu ý về cách chấm. Bạn thường làm cử chỉ gần cuối khung lời nhắc 4 giây, nên chờ thêm
+đẩy lệnh đúng ra khỏi vùng khớp (cuối lời nhắc + 1 s) và bị đếm là sót. Vì vậy bảng dưới
+nới vùng khớp thêm 0,6 s cho MỌI mức chờ: so độ đúng, không so độ chậm.
+
+Luật hiện tại (vuốt 0,85 · 4/5, zoom 0,40 · 3/5), 40 lời nhắc:
+
+| Mô hình, chờ | Vuốt bắt được | Zoom bắt được | Lệnh nhầm | Ngược chiều |
+|---|---|---|---|---|
+| mới s43, 0 s | 13/20 | 10/20 | 17 | 10 |
+| mới s43, 0,4 s | 13/20 | 11/20 | 13 | 6 |
+| mới s43, 0,6 s | 13/20 | 12/20 | 11 | 3 |
+| demo, 0 s | 13/20 | 11/20 | 16 | 9 |
+| demo, 0,4 s | 11/20 | 12/20 | 16 | 3 |
+| demo, 0,6 s | 11/20 | 11/20 | 17 | 2 |
+
+Val IPN và nói chuyện, vùng khớp chuẩn:
+
+| Mô hình, chờ | F1 lệnh val | Lệnh nhầm/phút val | Trễ trung vị val | Nhầm/phút nói chuyện |
+|---|---|---|---|---|
+| mới s43, 0 s | 0,545 | 0,78 | 0,76 s | 0,18 |
+| mới s43, 0,4 s | 0,554 | 0,77 | 1,15 s | 0,18 |
+| mới s43, 0,6 s | 0,559 | 0,73 | 1,37 s | 0,18 |
+| demo, 0 s | 0,561 | 0,85 | 0,76 s | 0,18 |
+| demo, 0,4 s | 0,575 | 0,80 | 1,16 s | 0,18 |
+
+- **Với mới s43, trọng tài cắt lệnh ngược chiều từ 10 xuống 3, tổng lệnh nhầm từ 17 xuống
+  11.** Zoom bắt thêm 2, vuốt không đổi. Val IPN cũng nhỉnh hơn (F1 0,545 → 0,559, nhầm
+  0,78 → 0,73/phút), và nói chuyện không thêm lệnh nhầm.
+- **Cái giá là trễ:** trung vị từ khoảnh khắc chính tới lệnh tăng từ 0,76 s lên 1,15 s (chờ
+  0,4) và 1,37 s (chờ 0,6).
+- **Trọng tài ít khi phải phân xử thật.** Ở chờ 0,4 s, mới s43 vào trạng thái chờ 37 lần;
+  33 lần hết giờ mà không có lớp ngược chiều nào đủ phiếu, chỉ 3 lần phải so độ mạnh.
+  - Một phần zoom ngược chiều không phải do động tác chuẩn bị thắng trước, mà do cú zoom
+    thật không đủ phiếu. Đó là giới hạn nhận dạng: zoom vẫn chỉ bắt được 10–12/20.
+- **Nới luật vuốt kèm trọng tài:** với mới s43 không lợi (0,85 · 3/5, chờ 0,6: vuốt 13/20,
+  lệnh nhầm 17). Với demo có lợi (3/5, chờ 0,4: vuốt 16/20, lệnh nhầm 15, ngược chiều 4),
+  nhưng nhầm khi nói chuyện tăng gấp đôi (0,37/phút).
+- **Giới hạn:** 40 lời nhắc; chênh lệch 2–6 lệnh. Chọn mức chờ cần thử trên webcam vì độ trễ
+  là cảm giác, rồi đo lại trên một buổi chấm mới.
+
+**Người dùng chọn mặc định chờ 0,4 s** (2026-11-10, `FSM_ARBITRATE_SEC`). Mức này lấy phần
+lớn lợi ích (lệnh ngược chiều 10 → 6) với trễ ít hơn mức 0,6 (1,15 s so với 1,37 s). Lần
+chấm real_test (mục 2) và các bảng Phase 8–10 đo trước thay đổi này.
+
 **Bảng 4, hàng thứ ba.** Dùng mô hình demo. So hai tập bằng trung bình bốn lớp cử chỉ.
 
 | Mô hình demo | Tập | F1 cử chỉ | Recall cử chỉ | macro-F1 5 lớp |

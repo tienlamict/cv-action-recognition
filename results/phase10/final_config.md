@@ -1,5 +1,17 @@
 # Cấu hình cuối — Phase 10
 
+> **Sửa ngày 2026-11-10 (Phase 11), người dùng chọn: thêm trọng tài chiều ngược, chờ 0,4 s.**
+> Ứng viên đủ phiếu thì chờ `FSM_ARBITRATE_SEC` = 0,4 s. Lệnh ngược chiều cùng họ đủ phiếu
+> trong lúc chờ thì chuyển động mạnh hơn thắng. Mọi phần khác giữ nguyên.
+>
+> Đo trên chính các phiên dưới đây, với mô hình học thêm dữ liệu tự quay (mới s43):
+> - lệnh ngược chiều 10 → 6, lệnh nhầm 17 → 13 trên 40 lời nhắc;
+> - F1 sự kiện val 0,545 → 0,554;
+> - trễ trung vị 0,76 → 1,15 s.
+>
+> Bảng chọn bên dưới và các bảng Phase 8 đo TRƯỚC thay đổi này. Chi tiết:
+> `results/phase11/notes.md` mục 4.
+>
 > **Sửa ngày 2026-11-01, người dùng chọn, sau lần thử slide thật.** Ở 0,85 · 4/5 chung, 12 cú zoom
 > không phát lệnh nào. Giờ:
 >
@@ -34,6 +46,7 @@
 | Vuốt: đồng thuận | **4 trong 5** cửa sổ; cửa sổ đồng ý cần độ tin ≥ 0,55 | `K_OF_N`, `CONF_HOLD` |
 | Zoom: mở ứng viên | độ tin ≥ **0,40** | `FSM_ZOOM_FIRE` |
 | Zoom: đồng thuận | **3 trong 5** cửa sổ; cửa sổ đồng ý cần độ tin ≥ 0,40 | `FSM_ZOOM_K` |
+| Trọng tài chiều ngược | đủ phiếu thì chờ **0,4 s**; lệnh ngược chiều cùng họ đủ phiếu trong lúc chờ thì chuyển động mạnh hơn thắng (thêm 2026-11-10) | `FSM_ARBITRATE_SEC` |
 | Nghỉ sau lệnh | 1,2 s | `COOLDOWN_SEC` |
 | Phím | vuốt trái → mũi tên phải (slide sau), vuốt phải → mũi tên trái (slide trước), người dùng chọn 2026-11-02; zoom `+` / `−` (PowerPoint khi đang trình chiếu); phím `c` bật, mặc định tắt | `CTRL_HOTKEYS`, `CTRL_TOGGLE_KEY` |
 

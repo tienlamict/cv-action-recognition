@@ -164,7 +164,7 @@ def test_bo_loc_su_kien_la_tham_so_cua_evaluate(monkeypatch):
     assert "choices=list(EVENT_FILTERS)" in source
 
     class Every:
-        def update(self, label, confidence, presence, ts):
+        def update(self, label, confidence, presence, ts, strength=None):
             return LEFT
 
     monkeypatch.setitem(events.EVENT_FILTERS, "every", Every)

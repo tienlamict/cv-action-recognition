@@ -773,6 +773,13 @@ test_fps_bo_qua_ba_giay_dau
   - `train_self.py` học IPN train cộng real_tune bằng đúng công thức của mô hình demo. Mỗi bên học 3 hạt (`SELF_SEEDS`, người dùng duyệt), vì LSTM dao động mạnh theo hạt.
   - real_test chấm **một lần** bằng `compare_self.py --split real_test --final`, thay `evaluate.py` ở bước 6, để cả 6 mô hình chung một dòng `TEST_USED.log`. Trước khi chấm đã chốt hai thứ: ứng viên mỗi bên theo val, và cách đo. real_test không có cửa sổ none, nên đo bằng trung bình bốn lớp cử chỉ.
   - Kết quả và lý giải: `results/phase11/notes.md`. Mô hình demo chưa đổi; người dùng quyết.
+- *2026-11-10:* **người dùng duyệt thêm "trọng tài chiều ngược" vào máy trạng thái** (đổi thiết kế Phase 9). Nguyên nhân: trên các phiên Phase 10, lỗi lớn nhất là lệnh ngược chiều — động tác chuẩn bị (chụm trước khi mở, kéo ngược trước khi hất) đủ phiếu trước, rồi cooldown chặn cử chỉ thật (`results/phase11/notes.md` mục 3).
+  - Ứng viên đủ phiếu thì chờ `FSM_ARBITRATE_SEC` giây (trạng thái `PENDING`). Trong lúc chờ, lớp ngược chiều cùng họ đủ phiếu thì chuyển động mạnh hơn thắng.
+  - Độ mạnh là `windows.window_strengths`, cùng phép tính với `core_signal`: nhãn không đổi, cửa sổ cử chỉ của 200 clip IPN trùng `windows.npz` từng byte.
+  - `update` nhận thêm `strength` (mặc định `None`), đi qua đúng `live.WindowStream` cho webcam và video.
+  - Mặc định `FSM_ARBITRATE_SEC = 0`, tức như Phase 10. Năm kiểm thử bắt buộc giữ nguyên.
+  - Đo trên dữ liệu chỉnh, mới s43: chờ 0,4 s thì lệnh ngược chiều 10 → 6, lệnh nhầm 17 → 13, trễ trung vị 0,76 → 1,15 s; chờ 0,6 s thì 10 → 3, 17 → 11, 1,37 s.
+  - **Người dùng chọn mặc định chờ 0,4 s** (`FSM_ARBITRATE_SEC`). `demo.py --arbitrate 0` tắt. Các bảng Phase 8 và Phase 10 đã có đo trước thay đổi này. Bản lưu dòng thời gian của Phase 8 thiếu độ mạnh sẽ tự dựng lại (`experiments.prepare_stream`), để cột mức sự kiện dựng lại khớp máy dựng mới.
 - Bước 1 xong: `scripts/record_session.py`, `src/selfdata.py`, `test_ten_file_suy_ra_nhan_va_ma_nguoi`.
 
 Có hai bản. **Bản đầy đủ** — quyết định ở tuần 6, chạy song song với Phase 7–8 — gồm cả điều chỉnh lẫn đánh giá. **Bản tối giản** — khi nhu cầu chỉ lộ ra ở Phase 10 — chỉ quay tập đánh giá và làm bước 6 dưới đây, không điều chỉnh gì.

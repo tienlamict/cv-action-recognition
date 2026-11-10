@@ -29,6 +29,7 @@ from src.buffer import TimeBuffer
 from src.forest import ForestClassifier
 from src.features import FEATURE_NAMES, EXTENSION_NAMES, finger_extensions, window_features
 from src.preprocess import normalize_window
+from src.windows import window_strengths
 
 def make_model(name, lstm_path=None, rf_path=None):
     """Mô hình của ``demo.py --model``: một hàm ``đầu vào → (label, confidence)``.
@@ -80,17 +81,20 @@ def model_files(self_seed=None):
                                 f"scripts/train_self.py --seed {self_seed} trước.")
     return rf_path, lstm_path
 
-Prediction = namedtuple("Prediction", "ts label confidence presence features win_norm",
-                        defaults=(None,))
+Prediction = namedtuple("Prediction",
+                        "ts label confidence presence features win_norm strength",
+                        defaults=(None, None))
 Prediction.__doc__ = """Một lần dự đoán. ``label`` là ``None`` khi không có
 cửa sổ hợp lệ (chưa đủ dữ liệu, mất tay, hay đơn vị lòng bàn tay không tin
 được) — màn hình hiện ``—``. ``win_norm`` là cửa sổ đã chuẩn hoá mà mô hình
-vừa nhìn; màn hình luyện tập đo độ duỗi ngón trên đó."""
+vừa nhìn; màn hình luyện tập đo độ duỗi ngón trên đó. ``strength`` là
+``windows.window_strengths`` của cửa sổ đó — máy trạng thái dùng để phân xử hai
+lệnh ngược chiều."""
 
-Sample = namedtuple("Sample", "ts win_norm presence features")
-Sample.__doc__ = """Đầu vào của mô hình ở một lần dự đoán. ``win_norm`` và
-``features`` là ``None`` khi không có cửa sổ hợp lệ; ``presence`` là ``None``
-khi bộ đệm không trả cửa sổ nào (chưa đủ dữ liệu, mất tay quá nhiều)."""
+Sample = namedtuple("Sample", "ts win_norm presence features strength", defaults=(None,))
+Sample.__doc__ = """Đầu vào của mô hình ở một lần dự đoán. ``win_norm``,
+``features`` và ``strength`` là ``None`` khi không có cửa sổ hợp lệ; ``presence``
+là ``None`` khi bộ đệm không trả cửa sổ nào (chưa đủ dữ liệu, mất tay quá nhiều)."""
 
 
 class WindowStream:
@@ -98,7 +102,7 @@ class WindowStream:
     một :class:`Sample` mỗi ``stride_sec``.
 
     ``TimeBuffer`` → (mỗi ``stride_sec``) ``TimeBuffer.window`` →
-    ``normalize_window`` → ``window_features``.
+    ``normalize_window`` → ``window_features`` và ``window_strengths``.
 
     Args:
         stride_sec: khoảng cách giữa hai lần dự đoán.
@@ -140,7 +144,8 @@ class WindowStream:
             win_norm = normalize_window(win)
         except ValueError:
             return Sample(ts, None, presence, None)
-        return Sample(ts, win_norm, presence, window_features(win_norm, presence))
+        return Sample(ts, win_norm, presence, window_features(win_norm, presence),
+                      window_strengths(win_norm))
 
 
 class LivePredictor:
@@ -190,7 +195,7 @@ class LivePredictor:
             label, confidence = self.model(sample.win_norm if kind == "window"
                                            else sample.features)
         return Prediction(sample.ts, label, confidence, sample.presence,
-                          sample.features, sample.win_norm)
+                          sample.features, sample.win_norm, sample.strength)
 
 
 def load_feature_ranges(path=None):

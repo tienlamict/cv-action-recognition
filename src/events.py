@@ -15,9 +15,11 @@ cho dòng thời gian và các cửa sổ của một video; mô hình chấm m�
 :func:`evaluate_timelines` cho nhãn đó qua bộ lọc và khớp với nhãn thật.
 
 **Bộ lọc sự kiện** chọn bằng tên trong ``EVENT_FILTERS``. Mỗi bộ lọc có
-``update(label, confidence, presence, ts) → lệnh | None`` — đúng giao diện
-``ActivationFSM``, nên Phase 9 chỉ thêm máy trạng thái (``"fsm"``) vào bảng này;
-``scripts/evaluate.py`` không phải sửa. Mỗi video dùng một bộ lọc MỚI: không
+``update(label, confidence, presence, ts, strength=None) → lệnh | None`` — đúng
+giao diện ``ActivationFSM``, nên Phase 9 chỉ thêm máy trạng thái (``"fsm"``) vào
+bảng này; ``scripts/evaluate.py`` không phải sửa. ``strength`` là
+``windows.window_strengths`` của cửa sổ, cho trọng tài chiều ngược của máy trạng
+thái (Phase 11); bộ lọc khác bỏ qua nó. Mỗi video dùng một bộ lọc MỚI: không
 trạng thái nào lọt từ video này sang video kia.
 
 **Khớp lệnh với cử chỉ** (SPEC Phase 8, sửa 2026-10-22):
@@ -55,7 +57,7 @@ class RawFilter:
     """Không có tầng kích hoạt: MỖI lần dự đoán ra cử chỉ là một lệnh. Cho
     thấy đúng vấn đề mà Phase 9 phải giải — một cú vuốt thành vài lệnh."""
 
-    def update(self, label, confidence, presence, ts):
+    def update(self, label, confidence, presence, ts, strength=None):
         return int(label) if label in GESTURES else None
 
 
@@ -67,7 +69,7 @@ class EdgeFilter:
     def __init__(self):
         self.previous = None
 
-    def update(self, label, confidence, presence, ts):
+    def update(self, label, confidence, presence, ts, strength=None):
         command = int(label) if label in GESTURES and label != self.previous else None
         self.previous = label
         return command
@@ -94,7 +96,8 @@ def make_filter(name):
 
 
 Timeline = namedtuple("Timeline",
-                      "clip subject ts presence valid duration gestures spans")
+                      "clip subject ts presence valid duration gestures spans strength",
+                      defaults=(None,))
 Timeline.__doc__ = """Một video đã chạy qua ``WindowStream``, chưa qua mô hình.
 
 - ``ts`` ``(m,)``: thời điểm của từng lần dự đoán (cuối cửa sổ — nhân quả);
@@ -103,7 +106,9 @@ Timeline.__doc__ = """Một video đã chạy qua ``WindowStream``, chưa qua m�
 - ``duration``: giây;
 - ``gestures``: list ``(lớp, giây đầu, giây cuối, nhãn gốc)`` của các đoạn cử
   chỉ đích;
-- ``spans``: list ``(giây đầu, giây cuối, lớp, nhãn gốc)`` của MỌI đoạn có nhãn.
+- ``spans``: list ``(giây đầu, giây cuối, lớp, nhãn gốc)`` của MỌI đoạn có nhãn;
+- ``strength`` ``(m, len(CLASSES))``: ``windows.window_strengths`` của từng lần dự
+  đoán, NaN ở lần không hợp lệ; ``None`` khi không có (bản lưu cũ).
 """
 
 
@@ -174,7 +179,8 @@ def clip_stream(path, win_sec=None, min_presence=None):
 
     ts, xy, w, h, segments, src_labels, meta = load_clip(path)
     stream = WindowStream(win_sec=win_sec, min_presence=min_presence)
-    times, presence, valid, X, F = [], [], [], [], []
+    times, presence, valid, strength, X, F = [], [], [], [], [], []
+    missing = np.full(len(config.CLASSES), np.nan)
     for t, frame in zip(ts, xy):
         sample = stream.push(float(t), frame, w, h)
         if sample is None:
@@ -182,6 +188,7 @@ def clip_stream(path, win_sec=None, min_presence=None):
         times.append(sample.ts)
         presence.append(np.nan if sample.presence is None else sample.presence)
         valid.append(sample.features is not None)
+        strength.append(missing if sample.strength is None else sample.strength)
         if sample.features is not None:
             X.append(sample.win_norm)
             F.append(sample.features)
@@ -191,7 +198,8 @@ def clip_stream(path, win_sec=None, min_presence=None):
                         np.asarray(times, dtype=np.float64),
                         np.asarray(presence, dtype=np.float64),
                         np.asarray(valid, dtype=bool),
-                        float(ts[-1] - ts[0]) if len(ts) else 0.0, gestures, spans)
+                        float(ts[-1] - ts[0]) if len(ts) else 0.0, gestures, spans,
+                        np.asarray(strength, dtype=np.float64).reshape(-1, len(config.CLASSES)))
     X = np.asarray(X, dtype=np.float32).reshape(-1, steps, config.NUM_LANDMARKS, 2)
     F = np.asarray(F, dtype=np.float32).reshape(-1, len(FEATURE_NAMES))
     return timeline, X, F
@@ -232,8 +240,17 @@ def save_streams(path, timelines, X, F):
                        if timelines else np.empty(0)),
              valid=(np.concatenate([t.valid for t in timelines])
                     if timelines else np.empty(0, dtype=bool)),
+             strength=(np.concatenate([_strength_of(t) for t in timelines])
+                       if timelines else np.empty((0, len(config.CLASSES)))),
              segments=json.dumps(segments, ensure_ascii=False))
     return path
+
+
+def _strength_of(timeline):
+    """``timeline.strength``, hoặc toàn NaN khi dòng thời gian không có nó."""
+    if timeline.strength is not None:
+        return timeline.strength
+    return np.full((timeline.ts.size, len(config.CLASSES)), np.nan)
 
 
 def load_streams(path, windows=True):
@@ -250,10 +267,12 @@ def load_streams(path, windows=True):
         segments = json.loads(str(data["segments"]))
         offsets, ts, presence, valid = (data[k] for k in ("offsets", "ts", "presence",
                                                            "valid"))
+        strength = data["strength"] if "strength" in data.files else None   # bản lưu cũ
         timelines = [
             Timeline(str(clip), str(subject), ts[a:b], presence[a:b], valid[a:b],
                      float(duration),
-                     [tuple(g) for g in seg["gestures"]], [tuple(s) for s in seg["spans"]])
+                     [tuple(g) for g in seg["gestures"]], [tuple(s) for s in seg["spans"]],
+                     None if strength is None else strength[a:b])
             for clip, subject, duration, a, b, seg in zip(
                 data["clip"], data["subject"], data["duration"], offsets[:-1],
                 offsets[1:], segments)]
@@ -319,13 +338,14 @@ def commands(timeline, labels, confidences, filter_name=config.EVENT_FILTER):
     """
     event_filter = make_filter(filter_name)
     out = []
-    for t, label, confidence, presence in zip(timeline.ts, labels, confidences,
-                                              timeline.presence):
+    for t, label, confidence, presence, strength in zip(
+            timeline.ts, labels, confidences, timeline.presence, _strength_of(timeline)):
         valid = int(label) >= 0
         command = event_filter.update(
             int(label) if valid else None,
             float(confidence) if valid else None,
-            None if np.isnan(presence) else float(presence), float(t))
+            None if np.isnan(presence) else float(presence), float(t),
+            strength=strength if valid and np.all(np.isfinite(strength)) else None)
         if command is not None:
             out.append((float(t), int(command)))
     return out

@@ -344,6 +344,16 @@ FSM_ZOOM_K = 3          # SPEC; người dùng chọn 2026-11-01): mở ứng vi
                         # rừng, mà thang độ tin của rừng thấp hơn LSTM: trên tay người
                         # dùng rừng gán đúng 12/12 cú zoom ở 0,33–0,75, trong khi 0,85
                         # với 4/5 không phát cú nào (results/phase10/notes.md mục 7)
+FSM_ARBITRATE_SEC = 0.4 # trọng tài chiều ngược (Phase 11): đủ phiếu thì CHỜ bấy nhiêu
+                        # giây; lệnh ngược chiều cùng họ đủ phiếu trong lúc chờ thì chọn
+                        # chuyển động mạnh hơn (windows.window_strengths), để động tác
+                        # chuẩn bị và lấy đà không thắng cử chỉ thật. 0 = phát ngay như
+                        # Phase 10. Người dùng chọn 0,4 ngày 2026-11-10. Trên dữ liệu
+                        # chỉnh, với mới s43: lệnh ngược chiều 10 → 6, lệnh nhầm 17 → 13
+                        # trên 40 lời nhắc; trễ trung vị 0,76 → 1,15 s
+                        # (results/phase11/notes.md mục 4)
+FSM_ARBITRATE_SWEEP = (0.0, 0.2, 0.4, 0.6)
+                        # bench.py analyze --arbitrate: các mức chờ đem so
 
 PHASE9_RESULTS_DIR = RESULTS_DIR / "phase9"
 FSM_CMDS_RANGE = (0.9, 1.1)     # SPEC Phase 9: số lệnh trên một cử chỉ, trên video val

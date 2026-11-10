@@ -30,7 +30,8 @@ import numpy as np
 
 from src import config
 from src.preprocess import load_sequence
-from src.windows import DTYPES, core_signal, core_steps, cut_windows, step_labels
+from src.windows import (DIRECTION, DTYPES, core_signal, core_steps, cut_windows,
+                         motion_signal, step_labels)
 
 GESTURES = tuple(config.CLASSES[1:])
 NONE_PREFIX = "none-"
@@ -330,22 +331,15 @@ def model_paths(with_self, seed):
             config.SELF_SEED_DIR / f"lstm_{side}_s{seed}.pt")
 
 
-#: Chiều của từng cử chỉ: vuốt theo dấu đã đo trên IPN, zoom theo độ mở cái–trỏ.
-DIRECTION = {"swipe_left": config.SWIPE_LEFT_SIGN, "swipe_right": -config.SWIPE_LEFT_SIGN,
-             "zoom_in": 1, "zoom_out": -1}
-
-
 def window_progress(label, win):
     """Quãng đi theo chiều của cử chỉ trên MỘT cửa sổ đã chuẩn hoá ``(T, 21, 2)``,
-    tính từ bước đầu. Vuốt: vị trí ngang cổ tay; zoom: độ mở cái–trỏ.
+    tính từ bước đầu. Vuốt: vị trí ngang cổ tay; zoom: độ mở cái–trỏ
+    (``windows.motion_signal``, chiều theo ``windows.DIRECTION``).
 
     Returns:
         ``(ròng, xa nhất)`` — độ dời ở bước cuối, và quãng đi xa nhất theo đúng chiều.
     """
-    if label.startswith("swipe"):
-        signal = win[:, config.WRIST, 0]
-    else:
-        signal = np.linalg.norm(win[:, config.THUMB_TIP] - win[:, config.INDEX_TIP], axis=1)
+    signal = motion_signal(win, label)
     s = DIRECTION[label] * (signal - signal[0])
     s = s[np.isfinite(s)]
     return float(s[-1]), float(s.max())

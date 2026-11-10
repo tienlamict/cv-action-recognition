@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from src import config, events
-from src.activation import CANDIDATE, COOLDOWN, IDLE, READY, ActivationFSM
+from src.activation import CANDIDATE, COOLDOWN, IDLE, PENDING, READY, ActivationFSM
 from tests.fixtures import make_static, save_parts_clip
 
 NONE = config.CLASSES.index("none")
@@ -25,11 +25,13 @@ def spec_params(monkeypatch):
     monkeypatch.setattr(config, "COOLDOWN_SEC", 1.2)
     monkeypatch.setattr(config, "FSM_ZOOM_FIRE", 0.75)
     monkeypatch.setattr(config, "FSM_ZOOM_K", 3)
+    monkeypatch.setattr(config, "FSM_ARBITRATE_SEC", 0.0)
 
 
 def run(windows, fsm=None, ts=None):
-    """Đưa một chuỗi cửa sổ qua máy. Mỗi phần tử là ``(nhãn, độ tin)`` — tay vẫn
-    trong khung — hoặc ``GONE``; mặc định cách nhau ``STRIDE_SEC``.
+    """Đưa một chuỗi cửa sổ qua máy. Mỗi phần tử là ``(nhãn, độ tin)`` hoặc
+    ``(nhãn, độ tin, độ mạnh)`` — tay vẫn trong khung — hoặc ``GONE``; mặc định
+    cách nhau ``STRIDE_SEC``.
 
     Returns:
         list ``(giây, lệnh)``.
@@ -39,9 +41,17 @@ def run(windows, fsm=None, ts=None):
     out = []
     for t, window in zip(ts, windows):
         command = (fsm.update(None, None, None, t) if window is GONE
-                   else fsm.update(window[0], window[1], 1.0, t))
+                   else fsm.update(window[0], window[1], 1.0, t,
+                                   strength=window[2] if len(window) > 2 else None))
         if command is not None:
             out.append((t, command))
+    return out
+
+
+def power(label, value):
+    """Độ mạnh của một cửa sổ: ``value`` theo chiều lớp ``label``, 0 ở lớp khác."""
+    out = np.zeros(len(config.CLASSES))
+    out[label] = value
     return out
 
 
@@ -153,6 +163,91 @@ def test_tham_so_sai_bi_tu_choi():
         ActivationFSM(conf_fire=0.5, conf_hold=0.6)
     with pytest.raises(ValueError):
         ActivationFSM(zoom_k=6)
+    with pytest.raises(ValueError):
+        ActivationFSM(arbitrate_sec=-0.1)
+
+
+ZOOM_OUT = config.CLASSES.index("zoom_out")
+
+
+def test_trong_tai_chuan_bi_yeu_hon_thi_cu_chi_that_thang():
+    """Chụm ngón chuẩn bị (zoom_out yếu) đủ phiếu trước cú mở thật (zoom_in mạnh).
+    Không trọng tài: lệnh sai phát, cooldown chặn cú thật. Có trọng tài: zoom_in."""
+    prep = [(ZOOM_OUT, 0.9, power(ZOOM_OUT, 0.3))] * 3
+    real = [(ZOOM_IN, 0.9, power(ZOOM_IN, 0.8))] * 3
+    assert [c for _, c in run(prep + real)] == [ZOOM_OUT]
+    commands = run(prep + real, ActivationFSM(arbitrate_sec=0.6))
+    assert [c for _, c in commands] == [ZOOM_IN]
+    assert commands[0][0] == pytest.approx(5 * config.STRIDE_SEC)
+
+
+def test_trong_tai_thu_tay_yeu_hon_thi_giu_lenh_that():
+    """Cú vuốt thật đủ phiếu, rồi lúc thu tay (ngược chiều, yếu hơn) cũng đủ phiếu:
+    phát lệnh thật, ngay khi kẻ thách thức thua — không đợi hết giờ."""
+    real = [(LEFT, 0.9, power(LEFT, 0.9))] * 3
+    back = [(RIGHT, 0.9, power(RIGHT, 0.4))] * 3
+    commands = run(real + back, ActivationFSM(arbitrate_sec=1.0))
+    assert [c for _, c in commands] == [LEFT]
+    assert commands[0][0] == pytest.approx(5 * config.STRIDE_SEC)
+
+
+def test_trong_tai_khong_ai_thach_thuc_thi_phat_khi_het_gio():
+    """Không có lớp ngược chiều: phát lệnh chờ ở lần dự đoán đầu tiên sau hạn chờ.
+    none và lớp của họ khác trong lúc chờ không huỷ lệnh đã đủ phiếu."""
+    windows = ([(LEFT, 0.9, power(LEFT, 0.9))] * 3
+               + [(NONE, 0.9, power(LEFT, 0.0)), (ZOOM_IN, 0.9, power(ZOOM_IN, 0.9))]
+               + [(NONE, 0.9, power(LEFT, 0.0))] * 3)
+    commands = run(windows, ActivationFSM(arbitrate_sec=0.4))
+    assert commands == [(pytest.approx(4 * config.STRIDE_SEC), LEFT)]
+
+
+def test_trong_tai_mat_tay_khi_cho_van_phat_lenh_da_du_phieu():
+    log = []
+    fsm = ActivationFSM(arbitrate_sec=0.6, on_transition=lambda *t: log.append(t))
+    commands = run([(LEFT, 0.9, power(LEFT, 0.9))] * 3 + [GONE], fsm)
+    assert commands == [(pytest.approx(3 * config.STRIDE_SEC), LEFT)]
+    assert fsm.state == IDLE
+    assert [(a, b) for _, a, b, _ in log][-3:] == [(CANDIDATE, PENDING), (PENDING, COOLDOWN),
+                                                   (COOLDOWN, IDLE)]
+
+
+def test_trong_tai_tat_hoac_thieu_do_manh_thi_phat_ngay_nhu_cu():
+    """Chờ 0 giây, hoặc cửa sổ không có độ mạnh (bộ lọc cũ, bản lưu cũ): đủ phiếu là
+    phát, đúng máy của Phase 10."""
+    with_power = [(LEFT, 0.9, power(LEFT, 0.9))] * 3
+    without = [(LEFT, 0.9)] * 3
+    for windows, fsm in ((with_power, ActivationFSM(arbitrate_sec=0.0)),
+                         (without, ActivationFSM(arbitrate_sec=0.6))):
+        assert run(windows, fsm) == [(pytest.approx(2 * config.STRIDE_SEC), LEFT)]
+
+
+def test_do_manh_theo_chieu_va_khong_doi_khi_chuan_hoa():
+    """Cổ tay đi theo chiều vuốt trái (SWIPE_LEFT_SIGN đo trên IPN): độ mạnh vuốt trái
+    dương, vuốt phải bằng 0. Mở cái–trỏ: zoom_in dương, zoom_out bằng 0. Cửa sổ pixel
+    và cửa sổ đã chuẩn hoá cho cùng độ mạnh. core_signal (gán nhãn) đúng công thức cũ."""
+    from src.preprocess import normalize_window
+    from src.windows import core_signal, window_strengths
+    from tests.fixtures import hand
+    win = np.repeat(hand()[None], config.T, axis=0)
+    step = np.arange(config.T, dtype=np.float64)[:, None]
+    win[:, :, 0] += config.SWIPE_LEFT_SIGN * 4.0 * step
+    away = win[0, config.THUMB_TIP] - win[0, config.INDEX_TIP]
+    win[:, config.THUMB_TIP] += 4.0 * step * away / np.linalg.norm(away)
+    s = window_strengths(win)
+    assert s[LEFT] > 0 and s[RIGHT] == 0
+    assert s[ZOOM_IN] > 0 and s[ZOOM_OUT] == 0 and s[NONE] == 0
+    np.testing.assert_allclose(window_strengths(normalize_window(win)), s, rtol=1e-9)
+
+    steps = np.arange(config.T)
+    for name in ("swipe_left", "zoom_in"):
+        palm = np.linalg.norm(win[:, config.MIDDLE_MCP] - win[:, config.WRIST], axis=1)
+        signal = (win[:, config.WRIST, 0] if name.startswith("swipe")
+                  else np.linalg.norm(win[:, config.THUMB_TIP] - win[:, config.INDEX_TIP],
+                                      axis=1))
+        change = np.abs(np.diff(signal, prepend=signal[0])) / np.nanmedian(palm)
+        old = np.convolve(change, np.ones(config.CORE_SMOOTH_STEPS) / config.CORE_SMOOTH_STEPS,
+                          mode="same")
+        np.testing.assert_array_equal(core_signal(win, steps, name), old)
 
 
 def test_may_trang_thai_la_bo_loc_fsm_cua_muc_su_kien():
@@ -183,3 +278,23 @@ def test_nang_min_presence_tren_dong_thoi_gian_trung_chay_lai_video(tmp_path):
     kept = np.nan_to_num(low.presence[low.valid], nan=-1.0) >= 0.8
     np.testing.assert_array_equal(X_high, X_low[kept])
     np.testing.assert_array_equal(lab[gated.valid], (np.arange(n) % 5)[kept])
+
+
+def test_dong_thoi_gian_mang_do_manh_cua_tung_lan_du_doan(tmp_path):
+    """clip_stream ghi window_strengths của từng lần dự đoán qua đúng WindowStream của
+    demo: hữu hạn ở lần hợp lệ, NaN ở lần không; lưu rồi đọc lại không mất."""
+    from src.windows import window_strengths
+    hand = make_static(60)
+    hand[20:28] = np.nan
+    path = save_parts_clip(tmp_path / "c.npz", [(hand, "D0X", "none")], subject="p")
+    timeline, X, F = events.clip_stream(path)
+    assert (~timeline.valid).any() and timeline.valid.any()
+    assert timeline.strength.shape == (timeline.ts.size, len(config.CLASSES))
+    assert np.all(np.isfinite(timeline.strength[timeline.valid]))
+    assert np.all(np.isnan(timeline.strength[~timeline.valid]))
+    np.testing.assert_allclose(timeline.strength[timeline.valid],
+                               np.array([window_strengths(x) for x in X]), rtol=1e-4,
+                               atol=1e-6)
+    saved = events.save_streams(tmp_path / "s.npz", [timeline], X, F)
+    (loaded,), _, _ = events.load_streams(saved, windows=False)
+    np.testing.assert_array_equal(loaded.strength, timeline.strength)
