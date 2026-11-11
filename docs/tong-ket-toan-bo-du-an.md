@@ -3,7 +3,9 @@
 *Nhận dạng cử chỉ bàn tay thời gian thực để điều khiển máy tính, viết cho người chưa học thị giác
 máy tính hay học máy*
 
-**Cập nhật:** 2026-11-09. Phạm vi từ Phase 0 tới buổi quay dữ liệu ngày 2026-11-08 (Phase 11).
+**Cập nhật:** 2026-11-10. Phạm vi từ Phase 0 tới hết các việc của Phase 11 ngày 2026-11-10: học
+lại với dữ liệu tự quay, chấm tập `real_test` một lần, và thêm "trọng tài chiều ngược" vào máy
+trạng thái.
 
 **Tài liệu này dành cho ai.** Cho người chưa từng học thị giác máy tính (*computer vision*) hay
 học máy (*machine learning*). Tài liệu không giả định bạn biết "mạng nơ-ron" hay "pixel" là gì.
@@ -36,7 +38,7 @@ bản tổng kết theo giai đoạn ở Phụ lục B.
 7. [Ba loại mô hình](#7-ba-loại-mô-hình-luật-rừng-ngẫu-nhiên-lstm)
 8. [Đánh giá: đo cho đúng](#8-đánh-giá-đo-cho-đúng)
 9. [Từ mô hình tới hệ thống thời gian thực](#9-từ-mô-hình-tới-hệ-thống-thời-gian-thực)
-10. [Dữ liệu tự quay (Phase 11, đang làm)](#10-dữ-liệu-tự-quay-phase-11-đang-làm)
+10. [Dữ liệu tự quay (Phase 11)](#10-dữ-liệu-tự-quay-phase-11)
 11. [Kỹ thuật làm dự án học máy](#11-kỹ-thuật-làm-dự-án-học-máy-cho-đáng-tin)
 12. [Kết quả cuối, hạn chế, bài học](#12-kết-quả-cuối-hạn-chế-và-bài-học)
 
@@ -73,8 +75,11 @@ rồi bấm phím thay bạn, ví dụ để điều khiển PowerPoint:
   6,6–30 lần mỗi phút xuống dưới 1 lần mỗi phút.
 - Điều khiển được PowerPoint thật: trong 92 giây thử, 19 lệnh đều tới PowerPoint.
 - Chạy 46 thí nghiệm có kiểm soát để trả lời câu hỏi "cái gì thật sự có ích".
-- Đang quay thêm dữ liệu của người thật (Phase 11) để mô hình hợp với cách làm cử chỉ của người
-  dùng.
+- Quay thêm dữ liệu của ba người thật (Phase 11), học lại mô hình với dữ liệu đó, rồi chấm trên một
+  buổi quay khoá riêng đúng một lần. Mô hình học thêm dữ liệu tự quay ra lệnh đúng ở 46/60 lần quay,
+  so với 42/60 của mô hình cũ; riêng vuốt trái từ 2/15 lên 6,7/15.
+- Thêm "trọng tài chiều ngược" vào máy trạng thái: lệnh đi ngược chiều cử chỉ giảm từ 10 xuống 6
+  trên 40 lời nhắc, đổi lại độ trễ tăng từ 0,76 lên 1,15 giây.
 
 **Ba điều quan trọng nhất đã học.**
 
@@ -163,11 +168,14 @@ tự quay khi cần**".
 | 8 | Đánh giá hai mức, 46 thí nghiệm | Bảy bảng khảo sát; đo đúng thứ người dùng cảm nhận | ✅ |
 | 9 | Máy trạng thái kích hoạt | Lệnh nhầm từ hàng chục xuống khoảng 1 mỗi phút | ✅ |
 | 10 | Demo hoàn chỉnh, đo trên webcam | Điều khiển PowerPoint thật; sáu vòng tối ưu | ✅ phần lớn; còn đo độ trễ thủ công, video demo |
-| 11 | Dữ liệu tự quay | Bật 2026-11-06; đã quay p01, p02, p03 | 🟡 đang làm |
+| 11 | Dữ liệu tự quay | Quay 3 người; học lại; chấm `real_test` một lần; trọng tài chiều ngược | 🟡 phần lớn; mô hình của demo chưa đổi, người dùng quyết |
 | 12 | Tái lập và bàn giao | `run_all.py`, ghim phiên bản thư viện, README | 🟡 phần lớn; còn phép thử tái lập trên máy sạch |
 
-**Tập kiểm tra cuối (test) chưa bị mở lần nào.** File nhật ký `results/TEST_USED.log` chưa tồn
-tại. Lý do của việc giữ nguyên tắc này ở mục 6.5.
+**Hai tập chấm khoá, hai trạng thái** (lý do giữ khoá ở mục 6.5):
+
+- **Tập test của IPN chưa bị mở lần nào.**
+- **Tập `real_test` tự quay đã được mở đúng một lần**, ngày 2026-11-09 lúc 22:45. File nhật ký
+  `results/TEST_USED.log` có đúng một dòng cho lần đó (mục 10.7).
 
 ---
 
@@ -578,8 +586,9 @@ của IPN. Mô hình không bao giờ thấy nó.
 
 **Vì sao test phải niêm phong.** Nếu nhìn kết quả trên test rồi sửa mô hình, rồi lại nhìn, rồi lại
 sửa, thì mô hình dần "hợp đề", và con số cuối đẹp giả. Dự án có **khoá kỹ thuật**: script đánh giá
-từ chối mở test nếu không ghi rõ `--final`, và mỗi lần mở để lại một dòng nhật ký. Đến nay chưa mở
-lần nào.
+từ chối mở test nếu không ghi rõ `--final`, và mỗi lần mở để lại một dòng nhật ký. Test của IPN đến
+nay chưa mở lần nào. Tập chấm tự quay `real_test` đã mở đúng một lần, theo đúng quy trình này (mục
+10.7).
 
 **Vì sao chia theo người, không chia ngẫu nhiên.**
 
@@ -1062,6 +1071,8 @@ Máy trạng thái của dự án là **một người trợ lý cẩn thận** 
 | Đang cân nhắc | vừa nghe một tiếng hô đủ chắc; đang chờ thêm tiếng hô cùng ý |
 | Nghỉ | vừa bấm phím, nghỉ 1,2 giây |
 
+Từ 2026-11-10 có thêm trạng thái **Chờ phân xử** giữa "đang cân nhắc" và "bấm phím" (mục 9.7).
+
 **Bốn quy tắc:**
 
 1. **Đủ chắc mới bắt đầu cân nhắc** (ngưỡng độ tin). Tiếng hô ngập ngừng thì bỏ qua.
@@ -1220,7 +1231,69 @@ Lần thử thứ hai, 92 giây: **19 lệnh** (8 vuốt, 11 zoom), mọi phím 
 **Vì sao chỉ 6/12 cú zoom:** người dùng đổi chiều zoom mỗi khoảng 1,3 giây, trong khi mỗi lệnh chiếm khoảng
 1,8 giây (0,6 giây gom phiếu + 1,2 giây nghỉ). Từ đó có lời khuyên "các cử chỉ cách nhau khoảng 2 giây".
 
-### 9.7. Những lời khuyên cho người dùng, rút từ số đo
+### 9.7. Vòng tối ưu: trọng tài chiều ngược (Phase 11, 2026-11-10)
+
+**Triệu chứng.** Sau khi học lại mô hình với dữ liệu tự quay (mục 10.6), dự án chạy lại các phiên webcam
+của Phase 10 để xem còn sai ở đâu. Trên 40 lời nhắc, mô hình mới phát 17 lệnh nhầm, và **10 trong số đó là
+zoom đi ngược chiều**.
+
+**Tìm nguyên nhân.** Cùng một kiểu lỗi với cú lấy đà của vuốt (mục 9.5), nhưng lần này ở zoom:
+
+- trước khi mở ba ngón ra (zoom in), người dùng thường **chụm ngón lại trước**, như lấy đà;
+- đoạn chụm đó chính là một cú zoom out ngắn, và mô hình nhận đúng như vậy;
+- luật zoom khá lỏng (0,40 và 3/5) nên đoạn chụm đủ phiếu trước, máy trạng thái bấm "thu nhỏ", rồi nghỉ
+  1,2 giây đúng lúc cú zoom in thật diễn ra.
+
+**Vì sao không siết luật zoom.** Đã thử: đặt zoom về 0,85 và 4/5 thì hết zoom nhầm, nhưng zoom chỉ còn bắt
+được 4/20. Nới luật vuốt cũng không lợi: 2/5 bắt được 17/20 cú vuốt nhưng có 9 lệnh vuốt ngược chiều. Đánh
+đổi của Phase 10 vẫn đúng với mô hình mới.
+
+**Đối chiếu quan trọng.** Trên buổi chấm `real_test` (mục 10.7), các lần quay sạch vì công cụ quay đã bắt
+người quay làm lại khi động tác chuẩn bị quá mạnh. Ở đó zoom đúng 14–15/15 và gần như không có lệnh nhầm.
+**Vậy phần lớn lỗi còn lại đến từ cách bắt đầu cử chỉ, không phải từ việc nhận cử chỉ.**
+
+**Sửa thế nào: đừng chọn lệnh đến trước, hãy chọn chuyển động mạnh hơn.**
+
+- Khi một ứng viên đã đủ phiếu, máy trạng thái **chưa bấm ngay** mà vào trạng thái chờ thêm 0,4 giây.
+- Trong lúc chờ, nếu lớp **ngược chiều cùng họ** (zoom in ↔ zoom out, vuốt trái ↔ vuốt phải) cũng đủ phiếu,
+  hai bên được so **độ mạnh**, và chuyển động mạnh hơn thắng.
+- Độ mạnh là chuyển động lớn nhất theo chiều của lớp đó, trên các cửa sổ đã đồng ý. Nó dùng **chung phép tính**
+  với tín hiệu chọn khoảnh khắc chính khi gán nhãn (mục 6.4). Dự án kiểm lại trên 200 video IPN: tách hàm này
+  ra không đổi một byte nào của bộ cửa sổ.
+
+Lý do chọn độ mạnh: cú lấy đà hay cú chụm chuẩn bị luôn **nhỏ hơn** cú làm thật. Đây là một dấu hiệu vật lý
+mà mô hình phân loại không cho biết, vì nó chỉ trả "lớp nào" và "chắc tới đâu".
+
+**Được gì** (mô hình mới, 40 lời nhắc; vùng khớp nới thêm 0,6 giây cho mọi mức, để so độ đúng chứ không so độ
+chậm):
+
+| Thời gian chờ | Vuốt bắt được | Zoom bắt được | Lệnh nhầm | Ngược chiều | Trễ trung vị trên val IPN |
+|---|---|---|---|---|---|
+| 0 giây (như Phase 10) | 13/20 | 10/20 | 17 | 10 | 0,76 s |
+| **0,4 giây (chọn)** | 13/20 | 11/20 | **13** | **6** | **1,15 s** |
+| 0,6 giây | 13/20 | 12/20 | 11 | 3 | 1,37 s |
+
+- Trên val IPN, F1 sự kiện cũng nhỉnh lên (0,545 → 0,554) và lệnh nhầm giảm nhẹ (0,78 → 0,77 lần/phút).
+- Khi người dùng nói chuyện, lệnh nhầm không đổi: 0,18 lần mỗi phút.
+
+**Mất gì: độ trễ.** Từ khoảnh khắc chính tới lúc bấm phím, trung vị tăng từ 0,76 lên 1,15 giây. **Người dùng
+chọn 0,4 giây**: lấy phần lớn lợi ích (ngược chiều 10 → 6) mà trễ ít hơn mức 0,6.
+
+**Một phát hiện khi đo:** trọng tài ít khi phải phân xử thật. Ở mức 0,4 giây, máy trạng thái vào trạng thái chờ
+37 lần; 33 lần hết giờ mà không có lớp ngược chiều nào đủ phiếu, chỉ 3 lần phải so độ mạnh. Một phần lỗi zoom
+ngược chiều còn lại không phải do động tác chuẩn bị thắng trước, mà do **cú zoom thật không đủ phiếu**. Đó là
+giới hạn nhận dạng, không phải giới hạn của luật quyết định.
+
+**Bài học:**
+
+- **Hai lớp ngược chiều không độc lập.** Muốn làm một cử chỉ, cơ thể người thường làm một đoạn ngược chiều
+  ngắn trước. Hệ thống "ai đến trước thì thắng" sẽ luôn thua đoạn chuẩn bị.
+- **Mỗi cải thiện đều có giá**, và ở đây giá là độ trễ, một thứ chỉ người dùng cảm nhận được. Số đo chỉ bày ra
+  đánh đổi; chọn mức nào cần thử trên webcam.
+- **Chênh lệch nhỏ trên ít dữ liệu** (2–6 lệnh trên 40 lời nhắc) chỉ là gợi ý, phải đo lại trên một buổi chấm
+  mới.
+
+### 9.8. Những lời khuyên cho người dùng, rút từ số đo
 
 - **Không lấy đà ngược chiều** (mục 9.5).
 - **Giơ tay lên khoảng 1 giây rồi mới làm.** Cửa sổ chỉ được xét khi 70% số bước thấy tay.
@@ -1232,7 +1305,7 @@ Mỗi lời khuyên là hệ quả của một con số đo được, không ph�
 
 ---
 
-## 10. Dữ liệu tự quay (Phase 11, đang làm)
+## 10. Dữ liệu tự quay (Phase 11)
 
 ### 10.1. Vì sao bật
 
@@ -1287,19 +1360,170 @@ Kiểm độ khắt khe: trên IPN, 65–74% đoạn học đạt; 8 lần quay 
 **Bài học:** một ví dụ có nhãn sai còn tệ hơn không có ví dụ. Dữ liệu tự quay phải được kiểm bằng **cùng
 thước đo** đã dùng cho dữ liệu chuẩn, và tiêu chí kiểm phải được thử độ khắt khe trên dữ liệu đã biết tốt.
 
-### 10.5. Hiện trạng
+### 10.5. Các buổi quay và cách chia
 
-| Buổi | Người | Số lần quay | Ghi chú |
+| Buổi | Người | Số lần quay | Thuộc tập |
 |---|---|---|---|
-| `thu2` | p01 | 8 | buổi thử |
-| 2026-11-06 | p01 | 182 | đủ bốn cử chỉ và các nhóm `none` |
-| 2026-11-07 | p02 | 3 giữ lại (17 loại) | chỉ dùng để học: còn thiếu vuốt trái và zoom out |
-| 2026-11-08 | p03 | 20 | bốn cử chỉ, mỗi cử chỉ 5 lần; chưa kiểm |
+| `thu2` | p01 | 8 | `real_tune` (học) |
+| 2026-11-06 | p01 | 182, đủ bốn cử chỉ và các nhóm `none` | `real_tune` |
+| 2026-11-07 | p02 | 3 giữ lại (17 loại) | `real_tune` |
+| 2026-11-08 | p03 | 20, bốn cử chỉ, mỗi cử chỉ 5 lần | `real_tune` |
+| `p01-test` | p01 | 60, mỗi cử chỉ 15 lần | **`real_test` (chấm, khoá)** |
 
-**Việc còn lại của Phase 11:** trích điểm mốc toàn bộ video tự quay; đưa tiêu chí kiểm chất lượng vào mã
-nguồn chung và áp cho mọi người; chia `real_tune` / `real_test`; so hình dạng đặc trưng với IPN; học lại;
-chấm `real_test` đúng một lần cho hàng thứ ba của Bảng 4 ("kết quả tụt bao nhiêu khi chuyển từ IPN sang
-webcam thật").
+**Chia trước khi nhìn.** Script `split_self.py` ghi cách chia vào `splits.json` **trước khi** mở buổi chấm,
+và từ chối ghi đè nếu đã có. Như vậy không ai có thể (dù vô tình) xem kết quả rồi mới chọn cách chia có lợi.
+
+**Một giới hạn cần nói rõ:** p01 có mặt ở cả hai bên, chỉ khác buổi quay. Kết quả trên `real_test` vì vậy
+nói về **chính người dùng** ở một ngày khác, không nói về người lạ. Với hệ thống cá nhân, đây là câu hỏi
+đúng; nhưng không được đọc nó như con số "tổng quát hoá cho mọi người".
+
+### 10.6. Lọc dữ liệu học và học lại
+
+**Lọc cửa sổ của `real_tune`, không lọc `real_test`.** Tiêu chí ở mục 10.4 (đi đúng chiều ít nhất bằng phân
+vị 25 của IPN train, không kéo về quá nửa quãng) đã được đưa vào mã nguồn chung và áp cho mọi người. Kết quả:
+
+| Người | Cử chỉ | Cửa sổ trước lọc | Sau lọc |
+|---|---|---|---|
+| p01 | vuốt trái / vuốt phải | 79 / 76 | 79 / **42** |
+| p01 | zoom in / zoom out | 86 / 82 | 82 / 81 |
+| p02 | vuốt phải / zoom in | 4 / 8 | 4 / 8 |
+| p03 | vuốt trái / vuốt phải | 14 / 9 | **3 / 0** |
+| p03 | zoom in / zoom out | 17 / 17 | 17 / 16 |
+
+Tổng `real_tune` sau lọc: **850 cửa sổ** (`none` 518, vuốt trái 82, vuốt phải 46, zoom in 107, zoom out 97).
+Gần như toàn bộ vuốt phải của p03 bị loại: cùng kiểu lỗi với p02, vuốt gần như không dời ngang hoặc kéo về.
+
+`real_test` **không lọc**: tập chấm phải giữ đúng như người dùng làm, kể cả những lần làm chưa chuẩn.
+
+**Học lại bằng đúng công thức của mô hình demo**, chỉ khác dữ liệu: IPN train **cộng** `real_tune`. Không đổi
+kiến trúc, không đổi tăng cường, không đổi siêu tham số. Đổi đúng một thứ thì mới biết thứ đó có tác dụng
+(mục 8.6).
+
+**So hai bên, mỗi bên ba hạt giống.**
+
+- **Bên cũ:** chỉ IPN. Hạt 42 chính là mô hình demo đang dùng.
+- **Bên mới:** IPN cộng `real_tune`.
+- Mỗi bên học với ba hạt giống (42, 43, 44), vì LSTM dao động mạnh theo hạt (mục 8.5).
+
+**Kết quả trên val IPN** (trung bình ba hạt, trong ngoặc là thấp nhất–cao nhất):
+
+| | Cũ | Mới |
+|---|---|---|
+| LSTM, macro-F1 cửa sổ | 0,512 [0,488–0,559] | **0,567** [0,532–0,600] |
+| Ghép, macro-F1 cửa sổ | 0,493 [0,445–0,537] | 0,512 [0,486–0,529] |
+| Ghép + máy trạng thái, F1 sự kiện | 0,512 [0,444–0,561] | 0,528 [0,506–0,545] |
+| Lệnh nhầm mỗi phút | 1,23 [0,85–1,93] | 0,94 [0,78–1,10] |
+
+- **Dữ liệu tự quay không làm hại IPN.** Mô hình ghép nhỉnh hơn một chút, nhưng chênh lệch nhỏ hơn độ dao động
+  giữa các hạt: **không đủ bằng chứng** để nói là tốt hơn.
+- **LSTM tốt lên rõ** (+0,054, lớn hơn độ dao động của cả hai bên), chủ yếu ở zoom.
+
+**Một bài học về so sánh bằng một lần chạy.** Lần so đầu chỉ dùng hạt 42 cho thấy mô hình mới **tụt** (F1 sự
+kiện 0,561 → 0,506). Học thêm hai hạt mới thấy: mô hình demo (cũ, hạt 42) là **hạt may mắn nhất** của bên cũ;
+hai hạt cũ còn lại chỉ đạt 0,444 và 0,532. "Lần tụt" là do hạt, không phải do dữ liệu. So một lần chạy với
+một lần chạy có thể cho kết luận ngược hẳn.
+
+### 10.7. Chấm `real_test` đúng một lần
+
+**Chốt mọi thứ trước khi mở** (ghi xuống giấy trước, như nộp đề cương trước khi làm thí nghiệm):
+
+- báo trung bình và khoảng của ba hạt mỗi bên; **không dùng `real_test` để chọn hạt**;
+- nếu cần một mô hình mỗi bên, chọn theo val IPN: **mô hình demo** (cũ, hạt 42) và **mới hạt 43**;
+- cách đo, vì `real_test` có đặc điểm riêng: 60 lần quay ngắn, 195 cửa sổ, **không có cửa sổ `none` nào**.
+  - Mức cửa sổ: trung bình F1 và recall của **bốn lớp cử chỉ**. macro-F1 năm lớp sẽ tính cả F1 = 0 của lớp
+    `none` vắng mặt, nên không so được với val.
+  - Mức lệnh: lệnh đầu tiên của từng lần quay là đúng, nhầm lớp, hay sót. Đo hai cách: đúng như quay, và nối
+    thêm 1 giây tay giữ yên. Lý do cách thứ hai: lúc dùng thật, hình vẫn chạy tiếp sau cử chỉ, còn lần quay
+    thì dừng ngay khi bấm SPACE, có thể cắt mất lúc máy trạng thái đang gom phiếu.
+
+Cả sáu mô hình (hai bên × ba hạt) được chấm **trong cùng một lần chạy**, ghi đúng một dòng vào
+`results/TEST_USED.log`, lúc 22:45 ngày 2026-11-09.
+
+**Kết quả mức cửa sổ** (trung bình ba hạt):
+
+| | Cũ | Mới |
+|---|---|---|
+| Ghép, F1 bốn cử chỉ | 0,916 [0,870–0,945] | **0,971** [0,957–0,982] |
+| Ghép, recall bốn cử chỉ | 0,872 [0,810–0,910] | **0,958** [0,933–0,979] |
+| LSTM, F1 bốn cử chỉ | 0,793 [0,668–0,956] | **0,969** [0,957–0,982] |
+| Rừng, F1 bốn cử chỉ | 0,558 | 0,609 |
+
+**Kết quả mức lệnh** (mô hình ghép + máy trạng thái; số lần quay có lệnh đầu tiên đúng, trên 60):
+
+| | Cũ | Mới |
+|---|---|---|
+| Như quay | 33,7 [31–37] | 36,7 [35–39] |
+| Thêm 1 giây giữ yên | 42,3 [39–46] | **46,0** [44–49] |
+| F1 lệnh, thêm 1 giây giữ yên | 0,821 | **0,859** |
+
+Theo lớp (thêm 1 giây giữ yên, số lần đúng trên 15):
+
+| Lớp | Cũ | Mới |
+|---|---|---|
+| Vuốt trái | **2,0** [0–5] | **6,7** [5–8] |
+| Vuốt phải | 12,0 | 10,3 |
+| Zoom in | 14,7 | 15,0 |
+| Zoom out | 13,7 | 14,0 |
+
+Với cặp đã chốt trước: mô hình demo ra lệnh đúng 39/60 lần, **vuốt trái 0/15**; mới hạt 43 ra lệnh đúng 44/60,
+vuốt trái 7/15.
+
+### 10.8. Đọc kết quả: vì sao
+
+Mọi điểm dưới đây đọc từ hồ sơ của chính lần chấm, không chấm lại.
+
+1. **Mức cửa sổ không thấy tụt so với IPN, mà còn cao hơn.** Recall cử chỉ của mô hình demo trên val IPN là
+   0,668, trên `real_test` là 0,872. Không có gì lạ: lần quay sạch, mỗi lần một cử chỉ, cửa sổ mơ hồ bị bỏ,
+   và không có `none` nên không có báo nhầm. **Chỗ tụt thật nằm ở mức lệnh:** như quay, 20–28 trên 60 lần quay
+   không phát lệnh nào. Thêm một bằng chứng cho bài học ở mục 8.3: chấm theo cửa sổ không nói lên trải nghiệm.
+2. **Vuốt trái là nút thắt.** LSTM của mô hình demo xếp 25 trên 45 cửa sổ vuốt trái của p01 vào `none`, nên
+   không lần nào phát lệnh. LSTM bên mới đúng 40–44 trên 45 cửa sổ. Đây là lợi ích rõ nhất của dữ liệu tự
+   quay: **mô hình học được kiểu vuốt trái của chính người dùng**.
+3. **Cửa sổ đã đúng mà vẫn sót một nửa số lần vuốt trái.** Luật kích hoạt vuốt cần độ tin ≥ 0,85 ở 4 trên 5
+   lần dự đoán. Đoạn vuốt của p01 ngắn (trung vị 0,8 giây), nên chỉ khoảng ba lần dự đoán thấy trọn cú vuốt,
+   khó đạt 4 trên 5. Đây mới là giả thuyết; phải kiểm trên `real_tune`, **không được kiểm trên `real_test`**
+   vì tập này đã dùng rồi.
+4. **Rừng đứng riêng hay nhầm vuốt phải thành vuốt trái** (13–30 trên 52 cửa sổ). Mô hình ghép không bị ảnh
+   hưởng, vì lấy vuốt từ LSTM. Một lần nữa, ghép theo chuyên môn có lợi (mục 7.6).
+
+**Bảng 4, hàng thứ ba** (mô hình demo, so bằng trung bình bốn lớp cử chỉ):
+
+| Mô hình demo | Tập | F1 cử chỉ | Recall cử chỉ |
+|---|---|---|---|
+| Rừng | val IPN | 0,307 | 0,541 |
+| Rừng | `real_test` | 0,552 | 0,537 |
+| LSTM | val IPN | 0,375 | 0,761 |
+| LSTM | `real_test` | 0,755 | 0,660 |
+
+Recall của LSTM tụt khi chuyển sang tay người dùng (0,761 → 0,660), phần lớn do vuốt trái. F1 tăng vì
+`real_test` không có `none` để báo nhầm, nên precision gần như tuyệt đối.
+
+### 10.9. Giới hạn và hiện trạng
+
+**Giới hạn:**
+
+- `real_test` chỉ có p01; kết quả nói về chính người dùng, không nói về người lạ.
+- 15 lần quay mỗi lớp, nên một lần quay bằng 6,7 điểm phần trăm.
+- `real_test` không có `none`, nên không đo được báo nhầm trên dữ liệu tự quay.
+- **Từ đây không còn tập chấm độc lập.** Mọi chỉnh sửa sau lần chấm (như trọng tài chiều ngược ở mục 9.7)
+  không được đo trên `real_test` nữa. Muốn có con số không thiên lệch thì phải quay một buổi chấm mới.
+
+**Hiện trạng:**
+
+- **Mô hình của demo chưa đổi**; người dùng quyết. Có thể thử mô hình mới trên webcam bằng
+  `demo.py --model hybrid --self-seed 43`; bỏ `--self-seed` là về mô hình demo, nên chạy hai lần là so được.
+- Trọng tài chiều ngược (mục 9.7) **đã bật mặc định** cho mọi mô hình, chờ 0,4 giây.
+- Ba biểu đồ so hai bên nằm ở `results/phase11/plot_self/run_01/`.
+
+**Bài học từ Phase 11:**
+
+- **Dữ liệu đúng người giúp nhiều hơn mọi mẹo.** Ba lớp đã tốt thì gần như giữ nguyên; lớp tệ nhất trên tay
+  người dùng (vuốt trái) tăng từ 2 lên gần 7 trên 15.
+- **Chốt cách đo trước khi mở tập chấm**, và chấm mọi ứng viên trong một lần. Nếu không, rất dễ vô tình chọn
+  cách đo hay chọn mô hình theo kết quả.
+- **So nhiều hạt mỗi bên.** Một lần chạy đơn lẻ từng cho kết luận ngược hẳn (mục 10.6).
+- **Lọc dữ liệu học, không lọc dữ liệu chấm.** Tập học cần ví dụ đúng; tập chấm cần phản ánh đúng cách người
+  dùng làm.
 
 ---
 
@@ -1344,7 +1568,7 @@ thiết; một file mô hình lưu xong nhưng không mở lại được.
 > **Khái niệm — Kiểm thử tự động (unit test).** Đoạn mã nhỏ kiểm một tính chất phải luôn đúng, chạy lại sau
 > mỗi thay đổi. Như còi báo động: sửa chỗ này làm hỏng chỗ kia thì còi kêu ngay.
 
-Dự án có **236 kiểm thử**. Chúng **không phụ thuộc dữ liệu thật hay webcam**: dùng bàn tay 21 điểm dựng bằng
+Dự án có **259 kiểm thử** (ngày 2026-11-10). Chúng **không phụ thuộc dữ liệu thật hay webcam**: dùng bàn tay 21 điểm dựng bằng
 hình học, với các mẫu vuốt, zoom, đứng yên, vẫy tay có tính chất biết trước. Ví dụ những gì được canh giữ:
 
 - ảnh đen → không thấy tay, toạ độ toàn NaN, không trả `None`;
@@ -1387,6 +1611,7 @@ một ngưỡng chung cho mọi cử chỉ, chiều vuốt của slide. Mỗi l�
 | Mô hình | Ghép: vuốt theo LSTM (`run_08`, có tăng cường đổi dáng ngón phụ và tay đứng yên), zoom theo rừng ngẫu nhiên |
 | Máy trạng thái, vuốt | ngưỡng 0,85; đồng thuận 4/5 |
 | Máy trạng thái, zoom | ngưỡng 0,40; đồng thuận 3/5 |
+| Trọng tài chiều ngược | đủ phiếu thì chờ 0,4 giây; lệnh ngược chiều cùng họ đủ phiếu trong lúc chờ thì chuyển động mạnh hơn thắng (thêm 2026-11-10) |
 | Thời gian nghỉ sau lệnh | 1,2 giây |
 | Tỉ lệ thấy tay tối thiểu | 70% |
 | Phím | vuốt trái → mũi tên phải; vuốt phải → mũi tên trái; zoom `+` / `−` |
@@ -1400,7 +1625,12 @@ một ngưỡng chung cho mọi cử chỉ, chiều vuốt của slide. Mỗi l�
 | LSTM (`run_08`) | 0,489 | 0,507 | 0,70 | 1,73 |
 | **Ghép (dùng cho demo)** | **0,537** | **0,561** | 0,61 | 0,85 |
 
-Mọi con số trên cùng 11 038 cửa sổ và 27 video val. Tập test vẫn niêm phong.
+Mọi con số trên cùng 11 038 cửa sổ và 27 video val, đo **trước** khi thêm trọng tài chiều ngược. Với trọng
+tài chờ 0,4 giây, F1 sự kiện của mô hình ghép demo lên 0,575 và lệnh nhầm còn 0,80 lần/phút; mô hình mới hạt
+43 đạt 0,554 và 0,77 lần/phút. Tập test của IPN vẫn niêm phong.
+
+**Trên tay người dùng** (`real_test`, mục 10.7), mô hình ghép ra lệnh đúng ở 39/60 lần quay với mô hình demo
+và 44/60 với mô hình học thêm dữ liệu tự quay (hạt 43), khi nối thêm 1 giây giữ yên.
 
 ### 12.3. Từ lúc bắt đầu tới giờ
 
@@ -1411,6 +1641,8 @@ Mọi con số trên cùng 11 038 cửa sổ và 27 video val. Tập test vẫn 
 | Vuốt mà slide đi ngược chiều | 5/20 | **2/20** |
 | Zoom được nhận trên tay người dùng | 0/10 | **10/20** |
 | Thử slide thật: cú zoom thành lệnh | 0/12 | **6/12** |
+| Lệnh ngược chiều trên 40 lời nhắc (mô hình mới) | 10 | **6** (trọng tài 0,4 giây) |
+| Lần quay `real_test` ra lệnh đúng (thêm 1 giây giữ yên) | 39/60 (mô hình demo) | **44/60** (mới hạt 43) |
 
 ### 12.4. Hạn chế, nói thẳng
 
@@ -1419,12 +1651,16 @@ Mọi con số trên cùng 11 038 cửa sổ và 27 video val. Tập test vẫn 
 - **Ngưỡng zoom được chọn trên ít dữ liệu** (40 lời nhắc, 12 cú zoom), và chính dữ liệu đó lại dùng để chấm.
   Các con số có phần lạc quan.
 - **Trên video IPN, mô hình ghép phát 0,61 lệnh mỗi cử chỉ**, chưa đạt mục tiêu 0,9–1,1.
-- **Lớp `none` của IPN thiếu** gõ phím, dùng chuột, khua tay khi nói. Phase 11 đang bù.
+- **Lớp `none` của IPN thiếu** gõ phím, dùng chuột, khua tay khi nói. Dữ liệu tự quay chỉ bù được phần
+  của p01, và `real_test` không có `none` nên chưa đo được báo nhầm trên dữ liệu tự quay.
 - **Tay trái chưa được xét riêng.** Nên dùng tay phải khi demo.
-- **Mọi kết quả offline chỉ nói về người, camera và bối cảnh của IPN.** Con số trên webcam thật sẽ có khi
-  chấm `real_test`.
+- **Con số trên webcam thật chỉ nói về một người.** `real_test` chỉ có p01, mỗi lớp 15 lần quay.
+- **Không còn tập chấm độc lập cho dữ liệu tự quay.** Trọng tài chiều ngược và mọi chỉnh sửa sau 2026-11-09
+  chỉ được đo trên dữ liệu chỉnh; cần một buổi chấm mới cho con số không thiên lệch.
+- **Độ trễ tăng** lên khoảng 1,15 giây (trung vị) khi bật trọng tài chiều ngược. Độ trễ đo thủ công bằng
+  quay video màn hình vẫn chưa làm.
 
-### 12.5. Mười lăm bài học lớn nhất
+### 12.5. Mười tám bài học lớn nhất
 
 **Về thị giác máy tính:**
 
@@ -1457,6 +1693,17 @@ Mọi con số trên cùng 11 038 cửa sổ và 27 video val. Tập test vẫn 
     không đổi mô hình. Độ tin của các mô hình khác nhau không cùng thang đo.
 15. **Một ví dụ có nhãn sai tệ hơn không có ví dụ.** Dữ liệu, kể cả dữ liệu công khai, phải được kiểm bằng
     nhiều cách độc lập.
+
+**Từ Phase 11:**
+
+16. **Dữ liệu đúng người giúp nhiều hơn mọi mẹo.** Chỉ 850 cửa sổ tự quay đã đưa vuốt trái trên tay người
+    dùng từ 2 lên gần 7 trên 15 lần quay. Chỉnh ngưỡng không sửa được lỗi này, vì mô hình cũ xếp phần lớn
+    cửa sổ vuốt trái của người dùng vào `none` ngay từ đầu.
+17. **Chốt cách đo và chốt ứng viên trước khi mở tập chấm**, chấm mọi ứng viên trong một lần, và chỉ mở một
+    lần. Sau đó, mọi chỉnh sửa mới cần một tập chấm mới.
+18. **Cơ thể người làm một đoạn ngược chiều trước khi làm cử chỉ.** Hệ thống "lệnh nào đủ phiếu trước thì
+    thắng" luôn thua đoạn chuẩn bị đó. So **độ mạnh** của chuyển động, một tín hiệu vật lý ngoài mô hình,
+    giải quyết được phần lớn.
 
 ---
 
@@ -1526,7 +1773,12 @@ Mọi con số trên cùng 11 038 cửa sổ và 27 video val. Tập test vẫn 
 | Máy trạng thái | finite state machine | "Người trợ lý" quyết định khi nào bấm phím |
 | Đồng thuận k trên n | k-of-n | Cần k nhịp đồng ý trong n nhịp |
 | Thời gian nghỉ | cooldown | Không phát lệnh mới trong 1,2 giây sau một lệnh |
-| Lấy đà | | Kéo tay ngược chiều trước khi vuốt |
+| Lấy đà | | Kéo tay ngược chiều trước khi vuốt (hoặc chụm ngón trước khi mở, với zoom) |
+| Trọng tài chiều ngược | | Đủ phiếu thì chờ thêm 0,4 giây; lệnh ngược chiều cùng họ cũng đủ phiếu thì chuyển động mạnh hơn thắng |
+| Độ mạnh | strength | Chuyển động lớn nhất theo chiều của một lớp, trên các cửa sổ đã đồng ý |
+| Độ trễ | latency | Thời gian từ khoảnh khắc chính của cử chỉ tới lúc bấm phím |
+| `real_tune` / `real_test` | | Dữ liệu tự quay dùng để học / khoá lại để chấm đúng một lần |
+| Bên cũ / bên mới | | Mô hình chỉ học IPN / học IPN cộng `real_tune`, cùng công thức |
 | Ghi và phát lại | record & replay | Lưu 21 điểm của một phiên để chạy lại qua mọi cấu hình |
 | Tái lập | reproducibility | Chạy lại cùng lệnh ra đúng kết quả cũ |
 | Kiểm thử tự động | unit test | Đoạn mã kiểm một tính chất phải luôn đúng |
@@ -1558,7 +1810,8 @@ Mọi con số trên cùng 11 038 cửa sổ và 27 video val. Tập test vẫn 
 
 **Ghi chú kỹ thuật chi tiết:** `results/phase6/notes.md`, `results/phase7/notes.md`,
 `results/phase8/notes.md`, `results/phase9/notes.md`, `results/phase10/notes.md`,
-`results/phase10/final_config.md`, `results/phase11/qa_p02.md`.
+`results/phase10/final_config.md`, `results/phase11/qa_p02.md`, `results/phase11/notes.md` (học lại, chấm
+`real_test`, trọng tài chiều ngược).
 
 **Thiết kế và quy ước:** [SPEC.md](SPEC.md) (13 phase, kèm mọi thay đổi có ngày và lý do),
 [../CLAUDE.md](../CLAUDE.md) (quy ước bắt buộc), [gestures.md](gestures.md) (cách làm cử chỉ),

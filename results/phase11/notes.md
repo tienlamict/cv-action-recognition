@@ -223,6 +223,18 @@ Val IPN và nói chuyện, vùng khớp chuẩn:
 - **Giới hạn:** 40 lời nhắc; chênh lệch 2–6 lệnh. Chọn mức chờ cần thử trên webcam vì độ trễ
   là cảm giác, rồi đo lại trên một buổi chấm mới.
 
+**F1 mức lệnh với cấu hình hiện tại** (chờ 0,4 s). Nguồn: `analyze/run_03`, cộng một
+script tạm tính precision và recall bằng `events.summarize_events`.
+
+| Nơi đo | mới s43 | demo |
+|---|---|---|
+| Val IPN, 27 video | P 0,562, R 0,546, **F1 0,554** | F1 0,575 |
+| Phiên cử chỉ Phase 10, vùng khớp nới 0,4 s | **F1 0,545** | 0,557 |
+| Phiên cử chỉ Phase 10, vùng khớp chuẩn | F1 0,442 | 0,506 |
+
+F1 từng lớp của mới s43 trên val: swipe_left 0,58, swipe_right 0,67, zoom_in 0,44, zoom_out
+0,54.
+
 **Người dùng chọn mặc định chờ 0,4 s** (2026-11-10, `FSM_ARBITRATE_SEC`). Mức này lấy phần
 lớn lợi ích (lệnh ngược chiều 10 → 6) với trễ ít hơn mức 0,6 (1,15 s so với 1,37 s). Lần
 chấm real_test (mục 2) và các bảng Phase 8–10 đo trước thay đổi này.
