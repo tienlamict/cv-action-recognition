@@ -780,6 +780,14 @@ test_fps_bo_qua_ba_giay_dau
   - Mặc định `FSM_ARBITRATE_SEC = 0`, tức như Phase 10. Năm kiểm thử bắt buộc giữ nguyên.
   - Đo trên dữ liệu chỉnh, mới s43: chờ 0,4 s thì lệnh ngược chiều 10 → 6, lệnh nhầm 17 → 13, trễ trung vị 0,76 → 1,15 s; chờ 0,6 s thì 10 → 3, 17 → 11, 1,37 s.
   - **Người dùng chọn mặc định chờ 0,4 s** (`FSM_ARBITRATE_SEC`). `demo.py --arbitrate 0` tắt. Các bảng Phase 8 và Phase 10 đã có đo trước thay đổi này. Bản lưu dòng thời gian của Phase 8 thiếu độ mạnh sẽ tự dựng lại (`experiments.prepare_stream`), để cột mức sự kiện dựng lại khớp máy dựng mới.
+- *2026-11-12:* **người dùng yêu cầu zoom được khi PowerPoint đang soạn, chưa bấm F5** (đổi phần điều khiển của Phase 10).
+  - Lúc soạn, PowerPoint không zoom bằng `+` / `−` (gõ ra chữ), còn Ctrl và `+` là chỉ số trên. Cách zoom chung của lúc soạn, trình duyệt, Word và PDF là giữ Ctrl rồi cuộn chuột.
+  - `src/control.py` đọc lớp của cửa sổ đang có focus (Windows).
+    - Thuộc `CTRL_SLIDESHOW_CLASSES` (PowerPoint đang trình chiếu, Presenter View): zoom bằng phím `+` / `−` như trước.
+    - Cửa sổ khác: giữ Ctrl và cuộn `CTRL_ZOOM_SCROLL` nấc (mặc định 2). Cú cuộn đi vào cửa sổ dưới con trỏ, nên đặt chuột trên slide.
+    - Không đọc được lớp cửa sổ (ngoài Windows): dùng phím như trước.
+  - Vuốt không đổi.
+  - `demo.py` in lớp cửa sổ mỗi lần gửi lệnh zoom, để kiểm tên lớp trên máy người dùng.
 - Bước 1 xong: `scripts/record_session.py`, `src/selfdata.py`, `test_ten_file_suy_ra_nhan_va_ma_nguoi`.
 
 Có hai bản. **Bản đầy đủ** — quyết định ở tuần 6, chạy song song với Phase 7–8 — gồm cả điều chỉnh lẫn đánh giá. **Bản tối giản** — khi nhu cầu chỉ lộ ra ở Phase 10 — chỉ quay tập đánh giá và làm bước 6 dưới đây, không điều chỉnh gì.

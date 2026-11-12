@@ -261,6 +261,7 @@ HELP_LINES = (
     "Vuot TRAI = slide sau, vuot PHAI = slide truoc",
     "c: bat/tat dieu khien   q: thoat",
     "Bat c xong, bam chuot vao cua so trinh chieu",
+    "Zoom luc chua F5: Ctrl+cuon, de chuot tren slide",
 )
 
 

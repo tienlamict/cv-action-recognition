@@ -389,8 +389,23 @@ CTRL_HOTKEYS = {"swipe_left": ("right",), "swipe_right": ("left",),
                         # tên trái = slide TRƯỚC, như lật trang trên màn hình cảm
                         # ứng (người dùng chọn 2026-11-02; SPEC gốc ngược lại).
                         # Zoom → phím + / − của PowerPoint khi đang trình chiếu
-                        # (người dùng chọn 2026-11-01). Google Slides và trình đọc
-                        # PDF thì dùng ("ctrl", "+"), ("ctrl", "-")
+                        # (người dùng chọn 2026-11-01); ngoài lúc trình chiếu, zoom
+                        # theo CTRL_ZOOM_SCROLL
+CTRL_ZOOM_SCROLL = {"zoom_in": 2, "zoom_out": -2}
+                        # Zoom NGOÀI lúc trình chiếu (người dùng yêu cầu 2026-11-12: zoom
+                        # khi PowerPoint đang soạn, chưa bấm F5): giữ Ctrl rồi cuộn chuột
+                        # bấy nhiêu nấc, dương là cuộn lên = phóng to. Lúc soạn, PowerPoint
+                        # không zoom bằng + / − (gõ ra chữ), Ctrl và + là chỉ số trên. Cách
+                        # này cũng zoom trình duyệt, Word, trình đọc PDF. Cuộn đi vào cửa
+                        # sổ DƯỚI CON TRỎ chuột, nên đặt chuột trên slide
+CTRL_SLIDESHOW_CLASSES = ("screenClass", "PodiumParent")
+                        # lớp cửa sổ Windows của PowerPoint khi trình chiếu (F5) và khi
+                        # dùng Presenter View: ở đó zoom vẫn bằng phím của CTRL_HOTKEYS.
+                        # demo.py in lớp cửa sổ mỗi lần gửi lệnh zoom, để kiểm trên máy
+                        # người dùng
+CTRL_WHEEL_DELTA = 120          # một nấc cuộn chuột của Windows (WHEEL_DELTA):
+                                # pyautogui.scroll trên Windows nhận đơn vị thô
+CTRL_CLASS_NAME_MAX = 256       # độ dài tối đa của tên lớp cửa sổ (GetClassNameW)
 CTRL_TOGGLE_KEY = ord("c")      # bật/tắt điều khiển trong cửa sổ demo; mặc định TẮT
 BENCH_SPEED_SEC = 30.0          # đo FPS bấy nhiêu giây, sau FPS_WARMUP_SEC (cẩm nang 20)
 BENCH_SCENARIOS = ("reading", "typing", "talking")

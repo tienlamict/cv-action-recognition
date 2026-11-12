@@ -48,7 +48,7 @@
 | Zoom: đồng thuận | **3 trong 5** cửa sổ; cửa sổ đồng ý cần độ tin ≥ 0,40 | `FSM_ZOOM_K` |
 | Trọng tài chiều ngược | đủ phiếu thì chờ **0,4 s**; lệnh ngược chiều cùng họ đủ phiếu trong lúc chờ thì chuyển động mạnh hơn thắng (thêm 2026-11-10) | `FSM_ARBITRATE_SEC` |
 | Nghỉ sau lệnh | 1,2 s | `COOLDOWN_SEC` |
-| Phím | vuốt trái → mũi tên phải (slide sau), vuốt phải → mũi tên trái (slide trước), người dùng chọn 2026-11-02; zoom `+` / `−` (PowerPoint khi đang trình chiếu); phím `c` bật, mặc định tắt | `CTRL_HOTKEYS`, `CTRL_TOGGLE_KEY` |
+| Phím | vuốt trái → mũi tên phải (slide sau), vuốt phải → mũi tên trái (slide trước), người dùng chọn 2026-11-02; zoom khi PowerPoint đang trình chiếu → `+` / `−`; zoom lúc soạn (chưa F5) và ở ứng dụng khác → giữ Ctrl và cuộn chuột 2 nấc, đặt chuột trên slide (thêm 2026-11-12); phím `c` bật, mặc định tắt | `CTRL_HOTKEYS`, `CTRL_ZOOM_SCROLL`, `CTRL_SLIDESHOW_CLASSES`, `CTRL_TOGGLE_KEY` |
 
 SPEC khởi đầu ở 0,75 với 3/5; Phase 9 giữ mức đó và để Phase 10 chọn. Cấu hình máy trạng thái
 không nằm trong băm của bản ghi Phase 8, nên đổi nó không làm bản ghi nào hết hạn.

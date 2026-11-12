@@ -7,10 +7,15 @@ chuỗi nhãn thành lệnh rời rạc: màn hình hiện trạng thái của n
 (">> COMMAND"). Hạ tay ra khỏi khung hình là huỷ.
 
 Phím c bật/tắt ĐIỀU KHIỂN — gửi phím tắt thật qua pyautogui (CTRL_HOTKEYS: vuốt
-trái → slide sau, vuốt phải → slide trước, zoom → phím +/−). Mặc định TẮT. Phím
-tắt đi vào cửa sổ đang có focus: bấm c trong cửa sổ demo, rồi bấm chuột vào ứng
-dụng trình chiếu (PowerPoint: đang chạy trình chiếu, F5). Cửa sổ demo luôn nằm
-trên cùng nên vẫn nhìn thấy. Phím ? (hoặc h) hiện tóm tắt docs/gestures.md.
+trái → slide sau, vuốt phải → slide trước). Mặc định TẮT. Phím tắt đi vào cửa sổ
+đang có focus: bấm c trong cửa sổ demo, rồi bấm chuột vào ứng dụng trình chiếu. Cửa
+sổ demo luôn nằm trên cùng nên vẫn nhìn thấy. Phím ? (hoặc h) hiện tóm tắt
+docs/gestures.md.
+
+Zoom tự chọn cách theo cửa sổ đang có focus (src/control.py): PowerPoint đang trình
+chiếu (F5) → phím +/−; lúc soạn (chưa F5), trình duyệt, Word, PDF → giữ Ctrl và cuộn
+chuột CTRL_ZOOM_SCROLL nấc, vào cửa sổ dưới con trỏ — đặt chuột trên slide. Mỗi lệnh
+gửi đi in ra cửa sổ console, kèm lớp cửa sổ khi là zoom.
 
 Màn hình là bản LẬT GƯƠNG cho người xem; ảnh vào mô hình không lật. "-" nghĩa là
 không có cửa sổ hợp lệ (chưa đủ 1,2 giây, mất tay, hay tay nghiêng cạnh ở đầu
@@ -132,6 +137,11 @@ def main():
                     if command is not None:
                         commands.append((prediction.ts, command))
                     sent = controller.handle(command)
+                    if sent:
+                        print(f"{prediction.ts:7.2f}s  gửi {label_name(command)}: "
+                              f"{' + '.join(sent)}"
+                              + (f"  (cửa sổ {controller.last_window})"
+                                 if label_name(command) in config.CTRL_ZOOM_SCROLL else ""))
                     if log:
                         log.write(prediction, fsm.state, command, sent)
                     if args.no_display and prediction.label not in (None, 0):
@@ -160,7 +170,8 @@ def main():
                     if key == config.CTRL_TOGGLE_KEY:
                         try:
                             print("Điều khiển: BẬT — bấm chuột vào cửa sổ trình chiếu để "
-                                  "phím tắt đi vào đó" if controller.toggle()
+                                  "phím tắt đi vào đó; zoom lúc chưa F5 thì để chuột "
+                                  "trên slide" if controller.toggle()
                                   else "Điều khiển: tắt")
                         except RuntimeError as error:
                             print(error)

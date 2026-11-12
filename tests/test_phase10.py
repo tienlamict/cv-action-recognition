@@ -32,6 +32,29 @@ def test_dieu_khien_mac_dinh_tat():
     assert sent == [tuple(config.CTRL_HOTKEYS["swipe_left"])]
 
 
+def test_zoom_luc_chua_trinh_chieu_dung_ctrl_cuon_chuot():
+    """PowerPoint đang soạn (chưa F5) hay ứng dụng khác: zoom bằng Ctrl và cuộn chuột,
+    cuộn lên là phóng to. Đang trình chiếu, Presenter View, hay không đọc được lớp cửa
+    sổ: phím + / − như trước. Vuốt luôn là phím."""
+    from src.control import foreground_class
+    keys, scrolls, window = [], [], {"class": "PPTFrameClass"}
+    controller = Controller(send=lambda *k: keys.append(k), scroll=scrolls.append,
+                            foreground=lambda: window["class"])
+    controller.toggle()
+    zoom_in, zoom_out = config.CLASSES.index("zoom_in"), config.CLASSES.index("zoom_out")
+    sent = controller.handle(zoom_in)
+    assert sent[0] == "ctrl" and controller.last_window == "PPTFrameClass"
+    controller.handle(zoom_out)
+    assert scrolls == [config.CTRL_ZOOM_SCROLL["zoom_in"], config.CTRL_ZOOM_SCROLL["zoom_out"]]
+    assert scrolls[0] > 0 > scrolls[1] and keys == []
+    assert controller.handle(LEFT) == tuple(config.CTRL_HOTKEYS["swipe_left"])
+    for slideshow in (*config.CTRL_SLIDESHOW_CLASSES, None):
+        window["class"] = slideshow
+        assert controller.handle(zoom_in) == tuple(config.CTRL_HOTKEYS["zoom_in"])
+    assert len(scrolls) == 2
+    assert foreground_class() is None or isinstance(foreground_class(), str)
+
+
 def test_bat_dieu_khien_khi_chua_cai_pyautogui_bao_ro_va_van_tat(monkeypatch):
     import builtins
 
